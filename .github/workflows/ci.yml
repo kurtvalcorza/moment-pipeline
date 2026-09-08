@@ -24,10 +24,13 @@ jobs:
           enable-cache: true
       - name: Install from the lock
         run: uv sync --locked
+      # `--no-header` is load-bearing: without it `uv export` writes its own invoking
+      # command line -- including `-o <path>` -- into the file, so the committed copy and
+      # the CI copy could never match and this step failed on every run.
       - name: Lock parity (uv.lock <-> requirements.lock.txt)
         run: |
           uv export --format requirements-txt --locked --no-dev --no-emit-project \
-            -o /tmp/requirements.check.txt
+            --no-header -o /tmp/requirements.check.txt
           diff -u requirements.lock.txt /tmp/requirements.check.txt
       - name: Ruff
         run: uv run ruff check .

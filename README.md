@@ -42,6 +42,22 @@ uv run pytest -m "not integration"         # unit suite: no network, no weights
 uv run pytest -m integration               # CPU suite: downloads ~454 MB once
 ```
 
+**`uv sync --locked` is the only install path.** `uv.lock` is the lock; the committed
+`requirements.lock.txt` is a `uv export` rendering of it, kept so the resolved graph is
+readable in a diff and so CI can prove the two agree. It is **not pip-installable**: it
+pins `momentfm` as a bare `git+https://…@38f7310…` requirement with no `--hash`, which pip
+refuses as soon as any other requirement carries one, and `torch==2.14.0+cpu` exists only
+on `download.pytorch.org/whl/cpu`, which the file names no index for. Colab installs with
+uv for the same reason. Regenerate it with
+
+```bash
+uv export --format requirements-txt --locked --no-dev --no-emit-project \
+  --no-header -o requirements.lock.txt
+```
+
+`--no-header` is required: without it `uv export` writes its own `-o <path>` into the file
+and the CI lock-parity diff can never match.
+
 ```python
 import pandas as pd
 from moment_pipeline import build_provenance, embed, load_moment, to_windows
