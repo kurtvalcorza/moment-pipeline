@@ -1,0 +1,56 @@
+[project]
+name = "moment-pipeline"
+version = "0.1.0"
+description = "DIMER pipeline for AutonLab/MOMENT-1-base: embeddings, imputation/reconstruction, and reconstruction-based anomaly scoring."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "MIT" }
+authors = [{ name = "Kurt Valcorza" }]
+keywords = ["time-series", "foundation-model", "moment", "dimer"]
+dependencies = [
+    "momentfm",
+    "torch>=2.0.1",
+    "numpy>=1.25.2",
+    "pandas>=2.0.0",
+    "huggingface-hub>=0.24.0",
+    "safetensors>=0.4.0",
+    "transformers>=4.54.1",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.6.0"]
+
+# momentfm is NOT installable from PyPI for this project: PyPI's latest is 0.1.4
+# (2025-03-19) and hard-pins transformers==4.33.3 / huggingface-hub==0.24.0 /
+# numpy==1.25.2, which is unusable with the rest of this runtime. RFC M-7 allows a
+# source install provided an exact upstream commit SHA is pinned.
+[tool.uv.sources]
+momentfm = { git = "https://github.com/moment-timeseries-foundation-model/moment", rev = "38f7310ad594100747ca2a8357e9c7ca7d323e0e" }
+
+# torch is resolved from PyPI rather than the CPU-only index, so a consumer of this
+# lock can select `device="cuda"` without overriding the index. The RFC requires only
+# that tests not depend on CUDA, which they do not; CI runs the suites on CPU.
+
+[tool.uv]
+# Resolution universe: the CI runner (ubuntu) and the build host (windows).
+environments = ["sys_platform == 'linux'", "sys_platform == 'win32'"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/moment_pipeline"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: needs the real pinned MOMENT weights and network access (CPU is sufficient)",
+]
