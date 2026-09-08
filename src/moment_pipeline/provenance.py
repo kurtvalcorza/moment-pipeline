@@ -7,7 +7,10 @@ because they are the supply-chain claims that actually matter:
 * `model.weight_file_loaded` — which weight file the runtime proof confirmed, not which
   one was requested;
 * `runtime.momentfm_source` — momentfm is installed from an exact upstream commit, so the
-  version string `0.1.5` alone is recorded together with the commit that produced it.
+  version string `0.1.5` alone is recorded together with the commit that produced it;
+* `model.revision_basis` — how the revision was established. This path pins it by content
+  digest, not by an independent Hub commit lookup, and an export that printed `revision`
+  alone would imply the stronger check.
 """
 
 from __future__ import annotations
@@ -48,6 +51,9 @@ def model_block(identity: ModelIdentity) -> dict[str, Any]:
     return {
         "name": identity.name,
         "revision": identity.revision,
+        # A bare revision string reads as a verified commit. On this path it is a content
+        # claim, so the basis travels with it rather than being left to the reader.
+        "revision_basis": identity.revision_basis,
         "config_sha256": identity.config_sha256,
         "weights_sha256": identity.weights_sha256,
         "weights_bytes": identity.weights_bytes,

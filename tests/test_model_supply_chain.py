@@ -4,12 +4,18 @@ from __future__ import annotations
 
 import fnmatch
 import hashlib
+import inspect
 import json
 from pathlib import Path
 
+import numpy as np
 import pytest
 
+import moment_pipeline.embedding
+import moment_pipeline.imputation
+from conftest import make_long_frame
 from moment_pipeline import model as model_module
+from moment_pipeline.canonical import to_windows
 from moment_pipeline.config import ConfigError, MomentConfig
 from moment_pipeline.model import (
     ALLOW_PATTERNS,
@@ -317,6 +323,58 @@ def test_load_moment_refuses_an_unsupported_dtype_before_any_download(monkeypatc
     with pytest.raises(ConfigError) as excinfo:
         load_moment(task="embedding", dtype=dtype)
     assert "unsupported dtype" in str(excinfo.value)
+
+
+@pytest.mark.parametrize("dtype", ["float16", "bfloat16"])
+def test_half_precision_is_refused_and_the_reason_names_the_dtype_mismatch(monkeypatch, dtype):
+    """Both half dtypes were accepted and neither could ever have run.
+
+    `load_moment` casts the module with `pipeline.to(dtype=...)`, but `embedding.embed`
+    and `imputation.reconstruct` build inputs with `torch.from_numpy(windows.x_enc)` --
+    float32 by construction in `canonical.to_windows` -- and carry only `.to(device)`.
+    A float32 activation entering a half-precision `nn.Linear` raises
+    `RuntimeError: mat1 and mat2 must have the same dtype, but got Float and Half`
+    (reproduced on the pinned torch 2.14.0), so the first forward pass failed. Nothing
+    caught it because no test exercised a non-float32 dtype.
+    """
+
+    def explode(**kwargs):  # pragma: no cover - must never run
+        raise AssertionError("no download for an invalid configuration")
+
+    monkeypatch.setattr(model_module, "snapshot_download", explode)
+    builders = (
+        lambda: load_moment(task="embedding", dtype=dtype),
+        lambda: MomentConfig(dtype=dtype),
+    )
+    for build in builders:
+        with pytest.raises(ConfigError) as excinfo:
+            build()
+        message = str(excinfo.value)
+        assert dtype in message
+        assert "same dtype" in message, "the refusal must say why, not just that"
+
+
+def test_supported_dtypes_may_not_outrun_the_dtype_the_inference_paths_build():
+    """The advertised surface is bound to the dtype the tensors are actually built as.
+
+    This is the oracle that makes the Phase 1 narrowing hold: `x_enc` is float32 and the
+    inference paths cast device only, so float32 is the only dtype a forward pass can
+    accept. Re-widening `SUPPORTED_DTYPES` without also casting the input in
+    `embedding.embed` and `imputation.reconstruct` fails here rather than at the first
+    `nn.Linear` on a user's machine.
+    """
+    windows = to_windows(make_long_frame())
+    assert windows.x_enc.dtype == np.float32
+
+    casts_input_dtype = all(
+        "dtype=" in inspect.getsource(fn)
+        for fn in (moment_pipeline.embedding.embed, moment_pipeline.imputation.reconstruct)
+    )
+    if not casts_input_dtype:
+        assert tuple(SUPPORTED_DTYPES) == ("float32",), (
+            "SUPPORTED_DTYPES advertises a dtype the inference paths cannot feed: neither "
+            "embed() nor reconstruct() casts its input dtype, so only float32 can run"
+        )
 
 
 def test_load_moment_and_moment_config_accept_the_same_devices_and_dtypes():

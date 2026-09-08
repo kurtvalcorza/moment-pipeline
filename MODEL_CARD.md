@@ -191,10 +191,11 @@ fallback is a live hazard, not a hypothetical one, so the standard path:
 1. downloads with `allow_patterns=["config.json", "model.safetensors", "README.md"]`, which
    cannot match `*.bin`;
 2. refuses any snapshot directory containing a `.bin` file, before it checks anything else;
-3. verifies the resolved commit, both digests and the weight byte size — on **every**
-   load, including when the caller passes its own `VerifiedSnapshot`. The identity written
-   into provenance is rebuilt from the digests recomputed at that moment, so an export
-   records what was verified, never what a caller asserted;
+3. verifies both digests and the weight byte size, and checks the snapshot directory name
+   against the pinned commit — on **every** load, including when the caller passes its own
+   `VerifiedSnapshot`. The identity written into provenance is rebuilt from the digests
+   recomputed at that moment, so an export records what was verified, never what a caller
+   asserted;
 4. compares every non-`head.*` tensor in the file — and, for the reconstruction task, both
    `head.*` tensors as well, 116 of 116 — against `safetensors.safe_open` entries with
    `torch.equal`.
@@ -207,6 +208,21 @@ file — but the *file identity* claim rests on `allow_patterns` never fetching 
 artifact and on the snapshot being refused outright if one is present. Both of those are
 mutation-tested; the load proof carries the same statement in its
 `file_identity_basis` field.
+
+**The revision is pinned by the digests, not by an independent commit lookup.** The only
+revision check is `verify_snapshot_dir`'s comparison of the snapshot directory name against
+`PINNED_REVISION`. `assert_pinned_source` has already forced the *requested* revision to be
+exactly that commit, and `huggingface_hub` names the snapshot directory after the commit the
+request resolved to, so for a SHA request the two agree by construction and the check cannot
+fail. It is a consistency assertion, not an oracle.
+
+What actually carries the integrity claim here is the pair of SHA-256 digests: content that
+hashes to the pinned values *is* the pinned revision's content, whatever a hub says about
+it. The sibling `chronos-2-forecasting-pipeline` additionally asks the Hub which commit the
+pin resolves to (`HfApi().model_info(...).sha`) and records whether that confirmation
+actually ran. This pipeline does not, and its exported `model.revision_basis` says so rather
+than implying a check that did not happen. Adding the lookup is a Phase-2 change; it buys a
+second, independent witness, not a stronger content guarantee.
 
 Mutable references (`main`, `latest`), other commits, other repositories, local directories
 and `s3://` / `https://` sources are refused before any network call.
