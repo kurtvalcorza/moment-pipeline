@@ -46,9 +46,13 @@ uv run pytest -m integration               # CPU suite: downloads ~454 MB once
 `requirements.lock.txt` is a `uv export` rendering of it, kept so the resolved graph is
 readable in a diff and so CI can prove the two agree. It is **not pip-installable**: it
 pins `momentfm` as a bare `git+https://…@38f7310…` requirement with no `--hash`, which pip
-refuses as soon as any other requirement carries one, and `torch==2.14.0+cpu` exists only
-on `download.pytorch.org/whl/cpu`, which the file names no index for. Colab installs with
-uv for the same reason. Regenerate it with
+refuses as soon as any other requirement carries one. Colab installs with uv for the same
+reason.
+
+`torch` is resolved from PyPI rather than a CPU-only index, so a consumer of this lock can
+select `device="cuda"` without overriding anything. The RFC requires only that the tests
+not depend on CUDA, which they do not; CI runs both suites on CPU. The cost is that a Linux
+install pulls the CUDA-enabled torch wheel and its NVIDIA dependencies. Regenerate it with
 
 ```bash
 uv export --format requirements-txt --locked --no-dev --no-emit-project \

@@ -26,15 +26,10 @@ dev = ["pytest>=8.0", "ruff>=0.6.0"]
 # source install provided an exact upstream commit SHA is pinned.
 [tool.uv.sources]
 momentfm = { git = "https://github.com/moment-timeseries-foundation-model/moment", rev = "38f7310ad594100747ca2a8357e9c7ca7d323e0e" }
-torch = { index = "pytorch-cpu" }
 
-# CPU-only torch: this pipeline has no hard CUDA requirement (RFC "Runtime / serving
-# requirements") and CI runs on CPU. Pinning the index keeps the lock small and the
-# CI install fast.
-[[tool.uv.index]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
-explicit = true
+# torch is resolved from PyPI rather than the CPU-only index, so a consumer of this
+# lock can select `device="cuda"` without overriding the index. The RFC requires only
+# that tests not depend on CUDA, which they do not; CI runs the suites on CPU.
 
 [tool.uv]
 # Resolution universe: the CI runner (ubuntu) and the build host (windows).
