@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from moment_pipeline import model as model_module
+from moment_pipeline.config import ConfigError, MomentConfig
 from moment_pipeline.model import (
     ALLOW_PATTERNS,
     KNOWN_FORBIDDEN_WEIGHT_FILE,
@@ -19,6 +20,8 @@ from moment_pipeline.model import (
     PINNED_WEIGHTS_BYTES,
     PINNED_WEIGHTS_FILENAME,
     PINNED_WEIGHTS_SHA256,
+    SUPPORTED_DEVICES,
+    SUPPORTED_DTYPES,
     IntegrityError,
     ModelSourceError,
     assert_pinned_source,
@@ -251,3 +254,147 @@ def test_v1_refuses_non_v1_tasks_without_touching_the_network(monkeypatch, task)
     with pytest.raises(ModelSourceError) as excinfo:
         load_moment(task=task)
     assert "v1 exposes only" in str(excinfo.value)
+
+
+# --- R-11: the pickle guard is as wide as its error message claims ------------------
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "pytorch_model.bin",
+        "adapter_model.pt",
+        "weights.pth",
+        "last.ckpt",
+        "state.pkl",
+    ],
+)
+def test_every_pickle_weight_format_is_refused(tmp_path, filename):
+    """`torch.load` unpickles .pt/.pth/.ckpt/.pkl exactly as it does .bin.
+
+    The refusal message says "pickle weight file(s)", so the guard has to cover them all;
+    globbing only `*.bin` made the control narrower than its own description (R-11).
+    """
+    root = build_snapshot(tmp_path)
+    (root / filename).write_bytes(b"pickle")
+    assert find_forbidden_weight_files(root) == [filename]
+    with pytest.raises(IntegrityError) as excinfo:
+        verify(root, expected_config_sha256="deadbeef", expected_weights_sha256="deadbeef")
+    assert excinfo.value.code == "FORBIDDEN_WEIGHT_FILE"
+    assert excinfo.value.details["files"] == [filename]
+
+
+def test_safetensors_and_json_are_not_caught_by_the_pickle_guard(tmp_path):
+    """Negative control: the guard must not refuse the file it is protecting."""
+    root = build_snapshot(tmp_path)
+    (root / "README.md").write_bytes(b"# card")
+    assert find_forbidden_weight_files(root) == []
+
+
+# --- R-12: load_moment shares MomentConfig's validated surface ----------------------
+
+
+@pytest.mark.parametrize("device", ["tpu", "cuda:0", "CPU", "", "mps"])
+def test_load_moment_refuses_an_unsupported_device_before_any_download(monkeypatch, device):
+    def explode(**kwargs):  # pragma: no cover - must never run
+        raise AssertionError("no download for an invalid configuration")
+
+    monkeypatch.setattr(model_module, "snapshot_download", explode)
+    with pytest.raises(ConfigError) as excinfo:
+        load_moment(task="embedding", device=device)
+    assert "device must be one of" in str(excinfo.value)
+
+
+@pytest.mark.parametrize("dtype", ["int8", "float64", "fp16", ""])
+def test_load_moment_refuses_an_unsupported_dtype_before_any_download(monkeypatch, dtype):
+    """Pre-fix this surfaced as a bare `KeyError` from the dtype dict literal, and only
+    after the 454 MB snapshot had been fetched and the model constructed."""
+
+    def explode(**kwargs):  # pragma: no cover - must never run
+        raise AssertionError("no download for an invalid configuration")
+
+    monkeypatch.setattr(model_module, "snapshot_download", explode)
+    with pytest.raises(ConfigError) as excinfo:
+        load_moment(task="embedding", dtype=dtype)
+    assert "unsupported dtype" in str(excinfo.value)
+
+
+def test_load_moment_and_moment_config_accept_the_same_devices_and_dtypes():
+    for device in SUPPORTED_DEVICES:
+        MomentConfig(device=device)  # must not raise
+    for dtype in SUPPORTED_DTYPES:
+        MomentConfig(dtype=dtype)  # must not raise
+    with pytest.raises(ConfigError):
+        MomentConfig(device="tpu")
+    with pytest.raises(ConfigError):
+        MomentConfig(dtype="int8")
+
+
+# --- R-3: a caller-supplied snapshot is re-verified, never trusted ------------------
+
+
+def test_load_moment_reverifies_a_caller_supplied_snapshot(tmp_path):
+    """`load_moment(snapshot=...)` must re-check the directory on disk.
+
+    Pre-fix the dataclass was used as-is, so a fabricated identity reached provenance
+    untouched and the only thing that could fail was the model construction itself. The
+    directory here is not named after the pinned commit, so re-verification must refuse it
+    with `REVISION_MISMATCH` before `MOMENTPipeline.from_pretrained` is ever reached.
+    """
+    root = tmp_path / "not-the-pinned-commit"
+    root.mkdir()
+    lie = model_module.VerifiedSnapshot(
+        path=root,
+        model_id=PINNED_MODEL_ID,
+        revision=PINNED_REVISION,
+        config_sha256=PINNED_CONFIG_SHA256,
+        config_bytes=949,
+        weights_path=root / PINNED_WEIGHTS_FILENAME,
+        weights_sha256=PINNED_WEIGHTS_SHA256,
+        weights_bytes=PINNED_WEIGHTS_BYTES,
+        seq_len=512,
+        patch_len=8,
+        patch_stride=8,
+        task_name_in_config="reconstruction",
+    )
+    with pytest.raises(IntegrityError) as excinfo:
+        load_moment(task="embedding", device="cpu", snapshot=lie)
+    assert excinfo.value.code == "REVISION_MISMATCH"
+
+
+def test_verified_snapshot_from_dir_ignores_the_callers_claimed_identity(monkeypatch, tmp_path):
+    """Every field comes from the directory, not from an argument."""
+    root = build_snapshot(tmp_path)
+    monkeypatch.setattr(
+        model_module,
+        "verify_snapshot_dir",
+        lambda directory, **kw: (
+            CONFIG_SHA,
+            len(CONFIG_BODY),
+            WEIGHTS_SHA,
+            len(WEIGHTS_BODY),
+            {"seq_len": 512, "patch_len": 8, "patch_stride_len": 8, "task_name": "reconstruction"},
+        ),
+    )
+    snapshot = model_module.verified_snapshot_from_dir(root)
+    assert snapshot.revision == root.name == PINNED_REVISION
+    assert snapshot.config_sha256 == CONFIG_SHA
+    assert snapshot.weights_sha256 == WEIGHTS_SHA
+
+
+# --- R-6: the load proof states what it does and does not prove ---------------------
+
+
+def test_weight_file_identity_basis_names_the_exclusion_controls():
+    """The tensor comparison cannot discriminate a `.bin`: `pytorch_model.bin` at the
+    pinned revision is a value-identical serialization of the same checkpoint. The claim
+    attached to the proof must therefore point at `allow_patterns` and the forbidden-file
+    refusal, which are the controls that actually decide which file can be read."""
+    basis = model_module.WEIGHT_FILE_IDENTITY_BASIS
+    assert "allow_patterns" in basis
+    assert "verify_snapshot_dir" in basis
+    assert "pytorch_model.bin" in basis
+    assert not hasattr(model_module, "prove_safetensors_load"), (
+        "the old name claimed the proof discriminated the safetensors file; it does not"
+    )
+    assert callable(model_module.prove_pinned_weights_are_live)

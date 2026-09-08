@@ -82,6 +82,62 @@ def test_reconstruction_load_is_proven_against_the_safetensors_file(reconstructi
     assert proof["head_type"] == "PretrainHead"
 
 
+def test_proof_compares_every_non_head_tensor_and_names_its_limits(reconstruction_model):
+    """R-6: widen the comparison to the whole file, and stop overstating what it shows.
+
+    The file holds 116 tensors, 2 of them `head.*`. Reconstruction compares all 116; the
+    proof also records that a value comparison cannot discriminate which *file* was read,
+    because `pytorch_model.bin` at this revision serializes the same values.
+    """
+    proof = reconstruction_model.proof
+    assert proof["n_tensors_compared"] == proof["n_tensors_in_file"] == 116
+    assert proof["live_tensors_not_in_file"] == []
+    assert proof["does_not_prove"] == "which file on disk was read"
+    assert "allow_patterns" in proof["file_identity_basis"]
+
+
+def test_embedding_proof_compares_every_non_head_tensor(embedding_model):
+    proof = embedding_model.proof
+    assert proof["n_tensors_in_file"] == 116
+    assert proof["n_tensors_compared"] == 114  # 116 minus the two head tensors
+    assert proof["live_tensors_not_in_file"] == []
+
+
+def test_provenance_carries_the_file_identity_basis(embedding_model, snapshot):
+    windows = to_windows(make_long_frame(n_points=512))
+    record = build_provenance(embedding_model, windows, embed(windows, embedding_model))
+    assert "allow_patterns" in record["load_proof"]["file_identity_basis"]
+    assert record["load_proof"]["n_tensors_compared"] == 114
+
+
+# --- R-3: provenance records what was verified, not what the caller asserted --------
+
+
+def test_a_fabricated_snapshot_identity_cannot_reach_an_export(snapshot):
+    """`load_moment` re-verifies the directory, so a lying `VerifiedSnapshot` is ignored.
+
+    Pre-fix, `dataclasses.replace(snapshot, weights_sha256="0"*64, ...)` put those exact
+    fabricated values into `build_provenance(...)["model"]`.
+    """
+    lie = dataclasses.replace(
+        snapshot,
+        weights_sha256="0" * 64,
+        config_sha256="1" * 64,
+        revision="deadbeef" * 5,
+        weights_bytes=1,
+    )
+    model = load_moment(task="embedding", device="cpu", snapshot=lie)
+    assert model.identity.weights_sha256 == PINNED_WEIGHTS_SHA256
+    assert model.identity.config_sha256 == PINNED_CONFIG_SHA256
+    assert model.identity.revision == PINNED_REVISION
+    assert model.identity.weights_bytes == PINNED_WEIGHTS_BYTES
+
+    windows = to_windows(make_long_frame(n_points=512))
+    record = build_provenance(model, windows, embed(windows, model))
+    assert record["model"]["weights_sha256"] == PINNED_WEIGHTS_SHA256
+    assert record["model"]["revision"] == PINNED_REVISION
+
+
 def test_embedding_load_is_proven_and_head_free(embedding_model):
     assert embedding_model.proof["head_type"] == "Identity"
     assert embedding_model.proof["head_tensors_checked"] == []

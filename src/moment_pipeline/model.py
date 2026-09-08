@@ -6,13 +6,18 @@ The standard path is deliberately narrow (RFC "Supply-chain invariants"):
    any other sha, a local directory and any `s3://` / URL source are refused *before*
    any network call;
 2. the resolved snapshot directory must be named after the pinned commit;
-3. `pytorch_model.bin` must not be present in the snapshot — it exists upstream at this
-   very revision (453,978,525 bytes), so a silent `.bin` fallback is a live hazard, and
-   the download uses `allow_patterns` so the file is never fetched;
-4. `config.json` and `model.safetensors` digests and the weight byte size are verified;
-5. after construction, tensors in the live module are compared byte-for-byte against the
-   entries read straight out of `model.safetensors` — that, not a filename, is the proof
-   of which weight file was loaded (RFC invariant 7).
+3. no pickle-format weight file may be present in the snapshot — `pytorch_model.bin`
+   exists upstream at this very revision (453,978,525 bytes), so a silent `.bin` fallback
+   is a live hazard, and the download uses `allow_patterns` so the file is never fetched.
+   **These two exclusion controls are what guarantee which file was loaded** (RFC
+   invariant 7); they are mutation-tested;
+4. `config.json` and `model.safetensors` digests and the weight byte size are verified —
+   on every load, including when the caller supplies its own `VerifiedSnapshot`, so
+   provenance records what was verified rather than what was asserted;
+5. after construction, every non-head tensor in the live module is compared byte-for-byte
+   against the entries read straight out of `model.safetensors`. That proves the live
+   *values* are the pinned checkpoint's — no fresh initialization, no partial or tampered
+   load. It does **not** prove which file on disk was read: see (3).
 """
 
 from __future__ import annotations
@@ -25,7 +30,7 @@ from typing import Any
 
 from huggingface_hub import snapshot_download
 
-from .config import PATCH_LENGTH, PATCH_STRIDE, SEQUENCE_LENGTH, Task
+from .config import PATCH_LENGTH, PATCH_STRIDE, SEQUENCE_LENGTH, ConfigError, Task
 
 PINNED_MODEL_ID = "AutonLab/MOMENT-1-base"
 PINNED_REVISION = "9fea447e740eb968a9e8d80c7562ae122bdb5dde"
@@ -35,8 +40,10 @@ PINNED_WEIGHTS_FILENAME = "model.safetensors"
 PINNED_WEIGHTS_SHA256 = "1a436826ffe618273ec62b9656dc4cab8edc470364f104e90542a4ebc14fb825"
 PINNED_WEIGHTS_BYTES = 453_940_120
 
-#: Present upstream at the pinned revision; must never be downloaded or loaded.
-FORBIDDEN_WEIGHT_PATTERNS = ("*.bin",)
+#: Pickle-based weight formats. `pytorch_model.bin` is present upstream at the pinned
+#: revision; the rest are the other serializations `torch.load` would happily unpickle, so
+#: the guard is as wide as its own error message claims (R-11).
+FORBIDDEN_WEIGHT_PATTERNS = ("*.bin", "*.pt", "*.pth", "*.ckpt", "*.pkl")
 KNOWN_FORBIDDEN_WEIGHT_FILE = "pytorch_model.bin"
 KNOWN_FORBIDDEN_WEIGHT_SHA256 = (
     "23c3d65bbb6dcd323352029e9fbe4ee3a3da0fff55b45ee4e00f38fff4e9bfb9"
@@ -58,6 +65,11 @@ MOMENTFM_SOURCE_URL = "https://github.com/moment-timeseries-foundation-model/mom
 MOMENTFM_SOURCE_COMMIT = "38f7310ad594100747ca2a8357e9c7ca7d323e0e"
 
 _TASK_TO_UPSTREAM = {"embedding": "embedding", "reconstruction": "reconstruction"}
+
+#: The one validated configuration surface, shared with `MomentConfig.__post_init__`
+#: so `load_moment` cannot be used to bypass it (R-12).
+SUPPORTED_DEVICES = ("auto", "cpu", "cuda")
+SUPPORTED_DTYPES = ("float32", "float16", "bfloat16")
 
 
 class ModelSourceError(ValueError):
@@ -237,6 +249,48 @@ def verify_snapshot_dir(
     return config_sha, config_bytes, weights_sha, weights_bytes, config
 
 
+def verified_snapshot_from_dir(
+    directory: str | os.PathLike[str], model_id: str = PINNED_MODEL_ID
+) -> VerifiedSnapshot:
+    """Verify a snapshot directory *now* and describe it from what was recomputed.
+
+    Every field of the returned `VerifiedSnapshot` is derived from the files on disk —
+    digests from `sha256_file`, the revision from the snapshot directory name, the shape
+    constants from the parsed `config.json`. Nothing is copied from a caller's assertion.
+    """
+    config_sha, config_bytes, weights_sha, weights_bytes, config = verify_snapshot_dir(directory)
+
+    seq_len = int(config["seq_len"])
+    patch_len = int(config["patch_len"])
+    patch_stride = int(config["patch_stride_len"])
+    if (seq_len, patch_len, patch_stride) != (SEQUENCE_LENGTH, PATCH_LENGTH, PATCH_STRIDE):
+        raise IntegrityError(
+            "CONFIG_SHAPE_MISMATCH",
+            f"config.json declares seq_len/patch_len/stride {seq_len}/{patch_len}/"
+            f"{patch_stride}, expected {SEQUENCE_LENGTH}/{PATCH_LENGTH}/{PATCH_STRIDE}",
+            {"seq_len": seq_len, "patch_len": patch_len, "patch_stride_len": patch_stride},
+        )
+
+    root = Path(directory)
+    # `verify_snapshot_dir` has already asserted `root.name == PINNED_REVISION`, so the
+    # directory name is a verified fact rather than a claim.
+    assert_pinned_source(model_id, root.name)
+    return VerifiedSnapshot(
+        path=root,
+        model_id=model_id,
+        revision=root.name,
+        config_sha256=config_sha,
+        config_bytes=config_bytes,
+        weights_path=root / PINNED_WEIGHTS_FILENAME,
+        weights_sha256=weights_sha,
+        weights_bytes=weights_bytes,
+        seq_len=seq_len,
+        patch_len=patch_len,
+        patch_stride=patch_stride,
+        task_name_in_config=str(config.get("task_name")),
+    )
+
+
 def fetch_verified_snapshot(
     model_id: str = PINNED_MODEL_ID,
     revision: str = PINNED_REVISION,
@@ -250,33 +304,7 @@ def fetch_verified_snapshot(
         allow_patterns=ALLOW_PATTERNS,
         cache_dir=cache_dir,
     )
-    config_sha, config_bytes, weights_sha, weights_bytes, config = verify_snapshot_dir(local)
-
-    seq_len = int(config["seq_len"])
-    patch_len = int(config["patch_len"])
-    patch_stride = int(config["patch_stride_len"])
-    if (seq_len, patch_len, patch_stride) != (SEQUENCE_LENGTH, PATCH_LENGTH, PATCH_STRIDE):
-        raise IntegrityError(
-            "CONFIG_SHAPE_MISMATCH",
-            f"config.json declares seq_len/patch_len/stride {seq_len}/{patch_len}/"
-            f"{patch_stride}, expected {SEQUENCE_LENGTH}/{PATCH_LENGTH}/{PATCH_STRIDE}",
-            {"seq_len": seq_len, "patch_len": patch_len, "patch_stride_len": patch_stride},
-        )
-
-    return VerifiedSnapshot(
-        path=Path(local),
-        model_id=model_id,
-        revision=revision,
-        config_sha256=config_sha,
-        config_bytes=config_bytes,
-        weights_path=Path(local) / PINNED_WEIGHTS_FILENAME,
-        weights_sha256=weights_sha,
-        weights_bytes=weights_bytes,
-        seq_len=seq_len,
-        patch_len=patch_len,
-        patch_stride=patch_stride,
-        task_name_in_config=str(config.get("task_name")),
-    )
+    return verified_snapshot_from_dir(local, model_id)
 
 
 def _selected_encoder_keys(file_keys: list[str], n: int = 5) -> list[str]:
@@ -287,13 +315,30 @@ def _selected_encoder_keys(file_keys: list[str], n: int = 5) -> list[str]:
     return [encoder[round(i * step)] for i in range(n)]
 
 
-def prove_safetensors_load(pipeline: Any, weights_path: str | os.PathLike[str], task: str) -> dict:
-    """Prove the live module holds the tensors from `model.safetensors`.
+#: What the tensor comparison can and cannot show. Kept next to the proof it qualifies so
+#: the claim and the mechanism cannot drift apart (R-6).
+WEIGHT_FILE_IDENTITY_BASIS = (
+    "file identity rests on the exclusion controls -- allow_patterns never fetches a "
+    "pickle file, and verify_snapshot_dir refuses any snapshot containing one -- NOT on "
+    "the tensor comparison below: pytorch_model.bin at this revision is a value-identical "
+    "serialization of the same checkpoint and would satisfy a value comparison"
+)
 
-    Compares a deterministic spread of encoder tensors — and, for the reconstruction
-    task, every `head.*` tensor — against `safetensors.safe_open` entries with
-    `torch.equal`. A `.bin` load, a re-initialized head or a truncated download all
-    fail here; a filename check would not.
+
+def prove_pinned_weights_are_live(
+    pipeline: Any, weights_path: str | os.PathLike[str], task: str
+) -> dict:
+    """Prove the live module holds exactly the tensors in the pinned `model.safetensors`.
+
+    Compares **every** non-`head.*` tensor in the file — and, for the reconstruction task,
+    every `head.*` tensor too — against `safetensors.safe_open` entries with `torch.equal`.
+    A re-initialized head, a truncated or tampered file, a partial load or the wrong task's
+    head all fail here.
+
+    What this does **not** prove is *which file on disk* was read. `pytorch_model.bin` at
+    the pinned revision holds the same values, so a `.bin` load would pass this comparison.
+    The real defence against a pickle fallback is the pair of exclusion controls named in
+    `WEIGHT_FILE_IDENTITY_BASIS`, and they are mutation-tested separately.
     """
     import torch
     from safetensors import safe_open
@@ -301,14 +346,14 @@ def prove_safetensors_load(pipeline: Any, weights_path: str | os.PathLike[str], 
     state = pipeline.state_dict()
     with safe_open(str(weights_path), framework="pt", device="cpu") as handle:
         file_keys = sorted(handle.keys())
-        checked_encoder = _selected_encoder_keys(file_keys)
-        if len(checked_encoder) < 3:
+        body_keys = [k for k in file_keys if not k.startswith("head.")]
+        if len(_selected_encoder_keys(file_keys)) < 3:
             raise IntegrityError(
                 "PROOF_UNAVAILABLE",
-                f"{weights_path} exposes {len(checked_encoder)} encoder tensors; "
-                "cannot prove the load",
+                f"{weights_path} exposes {len(_selected_encoder_keys(file_keys))} encoder "
+                "tensors; cannot prove the load",
             )
-        for key in checked_encoder:
+        for key in body_keys:
             if key not in state:
                 raise IntegrityError(
                     "PROOF_KEY_MISSING", f"loaded module has no tensor {key!r}", {"key": key}
@@ -319,6 +364,10 @@ def prove_safetensors_load(pipeline: Any, weights_path: str | os.PathLike[str], 
                     f"tensor {key!r} differs from the model.safetensors entry",
                     {"key": key},
                 )
+        checked_encoder = _selected_encoder_keys(file_keys)
+        live_not_in_file = sorted(
+            k for k in state if not k.startswith("head.") and k not in set(file_keys)
+        )
 
         head_keys = sorted(k for k in file_keys if k.startswith("head."))
         checked_head: list[str] = []
@@ -350,9 +399,20 @@ def prove_safetensors_load(pipeline: Any, weights_path: str | os.PathLike[str], 
     return {
         "weight_file": Path(weights_path).name,
         "n_tensors_in_file": len(file_keys),
+        "n_tensors_compared": len(body_keys) + len(checked_head),
         "encoder_tensors_checked": checked_encoder,
         "head_tensors_checked": checked_head,
-        "method": "torch.equal against safetensors.safe_open entries",
+        "live_tensors_not_in_file": live_not_in_file,
+        "method": (
+            "torch.equal against safetensors.safe_open entries for every non-head tensor "
+            "in the file (plus every head tensor for the reconstruction task)"
+        ),
+        "proves": (
+            "the live module's values are the pinned checkpoint's values -- no fresh "
+            "initialization, no partial or tampered load"
+        ),
+        "does_not_prove": "which file on disk was read",
+        "file_identity_basis": WEIGHT_FILE_IDENTITY_BASIS,
     }
 
 
@@ -369,6 +429,10 @@ def load_moment(
     the task changes (RFC M-8): `reconstruction` keeps the pretrained `PretrainHead`;
     `embedding` swaps in `nn.Identity` and emits a harmless upstream warning that only
     concerns *heads*, never the encoder that produces the embeddings.
+
+    A caller-supplied `snapshot` is **re-verified on disk** before it is used, and the
+    identity written into provenance is rebuilt from the recomputed digests. Provenance
+    must record what was verified at load time, not what the caller asserted (R-3).
     """
     import torch
     from momentfm import MOMENTPipeline
@@ -378,7 +442,17 @@ def load_moment(
             f"v1 exposes only {sorted(_TASK_TO_UPSTREAM)}; refused task {task!r}. "
             "Forecasting and classification heads are NOT pretrained (RFC M-1/M-4)."
         )
-    snapshot = snapshot or fetch_verified_snapshot(cache_dir=cache_dir)
+    # Same guards as `MomentConfig.__post_init__`, so the public loader is not a way
+    # around the validated configuration surface (R-12).
+    if device not in SUPPORTED_DEVICES:
+        raise ConfigError(f"device must be one of {'|'.join(SUPPORTED_DEVICES)}, got {device!r}")
+    if dtype not in SUPPORTED_DTYPES:
+        raise ConfigError(f"unsupported dtype {dtype!r}; expected one of {SUPPORTED_DTYPES}")
+
+    if snapshot is None:
+        snapshot = fetch_verified_snapshot(cache_dir=cache_dir)
+    else:
+        snapshot = verified_snapshot_from_dir(snapshot.path, snapshot.model_id)
 
     pipeline = MOMENTPipeline.from_pretrained(
         str(snapshot.path), model_kwargs={"task_name": _TASK_TO_UPSTREAM[task]}
@@ -386,7 +460,7 @@ def load_moment(
     pipeline.init()
     pipeline.eval()
 
-    proof = prove_safetensors_load(pipeline, snapshot.weights_path, task)
+    proof = prove_pinned_weights_are_live(pipeline, snapshot.weights_path, task)
     if task == "embedding":
         head_type = type(pipeline.head).__name__
         if head_type != "Identity":

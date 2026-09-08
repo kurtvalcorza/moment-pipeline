@@ -129,7 +129,7 @@ universal binary threshold, and any channel aggregation is DIMER-owned and recor
 | `config.json` SHA-256 | `f1c66c2bb845229c0ed27a1600dbcc956b85ab21f9e5fd8a1663e6641bed7755` (949 bytes) |
 | `model.safetensors` SHA-256 | `1a436826ffe618273ec62b9656dc4cab8edc470364f104e90542a4ebc14fb825` |
 | `model.safetensors` size | 453,940,120 bytes |
-| Weight file loaded | `model.safetensors` (proved at load time) |
+| Weight file loaded | `model.safetensors` (guaranteed by the exclusion controls below) |
 
 **`pytorch_model.bin` also exists at this revision** (453,978,525 bytes, SHA-256
 `23c3d65bbb6dcd323352029e9fbe4ee3a3da0fff55b45ee4e00f38fff4e9bfb9`). A silent pickle
@@ -138,10 +138,22 @@ fallback is a live hazard, not a hypothetical one, so the standard path:
 1. downloads with `allow_patterns=["config.json", "model.safetensors", "README.md"]`, which
    cannot match `*.bin`;
 2. refuses any snapshot directory containing a `.bin` file, before it checks anything else;
-3. verifies the resolved commit, both digests and the weight byte size;
-4. compares live encoder tensors — and, for the reconstruction task, both `head.*` tensors —
-   against `safetensors.safe_open` entries with `torch.equal`. That comparison, not a
-   filename, is the proof of which file was loaded.
+3. verifies the resolved commit, both digests and the weight byte size — on **every**
+   load, including when the caller passes its own `VerifiedSnapshot`. The identity written
+   into provenance is rebuilt from the digests recomputed at that moment, so an export
+   records what was verified, never what a caller asserted;
+4. compares every non-`head.*` tensor in the file — and, for the reconstruction task, both
+   `head.*` tensors as well, 116 of 116 — against `safetensors.safe_open` entries with
+   `torch.equal`.
+
+**What guarantees which file was loaded is (1) and (2), not (4).** `pytorch_model.bin` at
+this revision is a value-identical serialization of the same checkpoint, so a `.bin` load
+would satisfy the tensor comparison byte for byte. The comparison is still worth having —
+it discriminates a freshly initialized head, a partial or truncated load and a tampered
+file — but the *file identity* claim rests on `allow_patterns` never fetching a pickle
+artifact and on the snapshot being refused outright if one is present. Both of those are
+mutation-tested; the load proof carries the same statement in its
+`file_identity_basis` field.
 
 Mutable references (`main`, `latest`), other commits, other repositories, local directories
 and `s3://` / `https://` sources are refused before any network call.
