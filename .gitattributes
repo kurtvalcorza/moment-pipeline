@@ -1,0 +1,4 @@
+* text=auto eol=lf
+docs/rfc/0001-moment-base.md -text
+*.zip binary
+*.png binary
