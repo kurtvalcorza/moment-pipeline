@@ -353,6 +353,7 @@ def prove_pinned_weights_are_live(
                 f"{weights_path} exposes {len(_selected_encoder_keys(file_keys))} encoder "
                 "tensors; cannot prove the load",
             )
+        compared_body: list[str] = []
         for key in body_keys:
             if key not in state:
                 raise IntegrityError(
@@ -364,6 +365,7 @@ def prove_pinned_weights_are_live(
                     f"tensor {key!r} differs from the model.safetensors entry",
                     {"key": key},
                 )
+            compared_body.append(key)
         checked_encoder = _selected_encoder_keys(file_keys)
         live_not_in_file = sorted(
             k for k in state if not k.startswith("head.") and k not in set(file_keys)
@@ -399,7 +401,7 @@ def prove_pinned_weights_are_live(
     return {
         "weight_file": Path(weights_path).name,
         "n_tensors_in_file": len(file_keys),
-        "n_tensors_compared": len(body_keys) + len(checked_head),
+        "n_tensors_compared": len(compared_body) + len(checked_head),
         "encoder_tensors_checked": checked_encoder,
         "head_tensors_checked": checked_head,
         "live_tensors_not_in_file": live_not_in_file,
