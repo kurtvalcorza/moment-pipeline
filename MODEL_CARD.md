@@ -166,13 +166,72 @@ Whether v1 should keep embedding such windows with this disclosure, refuse windo
 missingness threshold, or require a DIMER-owned imputation first is an open contract
 decision for the repository owner; nothing in Phase 1 forecloses any of the three.
 
-## Limitation of the future anomaly path
+## Anomaly scoring is a score, not a verdict
 
-The Phase 4 anomaly score will be an **unmasked self-reconstruction residual**: the model
-reconstructs a window it can see in full, and the residual is scored. It is not a forecast
-residual, and it offers no guarantee of sensitivity to drift the model reconstructs easily.
-Raw per-element scores `(batch, channel, timestep)` are the v1 output; there is no
-universal binary threshold, and any channel aggregation is DIMER-owned and recorded.
+The Phase 4 score is an **unmasked self-reconstruction residual**: the model reconstructs
+a window it can see in full, and `|x - x_hat|` (or the square, under `loss="mse"`) is the
+score. `momentfm`'s own `detect_anomalies` does the same thing — it calls
+`reconstruct(..., mask=None)`, i.e. `mask = ones`.
+
+Two consequences follow directly, and neither is a defect to be fixed later:
+
+- **It is not a forecast residual.** A drift the model reconstructs faithfully scores low
+  by construction. This score detects what MOMENT finds hard to reproduce, which is not
+  the same set as "what is anomalous".
+- **The model sees the point it is scoring.** That bounds the achievable residual from
+  below and is why the scores are small on clean data.
+
+### There is no threshold, and that is a decision
+
+Raw per-element scores `(batch, channel, timestep)` are the v1 output. This pipeline ships
+no binary threshold — not as a default, not as a keyword argument, not as a constant. The
+residual scale depends on the series, so a cutoff fitted on one series does not transfer
+to another, and a shipped default would be read as calibrated when nothing calibrated it.
+`AnomalyResult.threshold_policy` and every anomaly provenance block state the absence, so
+an export cannot be mistaken for a thresholded one. Calibration belongs to a caller who
+owns a reference segment; the RFC keeps it an explicit, optional, separately evaluated
+step.
+
+### Channel aggregation is DIMER-owned
+
+Upstream performs none. `channel_aggregation` is `"none"` (default, loses nothing),
+`"mean"` or `"max"`, it collapses the channel axis and nothing else, and it is recorded on
+the result and in provenance. Under an aggregation `to_frame()` omits `reconstruction` and
+`reconstruction_error`: those are per-channel quantities, and collapsing them would invent
+a number.
+
+### The scored domain is narrower than the window
+
+A score is defined only where the position is non-padded **and** was visible to the model.
+Three exclusions, three counts on the result:
+
+| Excluded | Why | Field |
+|---|---|---|
+| padding | left-padding is not data | (outside every denominator) |
+| pre-filled positions | `x_enc` holds `prefill_value`; the residual would describe the sentinel | `unscored_prefilled_count` |
+| positions inside a hidden patch | the residual is an *imputation* residual — produced from a patch the encoder was shown as unobserved — and is systematically larger | `unscored_hidden_by_patch_count` |
+
+The third exclusion is the one worth dwelling on. Because masking is patch-quantized, one
+missing point hides all 8 points of its patch. The 7 observed neighbours still produce a
+residual, and it is a real number — but it is a different quantity from a
+self-reconstruction residual, and mixing the two into one column would put a spike at
+every gap edge and invite the reader to call it an anomaly. So `anomaly_score` holds one
+quantity only, and unscored positions are `NaN`.
+
+Those NaNs are markers, not propagation: `reconstruction_error` keeps the finite residual
+at every position, and
+`tests/test_anomaly.py::test_unscored_positions_are_nan_by_construction_not_by_propagation`
+pins the distinction. `scored_point_count + unscored_prefilled_count +
+unscored_hidden_by_patch_count` equals every non-padded (window, channel, position) cell.
+
+### What is executed against the real weights
+
+`tests/test_integration_model.py` runs the score on the pinned checkpoint on CPU:
+NaN-bearing input yields finite scores at every defined position; `mse` equals `mae`
+squared and ranks positions identically; `score_from_reconstruction` reproduces
+`score_anomalies` exactly; and a single point driven outside the series' range is the
+`argmax` of its window with a residual above ten times the background median — a rank
+claim, deliberately not a threshold.
 
 ## Supply chain
 
@@ -266,10 +325,11 @@ universal anomaly threshold, and multivariate anomaly aggregation beyond the exp
 policy. Classification adaptation is a later RFC in the order: frozen embeddings + a
 classical classifier, then a trained MOMENT head, then PEFT/LoRA.
 
-Phase 1 additionally does **not** ship the embedding export/tutorial (Phase 2), the
-imputed export that preserves observed points or masked-point metrics (Phase 3), anomaly
-scoring (Phase 4), serving latency instrumentation beyond one warm-up-corrected field
-(Phase 5), sample datasets or Colab notebooks.
+Not yet shipped: the embedding export/tutorial (Phase 2), the imputed export that
+preserves observed points and masked-point MAE/RMSE (Phase 3), serving latency
+instrumentation beyond one warm-up-corrected field (Phase 5), sample datasets and Colab
+notebooks. Anomaly scoring (Phase 4) is implemented; anomaly *calibration* is not, and is
+deliberately a caller concern.
 
 ## Upstream references
 

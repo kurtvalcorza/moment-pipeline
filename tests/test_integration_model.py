@@ -13,6 +13,7 @@ import pytest
 import torch
 
 from conftest import make_long_frame, set_value
+from moment_pipeline.anomaly import score_anomalies, score_from_reconstruction
 from moment_pipeline.canonical import to_windows
 from moment_pipeline.embedding import TaskMismatchError, embed
 from moment_pipeline.imputation import reconstruct
@@ -359,3 +360,111 @@ def test_reconstruction_result_agrees_with_its_windowset_on_masked_point_fractio
     assert result.masked_point_fraction == pytest.approx(1 / 1024)
     assert result.model_masked_point_fraction == pytest.approx(1 / 512)
     assert result.masked_patch_fraction == pytest.approx(1 / 64)
+
+
+# --- Task 3: anomaly scoring on the real weights ------------------------------------
+
+
+def test_anomaly_smoke_on_the_real_weights(reconstruction_model):
+    """The RFC's real CPU smoke path for Task 3: shape, finiteness, and a full domain."""
+    windows = to_windows(make_long_frame(n_points=512, channels=("c1", "c2"), seed=21))
+
+    result = score_anomalies(windows, reconstruction_model, warmup=False)
+
+    assert result.anomaly_score.shape == (1, 2, 512)
+    assert np.isfinite(result.anomaly_score).all(), "a clean window has no unscored cell"
+    assert result.scored_point_count == 512 * 2
+    assert result.loss == "mae"
+    assert result.channel_aggregation == "none"
+    assert result.latency_seconds > 0.0
+
+
+def test_nan_bearing_input_yields_finite_anomaly_scores(reconstruction_model):
+    """RFC required test: NaN in, finite scores out — the pre-fill contract on Task 3.
+
+    The NaN reaches `score_anomalies` as source missingness; the canonical converter
+    pre-fills it, the mask hides its patch, and every score the result defines is finite.
+    """
+    windows = _masked_windows(seed=22, nan_slice=slice(32, 40))
+
+    result = score_anomalies(windows, reconstruction_model, warmup=False)
+
+    defined = result.scored_mask == 1
+    assert defined.any()
+    assert np.isfinite(result.anomaly_score[defined]).all()
+    assert np.isfinite(result.reconstruction_error).all()
+    # and the hidden patch is excluded rather than scored against the sentinel
+    assert np.isnan(result.anomaly_score[result.scored_mask == 0]).all()
+    # two series x one patch (points 32..39) of missing data
+    assert result.unscored_prefilled_count == 16
+
+
+def test_an_injected_spike_scores_above_the_background(reconstruction_model):
+    """The score must discriminate, not merely return numbers.
+
+    A single point driven far outside the series' range is reconstructed poorly, so its
+    residual should stand above the window's own distribution. This is the oracle that
+    separates "the wiring runs" from "the score means something"; it is deliberately a
+    rank claim, not a threshold — v1 ships none.
+    """
+    frame = make_long_frame(n_points=512, seed=23)
+    windows = to_windows(set_value(frame, "A", "c1", 256, 40.0))
+
+    result = score_anomalies(windows, reconstruction_model, warmup=False)
+    scores = result.anomaly_score[0, 0]
+
+    assert int(np.nanargmax(scores)) == 256
+    background = np.delete(scores, 256)
+    assert np.nanmax(scores) > 10 * float(np.nanmedian(background))
+
+
+def test_mse_ranks_the_same_positions_as_mae_but_is_not_the_same_number(
+    reconstruction_model,
+):
+    frame = make_long_frame(n_points=512, seed=24)
+    windows = to_windows(set_value(frame, "A", "c1", 100, 25.0))
+
+    mae = score_anomalies(windows, reconstruction_model, loss="mae", warmup=False)
+    mse = score_anomalies(windows, reconstruction_model, loss="mse", warmup=False)
+
+    assert int(np.nanargmax(mae.anomaly_score)) == int(np.nanargmax(mse.anomaly_score))
+    np.testing.assert_allclose(
+        mse.anomaly_score, np.square(mae.anomaly_score), rtol=1e-3, atol=1e-4
+    )
+
+
+def test_anomaly_refuses_an_embedding_instance(embedding_model):
+    windows = to_windows(make_long_frame(n_points=512, seed=25))
+
+    with pytest.raises(TaskMismatchError):
+        score_anomalies(windows, embedding_model, warmup=False)
+
+
+def test_scoring_agrees_with_a_separately_computed_reconstruction(reconstruction_model):
+    """`score_from_reconstruction` is the same arithmetic as `score_anomalies`, so a
+    caller reusing a reconstruction gets the identical score rather than a near one."""
+    windows = to_windows(make_long_frame(n_points=512, seed=26))
+
+    reconstructed = reconstruct(windows, reconstruction_model, warmup=False)
+    reused = score_from_reconstruction(windows, reconstructed)
+    direct = score_anomalies(windows, reconstruction_model, warmup=False)
+
+    np.testing.assert_array_equal(reused.anomaly_score, direct.anomaly_score)
+
+
+def test_provenance_of_a_real_anomaly_run(reconstruction_model):
+    windows = to_windows(make_long_frame(n_points=512, channels=("c1", "c2"), seed=27))
+    result = score_anomalies(
+        windows, reconstruction_model, channel_aggregation="max", warmup=False
+    )
+
+    provenance = build_provenance(reconstruction_model, windows, result)
+
+    assert provenance["inference"]["task"] == "reconstruction"
+    assert provenance["inference"]["anomaly_loss"] == "mae"
+    assert provenance["inference"]["channel_aggregation"] == "max"
+    assert provenance["inference"]["threshold_policy"].startswith("none applied")
+    assert provenance["model"]["weight_file_loaded"] == "model.safetensors"
+    frame = result.to_frame()
+    assert len(frame) == 512
+    assert set(frame["channel"]) == {"max"}
