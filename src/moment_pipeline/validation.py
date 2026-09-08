@@ -267,6 +267,25 @@ def validate_long_frame(
         fully_missing_series_channels=tuple(fully_missing),
     )
 
+    # RFC rule 9, third case. `EMPTY_CHANNEL` catches a channel empty across the whole
+    # input and `ALL_MISSING_WINDOW` catches a window empty in every channel, but a single
+    # (series, channel) pair that is entirely missing used to be reported and then passed
+    # straight through. Downstream its `point_mask` row is all zero, so the collapsed
+    # `model_point_mask` and every `patch_mask` entry for that window are zero, upstream
+    # RevIN takes `nanmean` over an all-NaN row (momentfm/models/layers/revin.py:58-65) and
+    # `reconstruct` finally raises an M-2 error blaming the pre-fill -- which is not the
+    # cause. `embed` did not even complain: it returned a finite embedding of a fabricated
+    # all-zero channel. Reject it here, where the cause is known (R-4).
+    if fully_missing:
+        raise ValidationError(
+            "FULLY_MISSING_SERIES_CHANNEL",
+            "these (series_id, channel) pairs have no observed value at all: "
+            f"{[list(pair) for pair in fully_missing]}. MOMENT would receive a fabricated "
+            "all-prefill channel with an all-zero mask; drop the channel, drop the series, "
+            "or impute before the pipeline",
+            {"pairs": [list(pair) for pair in fully_missing]},
+        )
+
     if config.strict_frequency and report.has_irregular_frequency:
         raise ValidationError(
             "IRREGULAR_FREQUENCY",

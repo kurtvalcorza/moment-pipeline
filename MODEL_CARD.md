@@ -90,15 +90,29 @@ MOMENT sees patches, not points. `momentfm/utils/masking.py::Masking.convert_seq
 marks a patch observed only when **all 8** of its points are observed
 (`mask.unfold(...).sum(dim=-1) == patch_len`).
 
-One missing point therefore costs a whole patch. A single NaN at index 13 masks patch 1:
-`masked_point_fraction = 1/512`, `masked_patch_fraction = 1/64`. Both fractions are
-exposed on every reconstruction result and recorded in provenance, and the mask handed to
-`pipeline.reconstruct` is already expanded to patch granularity so callers see exactly the
-masking the model applies.
+One missing point therefore costs a whole patch. In a single-channel window a NaN at
+index 13 masks patch 1: `masked_point_fraction = 1/512`, `masked_patch_fraction = 1/64`.
 
 For multichannel windows the point mask is collapsed over channels with a `min`: MOMENT's
 `mask` argument has no channel axis, so a point missing in **any** channel is treated as
-unobserved. That is conservative and explicit.
+unobserved. That is conservative and explicit -- and it means two honestly different
+numbers exist. They have two different names:
+
+| Field | Counts | Denominator |
+|---|---|---|
+| `masked_point_fraction` | source missingness, per (window, channel, position) cell | non-padded cells x channels |
+| `model_masked_point_fraction` | positions hidden from the model: source missingness collapsed over channels **plus** any caller-supplied mask | non-padded (window, position) pairs |
+| `masked_patch_fraction` | patches the model treats as unobserved | non-padded patches |
+
+`masked_point_fraction` is defined once, in `canonical.missing_point_fraction`, and
+`WindowSet`, `EmbeddingResult` and `ReconstructionResult` all report that same number for
+the same windows. One missing point in `c1` of a 2-channel 512-step window is
+`masked_point_fraction = 1/1024` and `model_masked_point_fraction = 1/512`; before this
+was unified, both were called `masked_point_fraction` and read 1/1024 and 2/1024.
+
+Every fraction is exposed on the result and recorded in provenance, and the mask handed to
+`pipeline.reconstruct` is already expanded to patch granularity so callers see exactly the
+masking the model applies.
 
 ## Missing values: mandatory finite pre-fill
 
@@ -110,8 +124,47 @@ the output. The repository keeps a negative control
 executes this and asserts the output contains NaN.
 
 The canonical converter therefore replaces every missing payload with a finite sentinel
-(default `0.0`) before a tensor exists, and carries missingness only in the masks. MOMENT
-normalizes internally via RevIN driven by `input_mask`.
+(default `0.0`) before a tensor exists, and keeps missingness in `point_mask`. On the
+**reconstruction** path that mask reaches the model: `pipeline.reconstruct` takes an
+explicit patch-quantized `mask`, and a pre-filled position is embedded as
+`mask_embedding` rather than as its sentinel value.
+
+### Embeddings are NOT missingness-aware
+
+On the **embedding** path the mask cannot reach the model, and this pipeline cannot make
+it. Upstream's signature is
+
+```python
+MOMENT.embed(self, *, x_enc, input_mask=None, reduction="mean", **kwargs)
+```
+
+There is no per-point observedness parameter. `input_mask` is the *padding* mask, and
+momentfm passes it to RevIN (`moment.py:254`) and to the patch embedding
+(`moment.py:262`) as the only mask there is. The finite pre-fill is therefore consumed as
+genuine observed data: it enters the RevIN mean and standard deviation and is embedded as
+a value, not replaced by `mask_embedding`.
+
+The consequences, all executed on the real weights and pinned by
+`tests/test_integration_model.py::test_embeddings_are_missingness_blind_known_limitation`:
+
+- the embedding of a window with missing values is **byte-identical** to the embedding of
+  the same window with `prefill_value` written into those positions;
+- both differ from the embedding of the clean window, so the sentinel demonstrably moves
+  the vector;
+- nothing in the vector distinguishes a fabricated stretch from a real flat one.
+
+RFC common-validation rule 12 -- "missingness carried exclusively via the mask" -- is
+therefore **not satisfiable through upstream `embed`**, and it is not satisfied here. What
+this pipeline does instead is refuse to hide it: `EmbeddingResult` and every embedding
+provenance block carry `masked_point_fraction`, `masked_point_count`,
+`masked_patch_fraction`, `missingness_visible_to_model: false` and a
+`missingness_policy` string. Those fractions are the **only** record that any part of the
+input was fabricated, so a consumer clustering or retrieving on these vectors must read
+them.
+
+Whether v1 should keep embedding such windows with this disclosure, refuse windows above a
+missingness threshold, or require a DIMER-owned imputation first is an open contract
+decision for the repository owner; nothing in Phase 1 forecloses any of the three.
 
 ## Limitation of the future anomaly path
 

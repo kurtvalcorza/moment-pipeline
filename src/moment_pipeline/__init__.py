@@ -18,7 +18,7 @@ from .config import (
     ResourceLimits,
 )
 from .embedding import EmbeddingResult, TaskMismatchError, embed
-from .imputation import ReconstructionResult, reconstruct
+from .imputation import DegenerateMaskError, ReconstructionResult, reconstruct
 from .model import (
     PINNED_CONFIG_SHA256,
     PINNED_MODEL_ID,
@@ -49,6 +49,7 @@ __all__ = [
     "PINNED_WEIGHTS_SHA256",
     "SEQUENCE_LENGTH",
     "ConfigError",
+    "DegenerateMaskError",
     "EmbeddingResult",
     "IntegrityError",
     "LoadedMoment",

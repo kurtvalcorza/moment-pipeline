@@ -103,11 +103,28 @@ def build_provenance(model: LoadedMoment, windows: WindowSet, result: Any) -> di
         inference["reduction"] = result.reduction
         inference["channel_policy"] = result.channel_policy
         inference["embedding_dim"] = result.d_model
+        # An exported embedding must be self-describing about the data it was computed
+        # from: nothing downstream can tell a fabricated stretch from a real one, because
+        # the encoder could not either (R-2).
+        inference["masked_point_fraction"] = result.masked_point_fraction
+        inference["masked_point_count"] = result.masked_point_count
+        inference["masked_patch_fraction"] = result.masked_patch_fraction
+        inference["missingness_visible_to_model"] = result.missingness_visible_to_model
+        inference["missingness_policy"] = result.missingness_policy
     elif isinstance(result, ReconstructionResult):
         inference["masked_point_fraction"] = result.masked_point_fraction
-        inference["masked_patch_fraction"] = result.masked_patch_fraction
         inference["masked_point_count"] = result.masked_point_count
+        inference["model_masked_point_fraction"] = result.model_masked_point_fraction
+        inference["model_masked_point_count"] = result.model_masked_point_count
+        inference["masked_patch_fraction"] = result.masked_patch_fraction
         inference["masked_patch_count"] = result.masked_patch_count
+        inference["masked_point_fraction_basis"] = (
+            "masked_point_fraction counts non-padded (window, channel, position) cells "
+            "missing in the source, exactly as WindowSet.masked_point_fraction does; "
+            "model_masked_point_fraction counts non-padded (window, position) pairs "
+            "hidden from the model, source missingness collapsed over channels plus any "
+            "caller-supplied mask"
+        )
         inference["mask_policy"] = (
             "explicit patch-quantized mask; mask=None is never passed to "
             "MOMENT.reconstruct"

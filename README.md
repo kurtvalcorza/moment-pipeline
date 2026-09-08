@@ -81,7 +81,9 @@ from moment_pipeline import reconstruct
 
 model = load_moment(task="reconstruction", device="cpu")
 result = reconstruct(windows, model)          # mask is always explicit, never None
-print(result.masked_point_fraction, result.masked_patch_fraction)
+print(result.masked_point_fraction)        # source missingness, per channel-cell
+print(result.model_masked_point_fraction)  # positions hidden from the model
+print(result.masked_patch_fraction)        # patches the model treats as unobserved
 ```
 
 ## Canonical data contract
@@ -108,8 +110,15 @@ The converter's documented policy (Phase 1):
 | Normalization | delegated to MOMENT's internal RevIN, driven by `input_mask` |
 
 Missing values are quantized to patches: one missing point makes its whole 8-step patch
-unobserved to the model. Both `masked_point_fraction` and `masked_patch_fraction` are
-reported.
+unobserved to the model. `masked_point_fraction` (source missingness, per (window,
+channel, position) cell), `model_masked_point_fraction` (positions hidden from the model,
+channel-collapsed, including any caller mask) and `masked_patch_fraction` are all reported;
+`MODEL_CARD.md` gives each one's denominator.
+
+**Embeddings are not missingness-aware.** Upstream `MOMENT.embed` takes no per-point
+observedness mask, so a gappy window embeds identically to the same window with the
+pre-fill value written in. `EmbeddingResult` and the export's provenance record the
+fractions; they are the only signal. See `MODEL_CARD.md`.
 
 ## Repository layout
 

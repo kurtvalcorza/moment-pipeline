@@ -217,7 +217,11 @@ def test_reconstruction_smoke_with_four_masked_patches(reconstruction_model):
     assert np.isfinite(result.reconstruction).all()
     assert result.masked_patch_count == 8  # 4 patches x 2 windows
     assert result.masked_patch_fraction == pytest.approx(4 / 64)
-    assert result.masked_point_fraction == pytest.approx(32 / 512)
+    # Nothing was *missing* here; 32 positions per window were deliberately hidden. The
+    # two quantities are now named apart (R-5).
+    assert result.masked_point_fraction == 0.0
+    assert result.model_masked_point_fraction == pytest.approx(32 / 512)
+    assert result.model_masked_point_count == 64  # 32 positions x 2 windows
     assert result.model_mask[:, 8:40].sum() == 0.0
     assert result.model_mask.sum() == 2 * 480
 
@@ -228,7 +232,9 @@ def test_nan_regression_masked_positions_still_yield_finite_output(reconstructio
     assert np.isfinite(windows.x_enc).all()
     result = reconstruct(windows, reconstruction_model)
     assert np.isfinite(result.reconstruction).all()
+    # Here the 32 hidden positions *are* the missing ones, so both agree.
     assert result.masked_point_fraction == pytest.approx(32 / 512)
+    assert result.model_masked_point_fraction == pytest.approx(32 / 512)
     assert result.masked_patch_fraction == pytest.approx(4 / 64)
 
 
@@ -237,6 +243,7 @@ def test_nan_off_patch_boundary_expands_to_whole_patches(reconstruction_model):
     result = reconstruct(windows, reconstruction_model)
     assert np.isfinite(result.reconstruction).all()
     assert result.masked_point_fraction == pytest.approx(1 / 512)
+    assert result.model_masked_point_fraction == pytest.approx(1 / 512)
     assert result.masked_patch_fraction == pytest.approx(1 / 64)
     assert result.model_mask[0, 8:16].sum() == 0.0
 
@@ -290,3 +297,65 @@ def test_provenance_of_a_real_embedding_run(embedding_model):
     assert record["inference"]["embedding_dim"] == 768
     assert record["inference"]["latency_seconds"] > 0.0
     assert record["runtime"]["momentfm"] == "0.1.5"
+
+
+def test_embeddings_are_missingness_blind_known_limitation(embedding_model):
+    """DOCUMENTS A KNOWN LIMITATION -- this test passing is not good news (R-2).
+
+    Upstream `MOMENT.embed(self, *, x_enc, input_mask=None, reduction, **kwargs)` has no
+    per-point observedness parameter, so `point_mask` cannot reach the model on this path
+    and the finite pre-fill is consumed as observed data. The assertions below pin that
+    reality rather than hiding it:
+
+    * a half-missing window and the same window with literal `prefill_value` in those
+      positions produce **byte-identical** embeddings;
+    * both differ from the clean window, so the sentinel demonstrably moves the vector;
+    * the recorded fractions are the only thing that tells them apart.
+
+    If a future momentfm gains a real observedness mask, the first assertion should start
+    failing -- that is the intended signal to revisit the contract, not a regression.
+    """
+    clean = make_long_frame(n_points=512, seed=21)
+    gap = np.zeros(len(clean), dtype=bool)
+    gap[256:512] = True  # the second half of series A / channel c1
+
+    gappy = clean.copy()
+    gappy.loc[gap, "value"] = np.nan
+    zeroed = clean.copy()
+    zeroed.loc[gap, "value"] = 0.0  # the pipeline's default prefill_value
+
+    w_clean, w_gappy, w_zero = (to_windows(f) for f in (clean, gappy, zeroed))
+    assert w_gappy.masked_point_fraction == pytest.approx(0.5)
+    assert w_zero.masked_point_fraction == 0.0
+
+    r_clean = embed(w_clean, embedding_model, warmup=False)
+    r_gappy = embed(w_gappy, embedding_model, warmup=False)
+    r_zero = embed(w_zero, embedding_model, warmup=False)
+
+    assert np.array_equal(r_gappy.embeddings, r_zero.embeddings), (
+        "if this fails, upstream embed has become missingness-aware -- revisit the "
+        "MODEL_CARD limitation and the RFC rule 12 disposition"
+    )
+    assert not np.allclose(r_clean.embeddings, r_gappy.embeddings, atol=1e-4)
+
+    # The fractions are the only surviving difference, and they must reach the export.
+    assert r_gappy.masked_point_fraction == pytest.approx(0.5)
+    assert r_gappy.masked_patch_fraction == pytest.approx(0.5)
+    assert r_zero.masked_point_fraction == 0.0
+    assert r_gappy.missingness_visible_to_model is False
+    record = build_provenance(embedding_model, w_gappy, r_gappy)
+    assert record["inference"]["masked_point_fraction"] == pytest.approx(0.5)
+    assert record["inference"]["missingness_visible_to_model"] is False
+
+
+def test_reconstruction_result_agrees_with_its_windowset_on_masked_point_fraction(
+    reconstruction_model,
+):
+    """R-5, on the real model: the two call sites report the same number for one input."""
+    frame = make_long_frame(n_points=512, channels=("c1", "c2"), seed=22)
+    windows = to_windows(set_value(frame, "A", "c1", 13, np.nan))
+    result = reconstruct(windows, reconstruction_model, warmup=False)
+    assert result.masked_point_fraction == windows.masked_point_fraction
+    assert result.masked_point_fraction == pytest.approx(1 / 1024)
+    assert result.model_masked_point_fraction == pytest.approx(1 / 512)
+    assert result.masked_patch_fraction == pytest.approx(1 / 64)

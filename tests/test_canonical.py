@@ -126,12 +126,30 @@ def test_channel_collapse_is_conservative():
 
 
 def test_all_missing_window_rejected():
-    frame = make_long_frame(n_points=512, series=("A", "B"))
-    frame.loc[frame["series_id"] == "B", "value"] = np.nan
+    """Observed history exists, but none of it survives into the last-512 window.
+
+    This is the only route to `ALL_MISSING_WINDOW` now that a (series, channel) with no
+    observed value anywhere is refused earlier, by `FULLY_MISSING_SERIES_CHANNEL` (R-4).
+    """
+    frame = make_long_frame(n_points=600, series=("A", "B"))
+    selector = frame["series_id"] == "B"
+    positions = np.flatnonzero(selector.to_numpy())[88:]  # keep the first 88 observed
+    frame.loc[frame.index[positions], "value"] = np.nan
     with pytest.raises(ValidationError) as excinfo:
         to_windows(frame)
     assert excinfo.value.code == "ALL_MISSING_WINDOW"
     assert excinfo.value.details["series_id"] == "B"
+
+
+def test_single_channel_series_with_no_observed_value_is_rejected_in_validation():
+    """Pre-fix this reached `to_windows` and raised `ALL_MISSING_WINDOW`; the earlier,
+    more specific code names the actual shape of the problem (R-4)."""
+    frame = make_long_frame(n_points=512, series=("A", "B"))
+    frame.loc[frame["series_id"] == "B", "value"] = np.nan
+    with pytest.raises(ValidationError) as excinfo:
+        to_windows(frame)
+    assert excinfo.value.code == "FULLY_MISSING_SERIES_CHANNEL"
+    assert excinfo.value.details["pairs"] == [["B", "c1"]]
 
 
 def test_max_windows_limit():

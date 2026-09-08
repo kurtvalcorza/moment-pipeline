@@ -185,12 +185,33 @@ def test_globally_empty_channel_rejected():
     assert excinfo.value.details["channels"] == ["c2"]
 
 
-def test_channel_missing_for_one_series_only_is_surfaced():
+def test_channel_missing_for_one_series_only_is_rejected():
+    """RFC rule 9's third case (R-4).
+
+    `EMPTY_CHANNEL` covers a channel empty across the whole input and `ALL_MISSING_WINDOW`
+    covers a window empty in every channel; a single (series, channel) that is entirely
+    missing used to be reported and then passed through. Downstream it produced an
+    all-zero `patch_mask` row, upstream RevIN returned NaN, and `reconstruct` raised an
+    M-2 error blaming the pre-fill -- while `embed` returned a finite embedding of a
+    fabricated all-zero channel without complaint.
+    """
     frame = make_long_frame(series=("A", "B"), channels=("c1", "c2"))
     selector = (frame["series_id"] == "B") & (frame["channel"] == "c2")
     frame.loc[selector, "value"] = np.nan
+    with pytest.raises(ValidationError) as excinfo:
+        validate_long_frame(frame)
+    assert _codes(excinfo) == "FULLY_MISSING_SERIES_CHANNEL"
+    assert excinfo.value.details["pairs"] == [["B", "c2"]]
+
+
+def test_a_partially_observed_series_channel_is_still_accepted():
+    """Negative control: the rejection is about *no* observed value, not about few."""
+    frame = make_long_frame(series=("A", "B"), channels=("c1", "c2"))
+    selector = (frame["series_id"] == "B") & (frame["channel"] == "c2")
+    positions = np.flatnonzero(selector.to_numpy())[1:]
+    frame.loc[frame.index[positions], "value"] = np.nan
     report, _ = validate_long_frame(frame)
-    assert report.fully_missing_series_channels == (("B", "c2"),)
+    assert report.fully_missing_series_channels == ()
 
 
 # --- rule 10: resource limits -------------------------------------------------------

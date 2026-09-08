@@ -123,3 +123,38 @@ def test_readme_documents_that_the_lock_is_not_pip_installable():
         "README must state that requirements.lock.txt is a uv artifact and not a pip "
         f"install path; unhashed direct requirements present: {unhashed}"
     )
+
+
+# --- R-2 / R-6: the model card must not assert more than the code delivers ----------
+
+MODEL_CARD = REPO_ROOT / "MODEL_CARD.md"
+
+
+def test_model_card_states_that_embeddings_are_not_missingness_aware():
+    """The card used to read as an assurance that RFC rule 12 held on every path.
+
+    It does not hold on the embedding path and cannot: upstream `MOMENT.embed` has no
+    per-point observedness parameter. The card has to say so, name the consequence, and
+    point at the recorded fractions as the only remaining signal.
+    """
+    card = MODEL_CARD.read_text(encoding="utf-8")
+    assert "Embeddings are NOT missingness-aware" in card
+    assert "no per-point observedness parameter" in card
+    assert "masked_point_fraction" in card
+    assert "not satisfiable through upstream `embed`" in card
+    assert "carries missingness only in the masks" not in card, (
+        "the unqualified claim is back; it is false for the embedding path"
+    )
+
+
+def test_model_card_does_not_claim_the_tensor_comparison_proves_the_file():
+    card = MODEL_CARD.read_text(encoding="utf-8")
+    assert "That comparison, not a\n   filename, is the proof of which file was loaded." not in card
+    assert "What guarantees which file was loaded is (1) and (2), not (4)." in card
+
+
+def test_model_card_documents_both_masked_point_fraction_denominators():
+    card = MODEL_CARD.read_text(encoding="utf-8")
+    assert "model_masked_point_fraction" in card
+    assert "non-padded cells x channels" in card
+    assert "non-padded (window, position) pairs" in card

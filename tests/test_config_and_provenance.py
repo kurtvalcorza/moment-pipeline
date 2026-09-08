@@ -122,8 +122,10 @@ def test_reconstruction_provenance_records_both_fractions(clean_frame):
         model_mask=windows.patch_quantized_mask(),
         patch_mask=windows.patch_mask,
         masked_point_fraction=1 / 512,
-        masked_patch_fraction=1 / 64,
         masked_point_count=1,
+        model_masked_point_fraction=1 / 512,
+        model_masked_point_count=1,
+        masked_patch_fraction=1 / 64,
         masked_patch_count=1,
         series_ids=windows.series_ids,
         window_ids=windows.window_ids,
@@ -132,8 +134,12 @@ def test_reconstruction_provenance_records_both_fractions(clean_frame):
     )
     record = build_provenance(fake_model("reconstruction"), windows, result)
     assert record["inference"]["masked_point_fraction"] == pytest.approx(1 / 512)
+    assert record["inference"]["model_masked_point_fraction"] == pytest.approx(1 / 512)
     assert record["inference"]["masked_patch_fraction"] == pytest.approx(1 / 64)
     assert "mask=None is never passed" in record["inference"]["mask_policy"]
+    basis = record["inference"]["masked_point_fraction_basis"]
+    assert "channel, position) cells" in basis
+    assert "collapsed over channels" in basis
 
 
 def test_measure_latency_discards_the_warm_up():

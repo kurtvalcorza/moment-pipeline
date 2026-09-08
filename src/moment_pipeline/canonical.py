@@ -61,6 +61,60 @@ def expand_patch_view(patch_mask: np.ndarray, patch_length: int = 8) -> np.ndarr
     return np.repeat(patch_mask, patch_length, axis=1).astype(np.float32)
 
 
+# --- the single definition of each reported fraction (R-5) --------------------------
+#
+# Two call sites used to compute a quantity called `masked_point_fraction` with different
+# denominators -- `WindowSet` counted per-channel cells, `ReconstructionResult` broadcast a
+# channel-collapsed mask back over the channel axis, so one missing point in one channel of
+# a C-channel window counted C times. One missing point at index 13 of `c1` in a 2-channel
+# window gave 1/1024 from one and 2/1024 from the other. These three functions are now the
+# only definitions; every reported fraction goes through them, and the docstrings state the
+# denominator each one uses.
+
+
+def missing_point_fraction(point_mask: np.ndarray, input_mask: np.ndarray) -> float:
+    """Fraction of **non-padded (window, channel, position) cells** that were missing.
+
+    Denominator: `input_mask.sum() * n_channels`. This is source missingness -- what the
+    caller's data did not contain -- and it is independent of any extra mask the caller
+    later applies for reconstruction.
+    """
+    valid = np.broadcast_to(input_mask[:, None, :], point_mask.shape)
+    denom = float(valid.sum())
+    if denom == 0.0:
+        return 0.0
+    return float(((valid == 1) & (point_mask == 0)).sum()) / denom
+
+
+def hidden_position_fraction(visible_mask: np.ndarray, input_mask: np.ndarray) -> float:
+    """Fraction of **non-padded (window, position) pairs** hidden from the model.
+
+    Denominator: `input_mask.sum()`. There is no channel axis because MOMENT's `mask`
+    argument has none: `visible_mask` is already collapsed over channels. This counts what
+    the model was told not to look at -- source missingness *and* any mask the caller
+    supplied -- so it is a different quantity from `missing_point_fraction` and carries a
+    different name.
+    """
+    denom = float(input_mask.sum())
+    if denom == 0.0:
+        return 0.0
+    return float(((input_mask == 1) & (visible_mask == 0)).sum()) / denom
+
+
+def masked_patch_fraction_of(
+    patch_mask: np.ndarray, input_mask: np.ndarray, patch_length: int = 8
+) -> float:
+    """Fraction of **non-padded patches** the model will treat as unobserved.
+
+    Denominator: the patch view of `input_mask`.
+    """
+    valid_patches = to_patch_view(input_mask, patch_length)
+    denom = float(valid_patches.sum())
+    if denom == 0.0:
+        return 0.0
+    return float(((valid_patches == 1) & (patch_mask == 0)).sum()) / denom
+
+
 @dataclass(frozen=True)
 class WindowSet:
     """The canonical DIMER-facing representation handed to MOMENT."""
@@ -115,23 +169,20 @@ class WindowSet:
         return int(self.input_mask.sum() * self.n_channels)
 
     @property
-    def masked_point_fraction(self) -> float:
-        """Fraction of *non-padded* (window, channel, position) cells that were missing."""
+    def masked_point_count(self) -> int:
+        """Non-padded (window, channel, position) cells that were missing in the source."""
         valid = np.broadcast_to(self.input_mask[:, None, :], self.point_mask.shape)
-        denom = float(valid.sum())
-        if denom == 0.0:
-            return 0.0
-        return float(((valid == 1) & (self.point_mask == 0)).sum()) / denom
+        return int(((valid == 1) & (self.point_mask == 0)).sum())
+
+    @property
+    def masked_point_fraction(self) -> float:
+        """See `missing_point_fraction` -- denominator is non-padded cells x channels."""
+        return missing_point_fraction(self.point_mask, self.input_mask)
 
     @property
     def masked_patch_fraction(self) -> float:
-        """Fraction of *non-padded* patches the model will treat as unobserved."""
-        valid_patches = to_patch_view(self.input_mask, self.patch_length)
-        denom = float(valid_patches.sum())
-        if denom == 0.0:
-            return 0.0
-        masked = ((valid_patches == 1) & (self.patch_mask == 0)).sum()
-        return float(masked) / denom
+        """See `masked_patch_fraction_of` -- denominator is non-padded patches."""
+        return masked_patch_fraction_of(self.patch_mask, self.input_mask, self.patch_length)
 
     @property
     def padded_fraction(self) -> float:
