@@ -114,6 +114,31 @@ def test_embedding_provenance_records_reduction_and_supply_chain(clean_frame):
     assert record["inference"]["latency_seconds"] == pytest.approx(0.25)
 
 
+def test_provenance_states_how_the_revision_was_established(clean_frame):
+    """A bare `revision` in an export reads as a verified commit. Here it is not one.
+
+    The only revision check is `verify_snapshot_dir`'s snapshot-directory-name comparison,
+    and `assert_pinned_source` has already forced the requested revision to be
+    `PINNED_REVISION`, so for a SHA request it agrees by construction and cannot fail.
+    What pins the revision is the content digest. An export must say which of the two it
+    is relying on, so a reader does not credit this path with the independent Hub commit
+    lookup the sibling chronos-2 pipeline performs.
+    """
+    windows = to_windows(clean_frame)
+    result = EmbeddingResult(
+        embeddings=np.zeros((1, 768), np.float32),
+        series_ids=windows.series_ids,
+        window_ids=windows.window_ids,
+        d_model=768,
+        latency_seconds=0.1,
+    )
+    basis = build_provenance(fake_model("embedding"), windows, result)["model"]["revision_basis"]
+
+    assert "established by content" in basis
+    assert "No independent Hub commit lookup is performed" in basis
+    assert "cannot fail for a SHA request" in basis
+
+
 def test_reconstruction_provenance_records_both_fractions(clean_frame):
     windows = to_windows(clean_frame)
     result = ReconstructionResult(

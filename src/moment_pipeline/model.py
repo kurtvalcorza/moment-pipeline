@@ -30,7 +30,16 @@ from typing import Any
 
 from huggingface_hub import snapshot_download
 
-from .config import PATCH_LENGTH, PATCH_STRIDE, SEQUENCE_LENGTH, ConfigError, Task
+from .config import (
+    _UNSUPPORTED_DTYPE,
+    PATCH_LENGTH,
+    PATCH_STRIDE,
+    SEQUENCE_LENGTH,
+    SUPPORTED_DEVICES,
+    SUPPORTED_DTYPES,
+    ConfigError,
+    Task,
+)
 
 PINNED_MODEL_ID = "AutonLab/MOMENT-1-base"
 PINNED_REVISION = "9fea447e740eb968a9e8d80c7562ae122bdb5dde"
@@ -51,6 +60,18 @@ KNOWN_FORBIDDEN_WEIGHT_SHA256 = (
 
 ALLOW_PATTERNS = ["config.json", "model.safetensors", "README.md"]
 
+#: How the revision is established on this path, recorded in every export. The sibling
+#: chronos-2 pipeline asks the Hub which commit the pin resolves to and records whether that
+#: confirmation ran; this one does not, and says so rather than letting a bare `revision`
+#: field imply a check that never happened.
+REVISION_BASIS = (
+    "established by content: config.json and model.safetensors hash to the pinned SHA-256 "
+    "digests and the weight byte count matches. The snapshot directory name is compared "
+    "against the pinned commit as a consistency assertion, but huggingface_hub names that "
+    "directory after the requested revision, so it cannot fail for a SHA request. No "
+    "independent Hub commit lookup is performed on this path"
+)
+
 #: The weights licence. There is NO LICENSE file in the HF repo at this revision; MIT is
 #: declared in the model-card metadata only. Code licence is tracked separately (LICENSE).
 MODEL_LICENSE = "MIT"
@@ -66,10 +87,9 @@ MOMENTFM_SOURCE_COMMIT = "38f7310ad594100747ca2a8357e9c7ca7d323e0e"
 
 _TASK_TO_UPSTREAM = {"embedding": "embedding", "reconstruction": "reconstruction"}
 
-#: The one validated configuration surface, shared with `MomentConfig.__post_init__`
-#: so `load_moment` cannot be used to bypass it (R-12).
-SUPPORTED_DEVICES = ("auto", "cpu", "cuda")
-SUPPORTED_DTYPES = ("float32", "float16", "bfloat16")
+# The one validated configuration surface lives in `config` and is imported above, so
+# `load_moment` and `MomentConfig.__post_init__` cannot drift apart (R-12). Phase 1
+# accepts float32 only; `config.SUPPORTED_DTYPES` records why.
 
 
 class ModelSourceError(ValueError):
@@ -122,6 +142,10 @@ class ModelIdentity:
     task: str
     device: str
     dtype: str
+    #: How `revision` was established. Never omitted: a bare revision string in an export
+    #: reads as a verified commit, and on this path it is a content claim (see
+    #: `REVISION_BASIS`), which is a different and narrower thing.
+    revision_basis: str = REVISION_BASIS
 
 
 @dataclass(eq=False)
@@ -188,6 +212,14 @@ def verify_snapshot_dir(
 
     Ordering matters: the forbidden-`.bin` check runs first, so a snapshot polluted with
     `pytorch_model.bin` is refused before anything else is considered.
+
+    The `check_directory_name` comparison is a **consistency assertion, not an oracle**.
+    `assert_pinned_source` has already forced the requested revision to be `PINNED_REVISION`
+    and `huggingface_hub` names the snapshot directory after the commit the request
+    resolved to, so for a SHA request the two agree by construction. What pins the revision
+    here is the pair of digests below: content hashing to those values is the pinned
+    revision's content. `REVISION_BASIS` states this in every export, so provenance never
+    implies a commit lookup that did not run.
     """
     import json
 
@@ -449,7 +481,7 @@ def load_moment(
     if device not in SUPPORTED_DEVICES:
         raise ConfigError(f"device must be one of {'|'.join(SUPPORTED_DEVICES)}, got {device!r}")
     if dtype not in SUPPORTED_DTYPES:
-        raise ConfigError(f"unsupported dtype {dtype!r}; expected one of {SUPPORTED_DTYPES}")
+        raise ConfigError(_UNSUPPORTED_DTYPE.format(dtype=dtype))
 
     if snapshot is None:
         snapshot = fetch_verified_snapshot(cache_dir=cache_dir)
@@ -479,9 +511,10 @@ def load_moment(
     resolved_device = device
     if resolved_device == "auto":
         resolved_device = "cuda" if torch.cuda.is_available() else "cpu"
-    torch_dtype = {"float32": torch.float32, "float16": torch.float16, "bfloat16": torch.bfloat16}[
-        dtype
-    ]
+    # Only float32 is reachable (see `config.SUPPORTED_DTYPES`). Kept as a lookup rather
+    # than a literal so that widening the surface has to add the entry here too, next to
+    # the input-cast requirement the guard above documents.
+    torch_dtype = {"float32": torch.float32}[dtype]
     pipeline = pipeline.to(device=resolved_device, dtype=torch_dtype)
     pipeline.eval()
 
