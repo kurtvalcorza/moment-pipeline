@@ -27,7 +27,10 @@ def build_samples() -> dict[str, pd.DataFrame]:
             + amplitude * np.sin(2.0 * np.pi * (step + phase) / period)
             + 0.08 * np.cos(2.0 * np.pi * step / 16.0)
         )
-        rows.extend(("A", stamp, channel, float(value)) for stamp, value in zip(timestamps, values))
+        rows.extend(
+            ("A", stamp, channel, float(value))
+            for stamp, value in zip(timestamps, values, strict=True)
+        )
 
     clean = pd.DataFrame(rows, columns=["series_id", "timestamp", "channel", "value"])
     anomaly = clean.copy()
