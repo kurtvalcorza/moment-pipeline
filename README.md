@@ -69,7 +69,7 @@ uv run pytest -m "not integration" -q
 uv run pytest -m integration -q
 ```
 
-`uv.lock` is the environment contract. `requirements.lock.txt` is the human-readable `uv export` rendering used by Colab bootstrap and CI parity checks. Because `momentfm` is pinned to an exact Git commit, use `uv` rather than plain `pip` for the exported lock.
+`uv.lock` is the environment contract. `requirements.lock.txt` is the human-readable `uv export` rendering used by Colab bootstrap and CI parity checks. It is **not pip-installable** with ordinary `pip install -r`: the graph mixes hashed requirements with the exact unhashed Git source requirement for `momentfm`. Use `uv sync --locked` for a repository checkout. The Colab notebooks use `uv pip` deliberately rather than plain pip while consuming the parity-checked export.
 
 The upstream source pin is:
 
