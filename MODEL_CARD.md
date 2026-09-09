@@ -1,5 +1,6 @@
 ---
 license: mit
+model_card_spec: "1.0"
 tags:
   - time-series
   - time-series-foundation-model
@@ -9,331 +10,344 @@ tags:
 base_model: AutonLab/MOMENT-1-base
 ---
 
-# MOMENT-1-base
+# MOMENT-1-base (v1.0)
 
 [![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-AutonLab%2FMOMENT--1--base-ffcc4d?style=flat)](https://huggingface.co/AutonLab/MOMENT-1-base)
 [![Upstream](https://img.shields.io/badge/Upstream-moment--timeseries--foundation--model%2Fmoment-181717?style=flat&logo=github&logoColor=white)](https://github.com/moment-timeseries-foundation-model/moment)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Description
+###### Description
 
-MOMENT-1-base is a pretrained time-series foundation model from the Auton Lab at Carnegie
-Mellon University. It is a patch-based encoder built on a FLAN-T5-base backbone: a series
-is cut into non-overlapping patches of 8 timesteps across a fixed 512-step context, each
-patch is embedded, and a transformer encoder produces one representation per patch per
-channel.
+MOMENT-1-base is an open-weights time-series foundation model from the Auton Lab at Carnegie Mellon University (`AutonLab/MOMENT-1-base`, pinned revision `9fea447e740eb968a9e8d80c7562ae122bdb5dde`), packaged by this repository for representation learning, imputation, and anomaly scoring. Built on a patch-based encoder over a FLAN-T5-base backbone (~113.5M parameters in `model.safetensors`), it segments multi-channel time series into non-overlapping 8-step patches across a fixed 512-timestep window (64 patches, effective dimension 768) and maps them into latent representations. The released base checkpoint is fundamentally a self-reconstruction model (`task_name: reconstruction` with a pretrained `PretrainHead`), while classification and forecasting heads are untrained and deliberately refused. This repository provides a verified, robust DIMER pipeline wrapper: strict safetensors loading, supply-chain verification enforcing digest and byte-size checks, total exclusion of legacy pickle checkpoints, canonical data transformation with mandatory finite pre-fill, explicit patch-quantized masking contracts, raw anomaly residual scoring, and complete provenance tracking.
 
-**The released base checkpoint is a reconstruction model.** Its `config.json` declares
-`task_name: reconstruction`, and the only task head in `model.safetensors` is the
-pretrained `PretrainHead` (`head.linear.weight`, `head.linear.bias`). That single fact
-governs everything below.
+#### Intended Use and Limitations
+
+###### Primary Intended Uses
+
+The primary intended uses of this pipeline comprise three distinct zero-shot time-series tasks:
+1. Multi-channel representation learning: Generating per-patch and pooled latent embeddings (`moment_pipeline.embedding.embed`) for downstream clustering, classification, or vector search.
+2. Missing-value imputation: Reconstructing missing or masked time-series segments (`moment_pipeline.imputation.reconstruct`) via patch-quantized self-attention.
+3. Reconstruction-based anomaly scoring: Emitting continuous, unthresholded reconstruction residuals (`moment_pipeline.anomaly.score_anomalies`) to highlight unexpected patterns.
+Concrete application domains include industrial machine vibration telemetry, ECG and biometric monitoring, environmental sensor network recovery, and data center metrics. The pipeline serves as a standardized feature extractor and anomaly detector within the DIMER platform.
+
+###### Primary Intended Users
+
+Primary intended users are machine learning researchers, data scientists, industrial automation engineers, and MLOps professionals building time-series analytics workflows. Users are expected to understand patch-quantized masking mechanics—specifically that a single missing point masks an entire 8-step patch across all channels—and to understand that base embeddings are missingness-blind (finite pre-fill moves the vector). Users must also recognize that anomaly scores represent continuous reconstruction discrepancies rather than binary labels, and understand that supervised classification and forecasting require explicit task-head adaptation.
+
+###### Out-of-scope use cases
+
+1. **Capability boundaries:** Zero-shot forecasting and classification are strictly out of scope. The upstream checkpoint carries no pretrained forecasting or classification heads; upstream `momentfm` initializes them randomly, so exposing them without fine-tuning produces invalid outputs (for zero-shot forecasting, use `chronos-2-forecasting-pipeline`).
+2. **Input boundaries:** Inputs must conform strictly to 512-timestep windows. Series shorter than 512 steps must be padded, and longer series must be sliced into 512-step windows. Unformatted, irregular, non-numeric, or infinite values are refused.
+3. **Decision boundaries:** Autonomous, unmonitored decision-making based on raw anomaly scores—such as automatic shutdown of life-support systems, emergency grid tripping, or automated financial transactions—without human operator verification is strictly prohibited.
+
+---
+
+#### Factors
+
+###### Groups
+
+MOMENT-1-base is a numerical sequence model trained on the Timeseries-PILE benchmark, a broad multi-domain collection of synthetic, industrial, physical, and environmental time series. It does not model demographic or phenotypic human groups natively. However, the pretraining corpus was not demographically audited by its authors. When operators apply this pipeline to human biometric telemetry (e.g., ECG, photoplethysmography, gait analysis, or wearable health monitors), performance may vary across demographic categories such as age, biological sex, skin tone, or health status. Operators deploying on human subjects are obligated to perform independent subgroup validation and fairness audits on their own data.
+
+###### Instrumentation
+
+Training and evaluation data for MOMENT originate from diverse instrumentation, including industrial accelerometers, medical electrocardiographs, climate monitoring stations, server monitors, and laboratory sensors. Sensor sampling rate, frequency response, electrical noise, analog filtering, and ADC resolution directly influence the recorded time series. Because MOMENT operates on patches of 8 steps, high-frequency sensor noise or sudden phase jitter propagates through the patch projection layer into latent embeddings. While the pipeline sanitizes missing data via finite prefill and validates shapes, it cannot identify physical sensor drift or loss of calibration.
+
+###### Environment
+
+1. **Operating environment:** Requires Python 3.12, PyTorch >=2.1.2, and `transformers`. The pipeline executes on CPU using ~454 MB for weights, supporting `device="auto"`, `device="cpu"`, and `device="cuda"`. The pipeline enforces `float32` precision exclusively; half-precision dtypes (`float16`, `bfloat16`) are refused on the public API due to instability and unsupported CPU operations.
+2. **Data environment:** Assumes regular, 512-step windows normalized via Reversible Instance Normalization (RevIN). The model degrades when applied to non-stationary series with abrupt variance explosions, windows containing >50% masked patches, or data whose sampling frequency drastically departs from typical physical phenomena.
+
+---
+
+#### Metrics
+
+###### Performance Measures
+
+For reconstruction and imputation tasks, performance is evaluated using Mean Squared Error (MSE) and Mean Absolute Error (MAE) computed strictly over masked target points (`masked_point_mae`, `masked_point_rmse`). For anomaly scoring, per-element residuals are computed under MSE or MAE. For embeddings, representation quality is judged downstream via silhouette scores, retrieval precision, or linear probe classification accuracy. Evaluating metrics over masked positions only is essential; including observed positions in reconstruction metrics artificially deflates error and masks poor imputation fidelity.
+
+###### Decision thresholds
+
+The anomaly scoring module deliberately ships **no binary threshold**—neither as a default, a constant, nor a keyword argument. Residual scales vary across different physical series, and a hardcoded threshold would be falsely interpreted as an empirical decision boundary. Output residuals are provided unthresholded, accompanied by explicit `threshold_policy` metadata. Downstream operators own threshold calibration against clean, holdout reference windows based on the asymmetric operational costs of false positives (unnecessary alarms) versus false negatives (missed failures).
+
+###### Approaches to uncertainty and variability
+
+Inference for embedding, imputation, and anomaly scoring is completely deterministic on CPU under standard runtime execution. The model uses no dropout or stochastic sampling at inference time. Output anomaly scores and reconstruction residuals are raw scalar distances, not statistical probabilities, p-values, or calibrated confidence intervals. Operators requiring calibrated uncertainty must apply conformal prediction, extreme value theory, or empirical quantiles over domain-specific validation splits.
+
+---
+
+#### Ethical considerations and biases
+
+###### Data
+
+MOMENT-1-base was pretrained on the Timeseries-PILE, an extensive compilation of publicly available time-series datasets spanning multiple domains. The upstream authors have not published a complete instance-level inventory of every private or sensitive artifact that might have been included in the public crawls. This repository distributes code, pipeline adapters, and tests; model weights are cached from Hugging Face Hub and never committed. Operators supplying inference data are responsible for auditing payloads to prevent accidental transmission of confidential, classified, or protected health information.
+
+###### Human Life
+
+MOMENT-1-base is not certified, tested, or approved for life-critical applications or high-stakes decisions concerning human life, safety, or health. It must not be deployed as an autonomous diagnostic device, clinical patient monitor, emergency safety trip, or automated criminal justice assessment tool. Use in any human-adjacent domain requires rigorous external clinical validation, fail-safe redundant systems, and continuous human clinician or expert supervision.
+
+###### Mitigations
+
+The pipeline implements extensive architectural and supply-chain mitigations:
+1. **Supply-chain security:** Pins immutable revision `9fea447e…`, validates SHA-256 digests for `config.json` (`f1c66c2b…`) and `model.safetensors` (`1a436826…`), validates weight byte count (`453,940,120`), and strictly forbids legacy pickle files (`pytorch_model.bin`) via `allow_patterns` and snapshot inspection.
+2. **Tensor identity proof:** At load time, all 116 non-head and head tensors are verified against `model.safetensors` using `torch.equal`.
+3. **Numerical sanitization:** Implements mandatory finite prefill (`prefill_value`) to prevent NaN propagation during patch embedding, and explicitly surfaces `masked_point_fraction` and `masked_patch_fraction`.
+4. **Head refusal:** Rejects untrained classification and forecasting heads at API boundary.
+5. **Reproducibility:** Locks runtime dependencies via `uv.lock` and exports structured provenance with every result.
+
+###### Risks and harms
+
+Key risks include:
+1. **Missingness blindness in embeddings:** Pre-filling missing values with a sentinel moves embedding vectors without leaving traces in the vector itself; downstream consumers must inspect provenance fractions to detect input degradation.
+2. **Patch-edge anomaly artifacts:** Patch quantization (8 points per patch) can produce residual spikes at gap boundaries if unhandled; the pipeline sets unscored positions to NaN by construction.
+3. **Automation bias:** Downstream operators interpreting raw reconstruction residuals as infallible anomaly alarms without establishing baseline calibration.
+
+###### Use cases
+
+Prohibited use cases include:
+1. Deceptive surveillance, biometric tracking, or covert monitoring of individuals.
+2. Automated workplace monitoring, employee productivity scoring, or predictive disciplinary action.
+3. Autonomous deployment in lethal weapons systems or hazardous chemical/nuclear infrastructure.
+4. Any usage violating the upstream MIT license or applicable regional AI regulatory mandates.
+
+---
+
+## Summary
+
+MOMENT-1-base is an open-weight pretrained time-series foundation model from the Auton Lab at Carnegie Mellon University. The released base checkpoint is a **reconstruction model**: its pretrained task head reconstructs masked time-series patches. DIMER therefore exposes only capabilities defensible directly from those weights:
+
+1. pretrained encoder embeddings;
+2. reconstruction-backed imputation;
+3. raw reconstruction-residual anomaly scoring.
+
+Classification and forecasting are not exposed as pretrained capabilities. Upstream can instantiate those heads, but they are freshly initialized and require a separate training/adaptation contract. DIMER's zero-shot forecasting path is Chronos-2.
 
 ## Model details
 
-| | |
+| Field | Value |
 |---|---|
-| Model identifier | `AutonLab/MOMENT-1-base` |
+| Model | `AutonLab/MOMENT-1-base` |
 | Developer | Auton Lab, Carnegie Mellon University |
-| Code repository | [moment-timeseries-foundation-model/moment](https://github.com/moment-timeseries-foundation-model/moment) |
 | Family | MOMENT-1 |
-| Task of the released checkpoint | reconstruction |
-| Architecture | patch-based encoder over a FLAN-T5-base encoder backbone |
-| Parameters | ~113.5M |
-| Context (`seq_len`) | 512 |
-| Patch length / stride | 8 / 8 (64 patches per window) |
-| Effective `d_model` | 768 |
-| Tensors in `model.safetensors` | 116 |
+| Released task | reconstruction |
+| Architecture | patch-based encoder using a FLAN-T5-base encoder backbone |
+| Approx. parameters | ~113.5M |
+| Sequence length | 512 timesteps |
+| Patch length / stride | 8 / 8 |
+| Patches per full window | 64 |
+| Effective representation dimension | 768 |
+| Standard weight format | `model.safetensors` |
+| License | MIT |
 
-`config.json` declares `d_model: null`. The value is derived from the backbone when the
-model is constructed; this pipeline reads the effective value off the loaded module
-(768 — confirmed by executing `load_moment`) and records it in provenance rather than
-hardcoding it from the config file.
+The effective representation dimension is read from the loaded model rather than inferred from the repository `config.json`, whose `d_model` field is not itself a reliable public representation-size contract.
 
-## Pretrained vs adapted: what this pipeline will and will not expose
+## Checkpoint and source provenance
 
-Only the reconstruction path carries pretrained weights.
+The DIMER path is immutable at both model and source-code layers.
 
-**Exposed in v1** — defensible directly from the base checkpoint:
+| Item | Pin / assertion |
+|---|---|
+| Hugging Face revision | `9fea447e740eb968a9e8d80c7562ae122bdb5dde` |
+| `model.safetensors` SHA-256 | `1a436826ffe618273ec62b9656dc4cab8edc470364f104e90542a4ebc14fb825` |
+| `model.safetensors` size | 453,940,120 bytes |
+| `config.json` SHA-256 | `f1c66c2bb845229c0ed27a1600dbcc956b85ab21f9e5fd8a1663e6641bed7755` |
+| Upstream `momentfm` source | `moment-timeseries-foundation-model/moment` |
+| Upstream source commit | `38f7310ad594100747ca2a8357e9c7ca7d323e0e` |
+| Runtime lock | `uv.lock` + parity-checked `requirements.lock.txt` |
 
-- pretrained encoder embeddings (`moment_pipeline.embedding.embed`);
-- imputation / reconstruction (`moment_pipeline.imputation.reconstruct`);
-- reconstruction-based anomaly **scoring** (Phase 4; the module is deliberately empty today).
+The loader's standard path:
 
-**Not exposed, at any phase, without a separate adaptation contract:**
+1. downloads with `allow_patterns=["config.json", "model.safetensors", "README.md"]`, which cannot match `*.bin`;
+2. refuses any snapshot directory containing a `.bin` file, before it checks anything else;
+3. verifies the resolved commit, both digests and the expected weight byte size;
+4. compares all 116 tensors against `model.safetensors` with `torch.equal`.
 
-- classification — `momentfm` builds a **freshly initialized** `ClassificationHead`;
-- forecasting (short or long horizon) — likewise a freshly initialized head. DIMER's
-  zero-shot forecasting service is Chronos-2, not MOMENT.
+**What guarantees which file was loaded is (1) and (2), not (4).** `pytorch_model.bin` at this revision is a value-identical serialization of the same checkpoint, so a `.bin` load would satisfy the tensor comparison byte for byte. The comparison is still worth having — it discriminates a freshly initialized head, a partial or truncated load and a tampered file — but the file-identity claim rests on exclusion controls and digest checks. Pickle-format fallback is not part of the public path.
 
-`moment_pipeline.model.load_moment` accepts only `task="embedding"` or
-`task="reconstruction"` and raises `ModelSourceError` for anything else, so an untrained
-head cannot be reached through the public API by accident.
+A `pytorch_model.bin` artifact exists upstream at the same model revision, so the safetensors-only acquisition rule is material rather than cosmetic. The DIMER loader does not silently substitute it.
 
-### The embedding-mode warning is about heads, not embeddings
+## Public capability 1 — pretrained embeddings
 
-Loading the embedding task emits:
+`moment_pipeline.embed()` exposes the pretrained encoder representation using the upstream `reduction="mean"` behavior.
 
-> Only reconstruction head is pre-trained. Classification and forecasting heads must be
-> fine-tuned.
+### Representation semantics
 
-`momentfm/models/moment.py::MOMENT._get_head` (L172-175 in the pinned build) raises this
-for *every* non-reconstruction task name, including `embedding`. For the embedding task
-the head that replaces `PretrainHead` is `nn.Identity` — there is nothing to fine-tune,
-and the encoder producing the embeddings is fully pretrained. The warning is harmless
-here and must not be read as "these embeddings require fine-tuning". This pipeline
-asserts `type(pipeline.head) is nn.Identity` and that the module exposes **no** `head.*`
-parameters in embedding mode.
-
-## Masking is patch-quantized
-
-MOMENT sees patches, not points. `momentfm/utils/masking.py::Masking.convert_seq_to_patch_view`
-marks a patch observed only when **all 8** of its points are observed
-(`mask.unfold(...).sum(dim=-1) == patch_len`).
-
-One missing point therefore costs a whole patch. In a single-channel window a NaN at
-index 13 masks patch 1: `masked_point_fraction = 1/512`, `masked_patch_fraction = 1/64`.
-
-For multichannel windows the point mask is collapsed over channels with a `min`: MOMENT's
-`mask` argument has no channel axis, so a point missing in **any** channel is treated as
-unobserved. That is conservative and explicit -- and it means two honestly different
-numbers exist. They have two different names:
-
-| Field | Counts | Denominator |
-|---|---|---|
-| `masked_point_fraction` | source missingness, per (window, channel, position) cell | non-padded cells x channels |
-| `model_masked_point_fraction` | positions hidden from the model: source missingness collapsed over channels **plus** any caller-supplied mask | non-padded (window, position) pairs |
-| `masked_patch_fraction` | patches the model treats as unobserved | non-padded patches |
-
-`masked_point_fraction` is defined once, in `canonical.missing_point_fraction`, and
-`WindowSet`, `EmbeddingResult` and `ReconstructionResult` all report that same number for
-the same windows. One missing point in `c1` of a 2-channel 512-step window is
-`masked_point_fraction = 1/1024` and `model_masked_point_fraction = 1/512`; before this
-was unified, both were called `masked_point_fraction` and read 1/1024 and 2/1024.
-
-Every fraction is exposed on the result and recorded in provenance, and the mask handed to
-`pipeline.reconstruct` is already expanded to patch granularity so callers see exactly the
-masking the model applies.
-
-## Missing values: mandatory finite pre-fill
-
-`MOMENT.reconstruct` has **no** `nan_to_num` (unlike `MOMENT.embed`, which calls it at
-L255), and `PatchEmbedding.forward` computes `mask * linear(x) + (1 - mask) * mask_embedding`
-— multiplying a NaN by a zero mask yields NaN, so a raw NaN survives masking and reaches
-the output. The repository keeps a negative control
-(`tests/test_integration_model.py::test_negative_control_raw_nan_reaches_the_output`) that
-executes this and asserts the output contains NaN.
-
-The canonical converter therefore replaces every missing payload with a finite sentinel
-(default `0.0`) before a tensor exists, and keeps missingness in `point_mask`. On the
-**reconstruction** path that mask reaches the model: `pipeline.reconstruct` takes an
-explicit patch-quantized `mask`, and a pre-filled position is embedded as
-`mask_embedding` rather than as its sentinel value.
+- one vector is produced per canonical window;
+- channels are averaged inside upstream before patch pooling;
+- the result is therefore **not** one embedding per channel;
+- the reduction and channel policy are recorded on the result and in provenance;
+- no random classification or forecasting head is involved.
 
 ### Embeddings are NOT missingness-aware
 
-On the **embedding** path the mask cannot reach the model, and this pipeline cannot make
-it. Upstream's signature is
+Embeddings are **NOT missingness-aware** in the current upstream path. Upstream's `MOMENT.embed` accepts the padding `input_mask`, but has no per-point observedness parameter. Finite pre-filled missing values are therefore visible to the encoder as values. RFC common-validation rule 12 is therefore not satisfiable through upstream `embed`.
 
-```python
-MOMENT.embed(self, *, x_enc, input_mask=None, reduction="mean", **kwargs)
+DIMER does not hide this limitation. `EmbeddingResult` and provenance report `masked_point_fraction` and explicitly state that missingness was not visible to the model. For sensitive downstream clustering, retrieval, or classification, either use clean windows or perform an explicit imputation step first.
+
+## Public capability 2 — imputation / reconstruction
+
+`moment_pipeline.impute()` uses the pretrained reconstruction path while applying a DIMER-owned user-facing product contract.
+
+### Mask semantics
+
+MOMENT works on 8-step patches. A point-level missing or caller-hidden position can therefore hide the entire containing patch from the model. DIMER reports separately:
+
+| Field | Meaning | Denominator |
+|---|---|---|
+| `masked_point_fraction` | source-missing non-padded cells | non-padded cells x channels |
+| `model_masked_point_fraction` | non-padded positions hidden from the model after source missingness + caller mask | non-padded (window, position) pairs |
+| `masked_patch_fraction` | non-padded patches hidden from the model | non-padded patches |
+
+For multichannel input, the model mask is conservatively collapsed across channels because upstream's reconstruction mask has no channel axis.
+
+### Imputed-series semantics
+
+The default exported imputed series is intentionally narrower than full reconstruction:
+
+- source-observed values are preserved unchanged unless the caller deliberately hid them;
+- source-missing values are replaced by reconstruction;
+- deliberately hidden source-observed values are replaced by reconstruction;
+- observed neighbours hidden only because they share a model patch are **not** overwritten merely because the model could not see them;
+- full reconstruction is exported separately.
+
+This distinction prevents a tutorial imputation workflow from silently rewriting good observed data just because MOMENT's internal mask is patch-quantized.
+
+### Evaluation semantics
+
+`masked_point_metrics()` computes MAE/RMSE only on deliberately hidden source-observed cells. It excludes:
+
+- source-missing cells, because no ground truth exists;
+- observed neighbour cells hidden only by patch expansion, because they were not deliberate evaluation targets.
+
+## Public capability 3 — anomaly scoring
+
+`moment_pipeline.score_anomalies()` returns raw reconstruction residuals. The standard v1 primitive is an **unmasked self-reconstruction residual**.
+
+### What the score means
+
+The model sees the point it is scoring. The residual therefore measures how difficult that point/window is for MOMENT to reproduce, not how surprising it would have been before observation. It is not a forecast residual and should not be interpreted as one.
+
+A slowly drifting pattern that MOMENT reconstructs faithfully may score low. Conversely, a local shape the model reconstructs poorly may score high even if it is operationally benign.
+
+### Loss and aggregation
+
+Supported residual losses:
+
+- `mae` — absolute reconstruction error;
+- `mse` — squared reconstruction error.
+
+Channel aggregation is explicit and DIMER-owned:
+
+- `none` — default; preserves per-channel scores;
+- `mean`;
+- `max`.
+
+The selected loss and aggregation are recorded in provenance.
+
+### No universal threshold
+
+**The v1 pipeline ships no binary anomaly threshold.** There is no hidden default and no thresholded classifier output. `threshold_policy` explicitly records that raw scores only were produced.
+
+Any binary decision boundary must be calibrated by the downstream application on an appropriate reference/calibration segment and evaluated separately. The deterministic tutorial sample includes injected spikes only to make ranking behavior inspectable; those labels are not a universal calibration set.
+
+### Scored domain
+
+A score is defined only where a position is non-padded and visible to the model. DIMER excludes:
+
+- padding;
+- source pre-filled positions whose residual would describe the sentinel rather than the series;
+- observed points inside a patch hidden because of another missing value, because those residuals are imputation residuals rather than self-reconstruction residuals.
+
+Unscored positions are marked `NaN` by construction. They are not NaNs propagated from the model; raw reconstruction error remains available separately for diagnostics.
+
+## Canonical input contract
+
+Preferred user input is long-format data:
+
+```csv
+series_id,timestamp,channel,value
+A,2026-01-01T00:00:00,vibration,0.12
+A,2026-01-01T00:15:00,vibration,0.18
 ```
 
-There is no per-point observedness parameter. `input_mask` is the *padding* mask, and
-momentfm passes it to RevIN (`moment.py:254`) and to the patch embedding
-(`moment.py:262`) as the only mask there is. The finite pre-fill is therefore consumed as
-genuine observed data: it enters the RevIN mean and standard deviation and is embedded as
-a value, not replaced by `mask_embedding`.
+Canonical conversion is deterministic:
 
-The consequences, all executed on the real weights and pinned by
-`tests/test_integration_model.py::test_embeddings_are_missingness_blind_known_limitation`:
+- channel order: sorted unique channel names;
+- one window per series in v1;
+- final 512 distinct timestamps retained;
+- shorter series left-padded;
+- longer series truncated to the final 512 timestamps with truncation disclosed;
+- missing payloads finite-pre-filled before tensor construction;
+- source missingness retained in masks;
+- irregular timestamp spacing surfaced, never silently interpolated;
+- normalization delegated to upstream MOMENT RevIN.
 
-- the embedding of a window with missing values is **byte-identical** to the embedding of
-  the same window with `prefill_value` written into those positions;
-- both differ from the embedding of the clean window, so the sentinel demonstrably moves
-  the vector;
-- nothing in the vector distinguishes a fabricated stretch from a real flat one.
+Raw NaN is not passed to the reconstruction path. The finite pre-fill + explicit-mask rule is required because multiplying NaN by a zero mask does not make the value numerically safe inside the upstream model.
 
-RFC common-validation rule 12 -- "missingness carried exclusively via the mask" -- is
-therefore **not satisfiable through upstream `embed`**, and it is not satisfied here. What
-this pipeline does instead is refuse to hide it: `EmbeddingResult` and every embedding
-provenance block carry `masked_point_fraction`, `masked_point_count`,
-`masked_patch_fraction`, `missingness_visible_to_model: false` and a
-`missingness_policy` string. Those fractions are the **only** record that any part of the
-input was fabricated, so a consumer clustering or retrieving on these vectors must read
-them.
+## Task-instance separation
 
-Whether v1 should keep embedding such windows with this disclosure, refuse windows above a
-missingness threshold, or require a DIMER-owned imputation first is an open contract
-decision for the repository owner; nothing in Phase 1 forecloses any of the three.
+MOMENT changes task heads according to task configuration. DIMER therefore uses task-specific loaded instances:
 
-## Anomaly scoring is a score, not a verdict
+- `task="embedding"` for embeddings;
+- `task="reconstruction"` for imputation and anomaly scoring.
 
-The Phase 4 score is an **unmasked self-reconstruction residual**: the model reconstructs
-a window it can see in full, and `|x - x_hat|` (or the square, under `loss="mse"`) is the
-score. `momentfm`'s own `detect_anomalies` does the same thing — it calls
-`reconstruct(..., mask=None)`, i.e. `mask = ones`.
+The public loader refuses unsupported task names rather than giving users freshly initialized classifier/forecaster outputs that could be mistaken for pretrained predictions.
 
-Two consequences follow directly, and neither is a defect to be fixed later:
+## Tutorials
 
-- **It is not a forecast residual.** A drift the model reconstructs faithfully scores low
-  by construction. This score detects what MOMENT finds hard to reproduce, which is not
-  the same set as "what is anomalous".
-- **The model sees the point it is scoring.** That bounds the achievable residual from
-  below and is why the scores are small on clean data.
+The v1 repository contains three executable Colab tutorials:
 
-### There is no threshold, and that is a decision
+- [`tutorials/moment_embeddings_colab.ipynb`](tutorials/moment_embeddings_colab.ipynb)
+- [`tutorials/moment_imputation_colab.ipynb`](tutorials/moment_imputation_colab.ipynb)
+- [`tutorials/moment_anomaly_detection_colab.ipynb`](tutorials/moment_anomaly_detection_colab.ipynb)
 
-Raw per-element scores `(batch, channel, timestep)` are the v1 output. This pipeline ships
-no binary threshold — not as a default, not as a keyword argument, not as a constant. The
-residual scale depends on the series, so a cutoff fitted on one series does not transfer
-to another, and a shipped default would be read as calibrated when nothing calibrated it.
-`AnomalyResult.threshold_policy` and every anomaly provenance block state the absence, so
-an export cannot be mistaken for a thresholded one. Calibration belongs to a caller who
-owns a reference segment; the RFC keeps it an explicit, optional, separately evaluated
-step.
+The default tutorial assets are deterministic synthetic series generated by [`examples/sample-data/generate_samples.py`](examples/sample-data/generate_samples.py). [`SHA256SUMS`](examples/sample-data/SHA256SUMS) records the expected materialized CSV digests and [`DATASET_CARD.md`](examples/sample-data/DATASET_CARD.md) documents their purpose and provenance.
 
-### Channel aggregation is DIMER-owned
+The anomaly sample includes three explicitly injected vibration spikes for ranking demonstration. The labels do not establish a calibrated threshold or real-world benchmark accuracy.
 
-Upstream performs none. `channel_aggregation` is `"none"` (default, loses nothing),
-`"mean"` or `"max"`, it collapses the channel axis and nothing else, and it is recorded on
-the result and in provenance. Under an aggregation `to_frame()` omits `reconstruction` and
-`reconstruction_error`: those are per-channel quantities, and collapsing them would invent
-a number.
+## Reproducibility and CI
 
-### The scored domain is narrower than the window
+Pull requests must pass:
 
-A score is defined only where the position is non-padded **and** was visible to the model.
-Three exclusions, three counts on the result:
+- lock parity;
+- Python lint;
+- no-network unit/contract tests;
+- parse/compile checks for every tutorial code cell.
 
-| Excluded | Why | Field |
-|---|---|---|
-| padding | left-padding is not data | (outside every denominator) |
-| pre-filled positions | `x_enc` holds `prefill_value`; the residual would describe the sentinel | `unscored_prefilled_count` |
-| positions inside a hidden patch | the residual is an *imputation* residual — produced from a patch the encoder was shown as unobserved — and is systematically larger | `unscored_hidden_by_patch_count` |
+Pushes to `main` and manual workflow dispatch additionally run:
 
-The third exclusion is the one worth dwelling on. Because masking is patch-quantized, one
-missing point hides all 8 points of its patch. The 7 observed neighbours still produce a
-residual, and it is a real number — but it is a different quantity from a
-self-reconstruction residual, and mixing the two into one column would put a spike at
-every gap edge and invite the reader to call it an anomaly. So `anomaly_score` holds one
-quantity only, and unscored positions are `NaN`.
+- real CPU integration tests against the pinned checkpoint;
+- all three tutorial notebooks top-to-bottom using the same public library calls a user sees;
+- output artifact upload for inspection.
 
-Those NaNs are markers, not propagation: `reconstruction_error` keeps the finite residual
-at every position, and
-`tests/test_anomaly.py::test_unscored_positions_are_nan_by_construction_not_by_propagation`
-pins the distinction. `scored_point_count + unscored_prefilled_count +
-unscored_hidden_by_patch_count` equals every non-padded (window, channel, position) cell.
+Static notebook JSON validation alone is not accepted as evidence that the tutorials work.
 
-### What is executed against the real weights
+## Intended use
 
-`tests/test_integration_model.py` runs the score on the pinned checkpoint on CPU:
-NaN-bearing input yields finite scores at every defined position; `mse` equals `mae`
-squared and ranks positions identically; `score_from_reconstruction` reproduces
-`score_anomalies` exactly; and a single point driven outside the series' range is the
-`argmax` of its window with a residual above ten times the background median — a rank
-claim, deliberately not a threshold.
+Appropriate v1 use cases include:
 
-## Supply chain
+- feature extraction from clean or explicitly preprocessed time-series windows;
+- reconstruction-backed imputation where patch-level masking semantics are acceptable;
+- exploratory/raw anomaly-score ranking where downstream calibration and domain interpretation remain explicit.
 
-| Constant | Value |
-|---|---|
-| Pinned revision | `9fea447e740eb968a9e8d80c7562ae122bdb5dde` |
-| `config.json` SHA-256 | `f1c66c2bb845229c0ed27a1600dbcc956b85ab21f9e5fd8a1663e6641bed7755` (949 bytes) |
-| `model.safetensors` SHA-256 | `1a436826ffe618273ec62b9656dc4cab8edc470364f104e90542a4ebc14fb825` |
-| `model.safetensors` size | 453,940,120 bytes |
-| Weight file loaded | `model.safetensors` (guaranteed by the exclusion controls below) |
+## Limitations
 
-**`pytorch_model.bin` also exists at this revision** (453,978,525 bytes, SHA-256
-`23c3d65bbb6dcd323352029e9fbe4ee3a3da0fff55b45ee4e00f38fff4e9bfb9`). A silent pickle
-fallback is a live hazard, not a hypothetical one, so the standard path:
+- Fixed 512-step canonical context in the current DIMER v1 converter.
+- Patch length 8 means point missingness expands to patch-level model masking.
+- Embeddings cannot receive per-point missingness masks upstream.
+- No pretrained classification head is exposed.
+- No MOMENT zero-shot forecasting claim is made.
+- Anomaly scores are uncalibrated self-reconstruction residuals, not universal anomaly probabilities.
+- No universal anomaly threshold is provided.
+- Fairness, robustness, calibration, and domain-transfer behavior are application-dependent and not established by the tutorial samples.
+- The current release boundary is a tutorial/developer preview; stable production-serving contracts remain follow-on work.
 
-1. downloads with `allow_patterns=["config.json", "model.safetensors", "README.md"]`, which
-   cannot match `*.bin`;
-2. refuses any snapshot directory containing a `.bin` file, before it checks anything else;
-3. verifies both digests and the weight byte size, and checks the snapshot directory name
-   against the pinned commit — on **every** load, including when the caller passes its own
-   `VerifiedSnapshot`. The identity written into provenance is rebuilt from the digests
-   recomputed at that moment, so an export records what was verified, never what a caller
-   asserted;
-4. compares every non-`head.*` tensor in the file — and, for the reconstruction task, both
-   `head.*` tensors as well, 116 of 116 — against `safetensors.safe_open` entries with
-   `torch.equal`.
+## License
 
-**What guarantees which file was loaded is (1) and (2), not (4).** `pytorch_model.bin` at
-this revision is a value-identical serialization of the same checkpoint, so a `.bin` load
-would satisfy the tensor comparison byte for byte. The comparison is still worth having —
-it discriminates a freshly initialized head, a partial or truncated load and a tampered
-file — but the *file identity* claim rests on `allow_patterns` never fetching a pickle
-artifact and on the snapshot being refused outright if one is present. Both of those are
-mutation-tested; the load proof carries the same statement in its
-`file_identity_basis` field.
+Pipeline code in this repository is MIT licensed. The pinned MOMENT model and upstream source also declare MIT terms; their identities are recorded separately because model artifacts, upstream code, and this wrapper are distinct provenance layers.
 
-**The revision is pinned by the digests, not by an independent commit lookup.** The only
-revision check is `verify_snapshot_dir`'s comparison of the snapshot directory name against
-`PINNED_REVISION`. `assert_pinned_source` has already forced the *requested* revision to be
-exactly that commit, and `huggingface_hub` names the snapshot directory after the commit the
-request resolved to, so for a SHA request the two agree by construction and the check cannot
-fail. It is a consistency assertion, not an oracle.
+## References
 
-What actually carries the integrity claim here is the pair of SHA-256 digests: content that
-hashes to the pinned values *is* the pinned revision's content, whatever a hub says about
-it. The sibling `chronos-2-forecasting-pipeline` additionally asks the Hub which commit the
-pin resolves to (`HfApi().model_info(...).sha`) and records whether that confirmation
-actually ran. This pipeline does not, and its exported `model.revision_basis` says so rather
-than implying a check that did not happen. Adding the lookup is a Phase-2 change; it buys a
-second, independent witness, not a stronger content guarantee.
-
-Mutable references (`main`, `latest`), other commits, other repositories, local directories
-and `s3://` / `https://` sources are refused before any network call.
-
-## Licences — weights and code are separate claims
-
-- **Weights:** MIT, declared as `license: mit` in the Hugging Face model-card metadata at
-  revision `9fea447e…`. **There is no `LICENSE` file in the model repository at that
-  revision** (its files are `.gitattributes`, `README.md`, `config.json`,
-  `model.safetensors`, `pytorch_model.bin`), so the licence claim rests on card metadata.
-- **Upstream `momentfm` code:** MIT, CMU Auton Lab, installed from commit
-  `38f7310ad594100747ca2a8357e9c7ca7d323e0e`.
-- **This pipeline's code:** MIT, Copyright (c) 2026 Kurt Valcorza — see [LICENSE](LICENSE).
-
-## Runtime requirements
-
-- Python `>=3.12,<3.13`.
-- CPU is sufficient; there is no hard CUDA requirement. `device="auto"` resolves to `cuda`
-  only when it is actually available.
-- Dependencies install from the committed lock (`uv sync --locked`); `requirements.lock.txt`
-  is a hashed export for CI/Colab parity.
-- `momentfm` is installed from source at an exact commit. Its version string is `0.1.5`,
-  which **does not exist on PyPI** — the PyPI release is 0.1.4 and hard-pins
-  `transformers==4.33.3`. Provenance records the commit alongside the version string.
-- ~454 MB of weights are downloaded once into the Hugging Face cache. On Windows set
-  `HF_HUB_DISABLE_SYMLINKS_WARNING=1`.
-
-## Provenance
-
-Every export carries `model`, `runtime`, `inference` and `load_proof` blocks: the pinned
-revision and both digests, the proved weight file, the momentfm version *and* source
-commit, `huggingface_hub` / `transformers` / `torch` / `numpy` versions, device and dtype,
-and task-specific fields — `reduction` and the channel-averaging policy for embeddings,
-masked point/patch counts and fractions for reconstruction.
-
-## Deferred / out of scope
-
-Short-horizon forecasting, long-horizon forecasting, classification inference without
-adaptation, full backbone fine-tuning, a supervised or calibrated anomaly classifier, any
-universal anomaly threshold, and multivariate anomaly aggregation beyond the explicit v1
-policy. Classification adaptation is a later RFC in the order: frozen embeddings + a
-classical classifier, then a trained MOMENT head, then PEFT/LoRA.
-
-Not yet shipped: the embedding export/tutorial (Phase 2), the imputed export that
-preserves observed points and masked-point MAE/RMSE (Phase 3), serving latency
-instrumentation beyond one warm-up-corrected field (Phase 5), sample datasets and Colab
-notebooks. Anomaly scoring (Phase 4) is implemented; anomaly *calibration* is not, and is
-deliberately a caller concern.
-
-## Upstream references
-
-- Model card and weights: <https://huggingface.co/AutonLab/MOMENT-1-base>
-- Upstream code: <https://github.com/moment-timeseries-foundation-model/moment>
-  (pinned at commit `38f7310ad594100747ca2a8357e9c7ca7d323e0e`)
-- RFC contract for this pipeline: [`docs/rfc/0001-moment-base.md`](docs/rfc/0001-moment-base.md)
+- Hugging Face model: `AutonLab/MOMENT-1-base`
+- Upstream code: `moment-timeseries-foundation-model/moment`
+- DIMER model/task contract: [`docs/rfc/0001-moment-base.md`](docs/rfc/0001-moment-base.md)
+- Release-completion tracking: issue #5

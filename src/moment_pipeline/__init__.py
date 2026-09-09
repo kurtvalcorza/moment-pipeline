@@ -28,7 +28,14 @@ from .config import (
     ResourceLimits,
 )
 from .embedding import EmbeddingResult, TaskMismatchError, embed
-from .imputation import DegenerateMaskError, ReconstructionResult, reconstruct
+from .imputation import (
+    DegenerateMaskError,
+    ImputationMetrics,
+    ReconstructionResult,
+    impute,
+    masked_point_metrics,
+    reconstruct,
+)
 from .model import (
     PINNED_CONFIG_SHA256,
     PINNED_MODEL_ID,
@@ -65,6 +72,7 @@ __all__ = [
     "ConfigError",
     "DegenerateMaskError",
     "EmbeddingResult",
+    "ImputationMetrics",
     "IntegrityError",
     "LoadedMoment",
     "ModelIdentity",
@@ -83,7 +91,9 @@ __all__ = [
     "embed",
     "expand_patch_view",
     "fetch_verified_snapshot",
+    "impute",
     "load_moment",
+    "masked_point_metrics",
     "reconstruct",
     "residual",
     "score_anomalies",

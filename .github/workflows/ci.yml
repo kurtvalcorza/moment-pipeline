@@ -12,8 +12,6 @@ env:
   HF_HUB_DISABLE_SYMLINKS_WARNING: "1"
 
 jobs:
-  # Always-on gate: lint plus the no-network unit suite. Installs from the committed
-  # lock, so CI and Colab resolve the identical dependency graph (RFC runtime section).
   unit:
     runs-on: ubuntu-latest
     steps:
@@ -24,9 +22,6 @@ jobs:
           enable-cache: true
       - name: Install from the lock
         run: uv sync --locked
-      # `--no-header` is load-bearing: without it `uv export` writes its own invoking
-      # command line -- including `-o <path>` -- into the file, so the committed copy and
-      # the CI copy could never match and this step failed on every run.
       - name: Lock parity (uv.lock <-> requirements.lock.txt)
         run: |
           uv export --format requirements-txt --locked --no-dev --no-emit-project \
@@ -34,15 +29,14 @@ jobs:
           diff -u requirements.lock.txt /tmp/requirements.check.txt
       - name: Ruff
         run: uv run ruff check .
-      - name: Unit tests (no network, no weights)
+      - name: Unit tests + notebook compile contracts (no network, no weights)
         run: uv run pytest -m "not integration" -q
 
-  # Real weights on CPU. Kept off pull_request so a fork PR cannot spend the download,
-  # and cached by the pinned commit so repeat runs do not re-fetch 454 MB.
   integration:
+    name: CPU real-weight integration + live tutorials
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -58,3 +52,16 @@ jobs:
         run: uv sync --locked
       - name: Integration tests (CPU, real model.safetensors)
         run: uv run pytest -m integration -q
+      - name: Execute all v1 tutorial notebooks top-to-bottom
+        run: |
+          rm -rf outputs
+          uv run python scripts/run_notebook.py \
+            tutorials/moment_embeddings_colab.ipynb \
+            tutorials/moment_imputation_colab.ipynb \
+            tutorials/moment_anomaly_detection_colab.ipynb
+      - name: Upload tutorial output evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: moment-live-tutorial-outputs
+          path: outputs/
+          if-no-files-found: error
