@@ -22,16 +22,18 @@ interpreted as described in RFC 2119 as clarified by RFC 8174. Lowercase uses of
 words carry their ordinary English meaning.
 
 A card that violates any **MUST** is not release-ready. A card that violates a **SHOULD**
-is releasable if the author records the reason in the pull request that ships it.
+is releasable if the author records the reason both in the pull request that ships it and
+in the card itself. A pull request description stops being read the moment it merges; the
+card is where a later reader looks.
 
 ## 3. General requirements
 
 | ID | Requirement |
 |---|---|
-| **G1** | The card MUST open with a YAML front-matter block delimited by `---`, declaring at minimum `license`. Where the pipeline wraps an upstream model, the block MUST also declare `base_model` with the upstream model identifier. |
+| **G1** | The card MUST open with a YAML front-matter block delimited by `---`, declaring at minimum `license` and `model_card_spec` — the version of this specification the card is written against, e.g. `model_card_spec: "1.0"`. Where the pipeline wraps an upstream model, the block MUST also declare `base_model` with the upstream model identifier. `model_card_spec` makes §8's fleet-wide coordination obligation checkable from the card itself, rather than by diffing copies of this document. |
 | **G2** | The card MUST carry exactly one level-1 heading, naming the model and the packaged version. |
-| **G3** | The card MUST contain every section listed in §4, spelled as given there. |
-| **G4** | Each required section MUST appear at the heading level given in §4. Levels carry the rendered hierarchy of the card, so a section promoted or demoted breaks it. |
+| **G3** | The card MUST contain every section listed in §4. Heading text is matched **case-insensitively**, ignoring surrounding emphasis: `Out-of-scope use cases` and `Out-of-Scope Use Cases` are the same section. §4 reproduces the DIMER template's own casing, which mixes Title Case and sentence case; a casing difference is not a nonconformance and MUST NOT be raised as one. |
+| **G4** | Each required section MUST appear at the heading level given in §4. These levels reproduce the DIMER card template verbatim and are a **fidelity requirement, not a semantic hierarchy**: the block renders h1 → h6 → h4 → h6, which a table-of-contents generator, an accessibility linter, or GitHub's own outline will read as broken nesting. They are fixed so that every DIMER card renders identically against the same template. Correcting the nesting is a change to the template, and therefore a §8 change to this specification — never a per-card decision. |
 | **G5** | Required sections MUST appear in the order given in §4, as one contiguous block. |
 | **G6** | That block SHOULD sit directly after the title and any badge row, before repository-specific sections such as model details, provenance, or references. A reader reaching the technical detail should already have read the intended use and the limits. |
 | **G7** | Each required section MUST be answered in the author's own prose. `<!-- Insert text here -->`, `TODO`, `TBD`, `FIXME`, and equivalent markers MUST NOT survive into a released card. |
@@ -259,7 +261,8 @@ The section MUST state:
 1. the estimation procedure behind any reported metric — a single holdout split, an average over *n* runs, *k*-fold cross-validation, bootstrap resampling — with the number of runs or folds;
 2. the dispersion reported alongside the central value, if any: standard deviation, variance, confidence interval, or the absence of one;
 3. the sources of run-to-run variability in the pipeline — sampling, ensembling, seeding, non-deterministic kernels — and which of them are controlled by a seed;
-4. the status of any confidence output: whether a probability the pipeline emits is calibrated, and if it is not, what the caller must do to obtain a calibrated one.
+4. the status of any confidence output: whether a probability the pipeline emits is calibrated, and if it is not, what the caller must do to obtain a calibrated one;
+5. where the pipeline reports no metric at all — because it emits a representation or a raw, uncalibrated score rather than a prediction — a statement of that fact, and of what the caller must supply to estimate one. This mirrors §5.11 item 4: a pipeline with nothing to report says so, and does not manufacture a procedure for a number it does not produce.
 
 **Rejected:** reporting a metric with no estimation procedure; presenting an uncalibrated
 softmax output as a probability without qualification.
