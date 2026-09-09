@@ -35,6 +35,10 @@ loader. DIMER's zero-shot forecasting service is Chronos-2.
 
 See [MODEL_CARD.md](MODEL_CARD.md) for the pretrained-vs-adapted semantics, patch-masking
 quantization, licences, and the full supply-chain constants.
+[MODEL_CARD_SPEC.md](MODEL_CARD_SPEC.md) is the DIMER-wide contract for what that card must
+contain — intended uses and users, out-of-scope uses, factors, metrics and decision
+thresholds, ethical considerations — and carries the pre-flight checklist to run before a
+release.
 
 ## Quickstart
 
