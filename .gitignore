@@ -12,4 +12,8 @@ outputs/
 examples/sample-data/*.csv
 
 # Local HF cache overrides / downloaded weights are never committed.
+weights/
 hf-cache/
+*.safetensors
+*.bin
+*.ckpt
