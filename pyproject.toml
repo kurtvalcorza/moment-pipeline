@@ -27,12 +27,7 @@ dev = ["pytest>=8.0", "ruff>=0.6.0"]
 [tool.uv.sources]
 momentfm = { git = "https://github.com/moment-timeseries-foundation-model/moment", rev = "38f7310ad594100747ca2a8357e9c7ca7d323e0e" }
 
-# torch is resolved from PyPI rather than the CPU-only index, so a consumer of this
-# lock can select `device="cuda"` without overriding the index. The RFC requires only
-# that tests not depend on CUDA, which they do not; CI runs the suites on CPU.
-
 [tool.uv]
-# Resolution universe: the CI runner (ubuntu) and the build host (windows).
 environments = ["sys_platform == 'linux'", "sys_platform == 'win32'"]
 
 [build-system]
@@ -45,6 +40,7 @@ packages = ["src/moment_pipeline"]
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]
+extend-exclude = ["*.ipynb"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]

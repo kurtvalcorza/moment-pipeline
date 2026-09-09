@@ -6,6 +6,14 @@ __pycache__/
 *.egg-info/
 desktop.ini
 out/
+outputs/
+
+# Deterministic tutorial CSVs are generated from the committed generator + SHA256 manifest.
+examples/sample-data/*.csv
 
 # Local HF cache overrides / downloaded weights are never committed.
+weights/
 hf-cache/
+*.safetensors
+*.bin
+*.ckpt
