@@ -99,6 +99,7 @@ def _inference_common(identity: ModelIdentity, windows: WindowSet) -> dict[str, 
 
 def build_provenance(model: LoadedMoment, windows: WindowSet, result: Any) -> dict[str, Any]:
     """Assemble the export metadata for one inference call."""
+    from .anomaly import AnomalyResult
     from .embedding import EmbeddingResult
     from .imputation import ReconstructionResult
 
@@ -135,6 +136,21 @@ def build_provenance(model: LoadedMoment, windows: WindowSet, result: Any) -> di
             "explicit patch-quantized mask; mask=None is never passed to "
             "MOMENT.reconstruct"
         )
+    elif isinstance(result, AnomalyResult):
+        # An anomaly export is only readable next to the loss, the aggregation and the
+        # domain the score is defined on. All three travel with it; none has a default a
+        # reader could assume, and there is no threshold field because v1 applies none.
+        inference["anomaly_loss"] = result.loss
+        inference["channel_aggregation"] = result.channel_aggregation
+        inference["threshold_policy"] = result.threshold_policy
+        inference["score_policy"] = result.score_policy
+        inference["scored_domain_policy"] = result.scored_domain_policy
+        inference["scored_point_count"] = result.scored_point_count
+        inference["scored_point_fraction"] = result.scored_point_fraction
+        inference["unscored_prefilled_count"] = result.unscored_prefilled_count
+        inference["unscored_hidden_by_patch_count"] = result.unscored_hidden_by_patch_count
+        inference["masked_point_fraction"] = result.masked_point_fraction
+        inference["masked_patch_fraction"] = result.masked_patch_fraction
     else:  # pragma: no cover - defensive
         raise TypeError(f"unsupported result type {type(result).__name__}")
 

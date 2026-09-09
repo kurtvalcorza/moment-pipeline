@@ -11,10 +11,13 @@ long-format table of `(series_id, timestamp, channel, value)` rows; the pipeline
 it, converts it deterministically into MOMENT's canonical tensors, and runs the pretrained
 encoder.
 
-**Status: Phase 1 — foundation.** The RFC contract is versioned in-repo, the runtime is
-locked, the loader is integrity-verified, and the canonical converter plus the
-finite-pre-fill and masking contract are implemented and covered by unit and CPU
-integration tests. Exports, tutorials, sample datasets and anomaly scoring are later phases.
+**Status: Phase 4 — the v1 capability triad is implemented.** The RFC contract is
+versioned in-repo, the runtime is locked, the loader is integrity-verified, and the
+canonical converter, the finite-pre-fill and masking contract, embeddings, the
+reconstruction primitive and reconstruction-based anomaly scoring are all covered by unit
+and CPU integration tests against the real weights. Still outstanding: the imputed export
+with masked-point MAE/RMSE (Phase 3), sample datasets, Colab tutorials and the serving
+contract (Phase 5).
 
 ## What v1 exposes — and what it does not
 
@@ -23,7 +26,7 @@ pretrained weights, so v1 exposes only what the base weights support:
 
 1. time-series embeddings / representation extraction;
 2. imputation / reconstruction;
-3. reconstruction-based anomaly scoring (Phase 4).
+3. reconstruction-based anomaly scoring.
 
 **Short-horizon forecasting and classification are NOT in the public API.** `momentfm`
 would happily build those heads, but it builds them *freshly initialized* — they are
@@ -90,6 +93,27 @@ print(result.model_masked_point_fraction)  # positions hidden from the model
 print(result.masked_patch_fraction)        # patches the model treats as unobserved
 ```
 
+Anomaly scoring reuses that same reconstruction path — the score *is* the residual:
+
+```python
+from moment_pipeline import score_anomalies
+
+model = load_moment(task="reconstruction", device="cpu")
+result = score_anomalies(windows, model)          # loss="mae", channel_aggregation="none"
+
+print(result.anomaly_score.shape)         # (n_windows, n_channels, 512) — raw residuals
+print(result.to_frame().head())           # series_id, timestamp, channel, reconstruction,
+                                          # reconstruction_error, anomaly_score, scored
+```
+
+**The score is raw and uncalibrated, and there is no threshold in v1** — not a default,
+not a keyword argument. It is an *unmasked self-reconstruction* residual: the model sees
+the point it is scoring, so a drift it reconstructs faithfully scores low by construction.
+Scores are defined only where a position is non-padded **and** was visible to the model;
+everywhere else `anomaly_score` is `NaN` by construction, and the result counts each
+exclusion. `MODEL_CARD.md` gives the reasoning, including why a residual taken from a
+patch the mask hid is a different quantity and is not mixed into the same column.
+
 ## Canonical data contract
 
 Input is long format:
@@ -135,7 +159,7 @@ src/moment_pipeline/
   model.py        pinned, digest-verified, safetensors-proved loader
   embedding.py    Task 1 — pooled encoder embeddings
   imputation.py   Task 2 — the reconstruction primitive
-  anomaly.py      Task 3 — deferred to Phase 4 (deliberately behaviour-free)
+  anomaly.py      Task 3 — raw reconstruction residuals, no threshold
   provenance.py   model / runtime / inference export metadata
 tests/            unit (no network) + integration (real weights, CPU)
 ```
