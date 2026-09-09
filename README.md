@@ -26,6 +26,9 @@ This is **not yet a production-serving release**. Stable backend dispatch, expli
 The authoritative contracts are:
 
 - [`docs/rfc/0001-moment-base.md`](docs/rfc/0001-moment-base.md) / issue #1 — model and task semantics;
+- [`MODEL_CARD_SPEC.md`](MODEL_CARD_SPEC.md) — the DIMER-wide contract for what [`MODEL_CARD.md`](MODEL_CARD.md) must
+  contain (intended uses and users, out-of-scope uses, factors, metrics and decision
+  thresholds, ethical considerations), with the pre-flight checklist to run before a release;
 - issue #5 — tutorial/release completion and remaining serving-readiness work.
 
 ## What v1 exposes — and what it does not
