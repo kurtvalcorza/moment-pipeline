@@ -38,7 +38,7 @@ card is where a later reader looks.
 | **G6** | That block SHOULD sit directly after the title and any badge row, before repository-specific sections such as model details, provenance, or references. A reader reaching the technical detail should already have read the intended use and the limits. |
 | **G7** | Each required section MUST be answered in the author's own prose. `<!-- Insert text here -->`, `TODO`, `TBD`, `FIXME`, and equivalent markers MUST NOT survive into a released card. |
 | **G8** | A section MUST NOT be answered with a bare `N/A`, `None`, or `Not applicable`. Where a section genuinely does not apply, the card MUST say so **and say why**. "Not applicable in the demographic sense: this pipeline consumes machine telemetry with no human subjects" is an answer; `N/A` is not. |
-| **G9** | Tooltip blockquotes (`> **Tooltip:** …`) are authoring aids. They MAY be kept in the card as guidance for later editors, but they do not constitute an answer, and a section that contains only its tooltip is unanswered. |
+| **G9** | Tooltip blockquotes (`> **Tooltip:** …`) are authoring scaffolding, not card content. They MUST be removed before release, exactly as the `<!-- Insert text here -->` placeholders are (G7). A tooltip surviving into a published card marks an unfinished card, and a section carrying only its tooltip is unanswered. The guidance itself is not lost: §5 of this document is where an editor reads what each section must answer. |
 | **G10** | Every factual claim in a required section MUST be checkable against this repository — pinned revisions, recorded digests, the code path named, or a cited upstream paper. Claims about performance the pipeline does not measure MUST NOT appear. Where the pipeline does not measure something a section asks about, the card MUST state that it is not measured rather than estimate it. |
 | **G11** | Each content section SHOULD run to at least 40 words. The binding criterion is the element list in §5, not the length; the floor exists because no listed element set can be discharged in a sentence fragment. |
 
@@ -391,7 +391,7 @@ Run this before opening a release pull request, and again as a reviewer. Every l
 
 - [ ] No placeholder or marker text anywhere in the block (G7).
 - [ ] No section answered with a bare `N/A`, `None`, or `Not applicable` (G8).
-- [ ] No section consisting only of its tooltip (G9).
+- [ ] No tooltip blockquote survives anywhere in the block — that guidance lives in §5, not in the card (G9).
 - [ ] Every element list in §5 discharged, section by section.
 - [ ] Every factual claim checkable against the repository or a cited source (G10).
 - [ ] No performance claim the pipeline does not measure (G10).
@@ -408,8 +408,9 @@ Run this before opening a release pull request, and again as a reviewer. Every l
 ## 7. Template
 
 Copy this block into a new pipeline's `MODEL_CARD.md`, directly after the title and badge
-row, and replace each placeholder. Tooltips MAY be kept; the placeholder comments MUST NOT
-survive (G7).
+row, and replace each placeholder. The tooltips and the placeholder comments are both
+scaffolding: **neither survives into the released card** (G7, G9). Delete each tooltip as
+you answer its section; §5 is where that guidance stays available.
 
 ```markdown
 ###### Description
