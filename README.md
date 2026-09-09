@@ -5,114 +5,145 @@
 [![Upstream](https://img.shields.io/badge/Upstream-moment--timeseries--foundation--model%2Fmoment-181717?style=flat&logo=github&logoColor=white)](https://github.com/moment-timeseries-foundation-model/moment)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A DIMER pipeline that turns [MOMENT-1-base](https://huggingface.co/AutonLab/MOMENT-1-base),
-an open-weight time-series foundation model, into a reproducible service. You supply a
-long-format table of `(series_id, timestamp, channel, value)` rows; the pipeline validates
-it, converts it deterministically into MOMENT's canonical tensors, and runs the pretrained
-encoder.
+[![Open embeddings tutorial in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_embeddings_colab.ipynb)
+[![Open imputation tutorial in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_imputation_colab.ipynb)
+[![Open anomaly tutorial in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_anomaly_detection_colab.ipynb)
 
-**Status: Phase 4 — the v1 capability triad is implemented.** The RFC contract is
-versioned in-repo, the runtime is locked, the loader is integrity-verified, and the
-canonical converter, the finite-pre-fill and masking contract, embeddings, the
-reconstruction primitive and reconstruction-based anomaly scoring are all covered by unit
-and CPU integration tests against the real weights. Still outstanding: the imputed export
-with masked-point MAE/RMSE (Phase 3), sample datasets, Colab tutorials and the serving
-contract (Phase 5).
+A reproducible DIMER pipeline around the pinned **AutonLab/MOMENT-1-base** checkpoint. Input is a long-format table of `(series_id, timestamp, channel, value)` rows; the pipeline validates it, canonicalizes it into MOMENT's 512-step representation, resolves and integrity-checks the approved checkpoint, and exposes only capabilities defensible from the pretrained base weights.
+
+## Status: v1 tutorial / developer preview
+
+The v1 capability set is implemented:
+
+1. pretrained time-series embeddings;
+2. reconstruction-backed imputation;
+3. raw reconstruction-residual anomaly scoring.
+
+The repository also includes deterministic synthetic tutorial assets, three fresh-Colab notebooks, portable result/provenance exports, and CI that executes the notebooks against the real pinned checkpoint on `main` and manual dispatch.
+
+This is **not yet a production-serving release**. Stable backend dispatch, explicit serving maxima, latency/SLO instrumentation, and DIMER backend packaging remain Phase 5 work tracked by the release-completion RFC.
+
+The authoritative contracts are:
+
+- [`docs/rfc/0001-moment-base.md`](docs/rfc/0001-moment-base.md) / issue #1 — model and task semantics;
+- issue #5 — tutorial/release completion and remaining serving-readiness work.
 
 ## What v1 exposes — and what it does not
 
-The released MOMENT-1-base checkpoint is a **reconstruction** model. Only that path carries
-pretrained weights, so v1 exposes only what the base weights support:
+The released MOMENT-1-base checkpoint is a **reconstruction** model. Only that path carries a pretrained task head.
 
-1. time-series embeddings / representation extraction;
-2. imputation / reconstruction;
-3. reconstruction-based anomaly scoring.
+### Supported
 
-**Short-horizon forecasting and classification are NOT in the public API.** `momentfm`
-would happily build those heads, but it builds them *freshly initialized* — they are
-adaptation workflows, not pretrained capabilities, and this pipeline refuses them at the
-loader. DIMER's zero-shot forecasting service is Chronos-2.
+- **Embeddings:** pooled pretrained encoder representations, one vector per canonical window.
+- **Imputation:** full reconstruction plus a default imputed series that preserves observed source values and replaces only source-missing or deliberately hidden cells.
+- **Anomaly scoring:** raw per-element reconstruction residuals (`mae` or `mse`) with explicit scored-domain accounting.
 
-See [MODEL_CARD.md](MODEL_CARD.md) for the pretrained-vs-adapted semantics, patch-masking
-quantization, licences, and the full supply-chain constants.
+### Deliberately unsupported
 
-## Quickstart
+- classification without a separately trained adapter/head;
+- zero-shot forecasting from MOMENT;
+- a universal anomaly threshold;
+- claims that a pooled embedding is missingness-aware.
 
-```bash
-uv sync --locked          # exact dependency graph, same one CI installs
-export HF_HUB_DISABLE_SYMLINKS_WARNING=1   # Windows/WSL caches cannot symlink
-uv run pytest -m "not integration"         # unit suite: no network, no weights
-uv run pytest -m integration               # CPU suite: downloads ~454 MB once
-```
+DIMER's zero-shot forecasting path is Chronos-2. Classification or forecasting adaptations for MOMENT require separate artifact/training contracts.
 
-**`uv sync --locked` is the only install path.** `uv.lock` is the lock; the committed
-`requirements.lock.txt` is a `uv export` rendering of it, kept so the resolved graph is
-readable in a diff and so CI can prove the two agree. It is **not pip-installable**: it
-pins `momentfm` as a bare `git+https://…@38f7310…` requirement with no `--hash`, which pip
-refuses as soon as any other requirement carries one. Colab installs with uv for the same
-reason.
+## Live tutorials
 
-`torch` is resolved from PyPI rather than a CPU-only index, so a consumer of this lock can
-select `device="cuda"` without overriding anything. The RFC requires only that the tests
-not depend on CUDA, which they do not; CI runs both suites on CPU. The cost is that a Linux
-install pulls the CUDA-enabled torch wheel and its NVIDIA dependencies. Regenerate it with
+| Tutorial | Purpose |
+|---|---|
+| [`moment_embeddings_colab.ipynb`](tutorials/moment_embeddings_colab.ipynb) | Clean-sample/BYOD canonicalization, pinned encoder load, pooled embeddings, CSV + provenance export |
+| [`moment_imputation_colab.ipynb`](tutorials/moment_imputation_colab.ipynb) | Patch-granular artificial masking, imputed-series export, masked-point-only MAE/RMSE, visualization + provenance |
+| [`moment_anomaly_detection_colab.ipynb`](tutorials/moment_anomaly_detection_colab.ipynb) | Raw reconstruction-residual ranking on documented injected anomalies; no threshold; score visualization + provenance |
+
+The default samples are deterministic synthetic data generated by [`examples/sample-data/generate_samples.py`](examples/sample-data/generate_samples.py). Their SHA-256 values and design/provenance are committed in [`SHA256SUMS`](examples/sample-data/SHA256SUMS) and [`DATASET_CARD.md`](examples/sample-data/DATASET_CARD.md). The CSV materializations themselves are generated locally and ignored by Git.
+
+## Installation and tests
+
+Requires Python 3.12 and `uv`.
 
 ```bash
-uv export --format requirements-txt --locked --no-dev --no-emit-project \
-  --no-header -o requirements.lock.txt
+uv sync --locked
+export HF_HUB_DISABLE_SYMLINKS_WARNING=1
+uv run ruff check .
+uv run pytest -m "not integration" -q
+uv run pytest -m integration -q
 ```
 
-`--no-header` is required: without it `uv export` writes its own `-o <path>` into the file
-and the CI lock-parity diff can never match.
+`uv.lock` is the environment contract. `requirements.lock.txt` is the human-readable `uv export` rendering used by Colab bootstrap and CI parity checks. Because `momentfm` is pinned to an exact Git commit, use `uv` rather than plain `pip` for the exported lock.
+
+The upstream source pin is:
+
+```text
+moment-timeseries-foundation-model/moment
+38f7310ad594100747ca2a8357e9c7ca7d323e0e
+```
+
+The model checkpoint is pinned separately to Hugging Face revision:
+
+```text
+AutonLab/MOMENT-1-base
+9fea447e740eb968a9e8d80c7562ae122bdb5dde
+```
+
+See [MODEL_CARD.md](MODEL_CARD.md) for file digests, safetensors load proof, runtime semantics, and limitations.
+
+## Quickstart: embeddings
 
 ```python
 import pandas as pd
 from moment_pipeline import build_provenance, embed, load_moment, to_windows
 
-frame = pd.read_csv("my_series.csv")  # series_id, timestamp, channel, value
-windows = to_windows(frame)           # validate + canonicalize to (b, c, 512)
-
-model = load_moment(task="embedding", device="auto")
+frame = pd.read_csv("my_series.csv")
+windows = to_windows(frame)
+model = load_moment(task="embedding", device="cpu")
 result = embed(windows, model)
 
-print(result.embeddings.shape)        # (n_windows, 768)
-print(result.to_frame().head())       # series_id, window_id, embedding_0 … embedding_767
+embeddings = result.to_frame()
 provenance = build_provenance(model, windows, result)
 ```
 
-For imputation/reconstruction, load the **reconstruction** task — MOMENT swaps its head per
-task, so the instances are deliberately separate:
+`reduction="mean"` averages channels inside upstream before patch pooling, so the result is one vector per window, not one vector per channel.
+
+**Embedding missingness limitation:** upstream `MOMENT.embed` has no per-point observedness mask. A pre-filled missing value is visible to the encoder. The result and provenance therefore report missingness fractions explicitly; they do not claim the representation ignored missing values.
+
+## Quickstart: imputation
 
 ```python
-from moment_pipeline import reconstruct
+import numpy as np
+from moment_pipeline import impute, load_moment, masked_point_metrics, to_windows
+
+windows = to_windows(frame)
+visible = np.ones_like(windows.input_mask, dtype=np.float32)
+visible[:, 448:456] = 0.0  # deliberately hide one complete 8-step patch
 
 model = load_moment(task="reconstruction", device="cpu")
-result = reconstruct(windows, model)          # mask is always explicit, never None
-print(result.masked_point_fraction)        # source missingness, per channel-cell
-print(result.model_masked_point_fraction)  # positions hidden from the model
-print(result.masked_patch_fraction)        # patches the model treats as unobserved
+result = impute(windows, model, mask=visible)
+imputed = result.to_frame()
+metrics = masked_point_metrics(result)
 ```
 
-Anomaly scoring reuses that same reconstruction path — the score *is* the residual:
+The default imputed product has three important semantics:
+
+- source-observed values remain unchanged unless the caller explicitly hid them;
+- source-missing or deliberately hidden cells receive reconstructed values;
+- points hidden only because MOMENT expanded a mask to an 8-step patch are **not** overwritten merely because the model could not see them.
+
+`masked_point_metrics()` scores only deliberately hidden source-observed cells. Source-missing values have no ground truth and never enter MAE/RMSE.
+
+## Quickstart: anomaly scoring
 
 ```python
-from moment_pipeline import score_anomalies
+from moment_pipeline import load_moment, score_anomalies, to_windows
 
+windows = to_windows(frame)
 model = load_moment(task="reconstruction", device="cpu")
-result = score_anomalies(windows, model)          # loss="mae", channel_aggregation="none"
-
-print(result.anomaly_score.shape)         # (n_windows, n_channels, 512) — raw residuals
-print(result.to_frame().head())           # series_id, timestamp, channel, reconstruction,
-                                          # reconstruction_error, anomaly_score, scored
+result = score_anomalies(windows, model, loss="mae", channel_aggregation="none")
+scores = result.to_frame()
 ```
 
-**The score is raw and uncalibrated, and there is no threshold in v1** — not a default,
-not a keyword argument. It is an *unmasked self-reconstruction* residual: the model sees
-the point it is scoring, so a drift it reconstructs faithfully scores low by construction.
-Scores are defined only where a position is non-padded **and** was visible to the model;
-everywhere else `anomaly_score` is `NaN` by construction, and the result counts each
-exclusion. `MODEL_CARD.md` gives the reasoning, including why a residual taken from a
-patch the mask hid is a different quantity and is not mixed into the same column.
+The score is an **unmasked self-reconstruction residual**, not a forecast residual. MOMENT sees the point it scores. A drift it reconstructs faithfully may therefore score low.
+
+There is **no universal binary threshold in v1**. `AnomalyResult.threshold_policy` and exported provenance state this explicitly. Any threshold must be calibrated by the downstream application on an appropriate reference segment.
 
 ## Canonical data contract
 
@@ -120,62 +151,69 @@ Input is long format:
 
 ```csv
 series_id,timestamp,channel,value
-A,2026-01-01T00:00:00,signal_1,0.12
-A,2026-01-01T01:00:00,signal_1,0.18
+A,2026-01-01T00:00:00,vibration,0.12
+A,2026-01-01T00:15:00,vibration,0.18
 ```
-
-The converter's documented policy (Phase 1):
 
 | Policy | Behaviour |
 |---|---|
-| Channel ordering | sorted unique channel names of the whole input |
-| Windowing | one window per `series_id` — the last 512 distinct timestamps |
+| Channel ordering | sorted unique channel names |
+| Windowing | one window per series, final 512 distinct timestamps |
 | Alignment | right-aligned |
-| Padding | shorter series left-padded, `input_mask = 0` on the padding |
-| Truncation | longer series keep the last 512, `truncated=True` disclosed |
-| Missing values | finite pre-fill (default `0.0`); missingness lives only in the masks |
-| Frequency | irregular spacing surfaced, never interpolated |
-| Normalization | delegated to MOMENT's internal RevIN, driven by `input_mask` |
+| Padding | shorter series left-padded; padding mask = 0 |
+| Truncation | longer series keep the final 512; truncation is disclosed |
+| Missing values | finite pre-fill, default `0.0`; missingness retained in masks |
+| Patch semantics | 8-step non-overlapping patches; one missing point can hide the entire patch |
+| Frequency | irregular spacing is surfaced, never silently interpolated |
+| Normalization | delegated to MOMENT RevIN |
 
-Missing values are quantized to patches: one missing point makes its whole 8-step patch
-unobserved to the model. `masked_point_fraction` (source missingness, per (window,
-channel, position) cell), `model_masked_point_fraction` (positions hidden from the model,
-channel-collapsed, including any caller mask) and `masked_patch_fraction` are all reported;
-`MODEL_CARD.md` gives each one's denominator.
+For multichannel windows, MOMENT's reconstruction mask has no channel axis. The public converter therefore collapses observedness conservatively across channels before patch quantization and records both point- and model-side masking fractions.
 
-**Embeddings are not missingness-aware.** Upstream `MOMENT.embed` takes no per-point
-observedness mask, so a gappy window embeds identically to the same window with the
-pre-fill value written in. `EmbeddingResult` and the export's provenance record the
-fractions; they are the only signal. See `MODEL_CARD.md`.
+## CI and live-notebook evidence
+
+Pull requests must pass:
+
+- lock parity;
+- Ruff for Python source/tests;
+- no-network unit/contract suite;
+- JSON parsing and Python compilation of every tutorial code cell.
+
+Pushes to `main` and manual workflow dispatch additionally run:
+
+- CPU integration tests against the real pinned `model.safetensors`;
+- the exact code cells from all three tutorial notebooks, top-to-bottom;
+- output-artifact upload (`moment-live-tutorial-outputs`).
+
+Static notebook JSON validation alone is not considered release evidence.
 
 ## Repository layout
 
 ```text
-docs/rfc/0001-moment-base.md   verbatim RFC copy — the mission anchor
+docs/rfc/0001-moment-base.md
 src/moment_pipeline/
-  config.py       runtime config + resource limits
-  validation.py   the common validation contract (12 rules)
-  canonical.py    long format -> (x_enc, input_mask, point_mask, patch_mask)
-  model.py        pinned, digest-verified, safetensors-proved loader
-  embedding.py    Task 1 — pooled encoder embeddings
-  imputation.py   Task 2 — the reconstruction primitive
-  anomaly.py      Task 3 — raw reconstruction residuals, no threshold
-  provenance.py   model / runtime / inference export metadata
-tests/            unit (no network) + integration (real weights, CPU)
+  config.py
+  validation.py
+  canonical.py
+  model.py
+  embedding.py
+  imputation.py
+  anomaly.py
+  provenance.py
+examples/sample-data/
+  DATASET_CARD.md
+  SHA256SUMS
+  generate_samples.py
+tutorials/
+  moment_embeddings_colab.ipynb
+  moment_imputation_colab.ipynb
+  moment_anomaly_detection_colab.ipynb
+scripts/run_notebook.py
+tests/
+.github/workflows/ci.yml
 ```
-
-## Contract and provenance
-
-- The approved contract is [`docs/rfc/0001-moment-base.md`](docs/rfc/0001-moment-base.md),
-  a verbatim copy of [issue #1](https://github.com/kurtvalcorza/moment-pipeline/issues/1)
-  captured at `2026-09-08T04:34:15Z`. The issue body is mutable; the file is the anchor.
-- `momentfm` is installed from upstream commit `38f7310ad594100747ca2a8357e9c7ca7d323e0e`;
-  the version string `0.1.5` does not exist on PyPI.
-- Every export records the pinned revision, both digests, the weight file the loader
-  *proved* it was using, the full runtime version set, device and dtype.
 
 ## Licence
 
 Pipeline code: MIT, Copyright (c) 2026 Kurt Valcorza — see [LICENSE](LICENSE).
-Model weights and upstream `momentfm` code carry their own MIT terms; the distinction is
-recorded in [MODEL_CARD.md](MODEL_CARD.md).
+
+Model weights and upstream `momentfm` code carry their own MIT terms. Their identities and provenance are documented separately in [MODEL_CARD.md](MODEL_CARD.md).
