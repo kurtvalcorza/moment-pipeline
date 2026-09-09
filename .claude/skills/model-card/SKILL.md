@@ -46,9 +46,12 @@ Check the card against the code, not only against itself. The recurring defects 
   is uncalibrated, where no threshold is shipped, where no external review took place — the
   card states it. Omission reads as a claim.
 - **A bare `N/A` is never an answer** (**G8**). "Does not apply, because …" is.
-- **Tooltips are scaffolding** (**G9**), not content. Delete each one as you answer its
-  section — a tooltip left in a released card marks it unfinished, and a section holding
-  only its tooltip is unanswered. The guidance stays available in §5 of the spec.
+- **Tooltips are scaffolding** (**G9**), not content: `<!-- Tooltip: … -->` comments in the
+  same class as `<!-- Insert text here -->`. Delete each one as you answer its section, and
+  grep the source for `Tooltip` before release — a comment renders as nothing, so a leftover
+  is invisible on the page. A tooltip left in a released card marks it unfinished, and a
+  section holding only its tooltip is unanswered. The guidance stays available in §5 of the
+  spec.
 - **Mechanism over intention** (§5.17). Name the check, the pin, the refusal — not the goal.
 - **`Out-of-scope use cases` and `Use cases` are different questions.** §5.5 is what the
   model cannot or should not do; §5.19 is what it must not be used for even where it works.

@@ -38,7 +38,7 @@ card is where a later reader looks.
 | **G6** | That block SHOULD sit directly after the title and any badge row, before repository-specific sections such as model details, provenance, or references. A reader reaching the technical detail should already have read the intended use and the limits. |
 | **G7** | Each required section MUST be answered in the author's own prose. `<!-- Insert text here -->`, `TODO`, `TBD`, `FIXME`, and equivalent markers MUST NOT survive into a released card. |
 | **G8** | A section MUST NOT be answered with a bare `N/A`, `None`, or `Not applicable`. Where a section genuinely does not apply, the card MUST say so **and say why**. "Not applicable in the demographic sense: this pipeline consumes machine telemetry with no human subjects" is an answer; `N/A` is not. |
-| **G9** | Tooltip blockquotes (`> **Tooltip:** …`) are authoring scaffolding, not card content. They MUST be removed before release, exactly as the `<!-- Insert text here -->` placeholders are (G7). A tooltip surviving into a published card marks an unfinished card, and a section carrying only its tooltip is unanswered. The guidance itself is not lost: §5 of this document is where an editor reads what each section must answer. |
+| **G9** | Tooltips (`<!-- Tooltip: … -->`) are authoring scaffolding, not card content. They are the same class of comment as the `<!-- Insert text here -->` placeholders and leave the card under the same rule (G7): a tooltip MUST NOT survive into a released card, in the comment form or in the `> **Tooltip:** …` blockquote form carried by cards copied from an earlier template. Because a comment renders as nothing, a surviving tooltip is invisible in the published page — conformance is checked against the card's source, not its rendering. A tooltip left in the source marks an unfinished card, and a section carrying only its tooltip is unanswered. The guidance itself is not lost: §5 of this document is where an editor reads what each section must answer. |
 | **G10** | Every factual claim in a required section MUST be checkable against this repository — pinned revisions, recorded digests, the code path named, or a cited upstream paper. Claims about performance the pipeline does not measure MUST NOT appear. Where the pipeline does not measure something a section asks about, the card MUST state that it is not measured rather than estimate it. |
 | **G11** | Each content section SHOULD run to at least 40 words. The binding criterion is the element list in §5, not the length; the floor exists because no listed element set can be discharged in a sentence fragment. |
 
@@ -391,7 +391,7 @@ Run this before opening a release pull request, and again as a reviewer. Every l
 
 - [ ] No placeholder or marker text anywhere in the block (G7).
 - [ ] No section answered with a bare `N/A`, `None`, or `Not applicable` (G8).
-- [ ] No tooltip blockquote survives anywhere in the block — that guidance lives in §5, not in the card (G9).
+- [ ] No tooltip survives anywhere in the block, in either the `<!-- Tooltip: … -->` or `> **Tooltip:** …` form — read the source, not the rendered page, since a comment shows nothing (G9). That guidance lives in §5, not in the card.
 - [ ] Every element list in §5 discharged, section by section.
 - [ ] Every factual claim checkable against the repository or a cited source (G10).
 - [ ] No performance claim the pipeline does not measure (G10).
@@ -408,122 +408,124 @@ Run this before opening a release pull request, and again as a reviewer. Every l
 ## 7. Template
 
 Copy this block into a new pipeline's `MODEL_CARD.md`, directly after the title and badge
-row, and replace each placeholder. The tooltips and the placeholder comments are both
-scaffolding: **neither survives into the released card** (G7, G9). Delete each tooltip as
-you answer its section; §5 is where that guidance stays available.
+row, and replace each placeholder. The tooltips and the placeholders are the same kind of
+scaffolding — HTML comments, which the renderer shows to nobody — and **neither survives
+into the released card** (G7, G9). Delete each tooltip as you answer its section, and grep
+the source before release rather than trusting the rendered page; §5 is where that guidance
+stays available.
 
 ```markdown
 ###### Description
 
 <!-- Insert text here -->
 
-> **Tooltip:** Discuss clearly the idea of your model.
+<!-- Tooltip: Discuss clearly the idea of your model. -->
 
 #### Intended Use and Limitations
 
-> **Tooltip:** Provide use cases that were envisioned during development.
+<!-- Tooltip: Provide use cases that were envisioned during development. -->
 
 ###### Primary Intended Uses
 
 <!-- Insert text here -->
 
-> **Tooltip:** Describe the intended general or specific machine learning tasks in mind. Use cases may be as broadly or narrowly defined as the developers intended. For example, if the model was built simply to label images, then this task should be indicated as the primary intended use case.
+<!-- Tooltip: Describe the intended general or specific machine learning tasks in mind. Use cases may be as broadly or narrowly defined as the developers intended. For example, if the model was built simply to label images, then this task should be indicated as the primary intended use case. -->
 
 ###### Primary Intended Users
 
 <!-- Insert text here -->
 
-> **Tooltip:** Describe the primary intended users of the model. This helps users gain insight into how robust the model may be to different kinds of inputs. For example, was the model developed for entertainment purposes, for hobbyists, or enterprise solutions?
+<!-- Tooltip: Describe the primary intended users of the model. This helps users gain insight into how robust the model may be to different kinds of inputs. For example, was the model developed for entertainment purposes, for hobbyists, or enterprise solutions? -->
 
 ###### Out-of-scope use cases
 
 <!-- Insert text here -->
 
-> **Tooltip:** Describe possible usages of the model that are outside the scope intended by its developers. This is inspired by warning labels on food and toys, and similar disclaimers presented in electronic datasheets. For example, "not for use on text examples shorter than 100 tokens".
+<!-- Tooltip: Describe possible usages of the model that are outside the scope intended by its developers. This is inspired by warning labels on food and toys, and similar disclaimers presented in electronic datasheets. For example, "not for use on text examples shorter than 100 tokens". -->
 
 ---
 
 #### Factors
 
-> **Tooltip:** This section describes the demographic or phenotypic groups, environmental conditions, technical attributes, and instrumentation conditions that were considered during model development.
+<!-- Tooltip: This section describes the demographic or phenotypic groups, environmental conditions, technical attributes, and instrumentation conditions that were considered during model development. -->
 
 ###### Groups
 
 <!-- Insert text here -->
 
-> **Tooltip:** Provide the distinct categories with similar characteristics that are present in the evaluation of data instances. For a human-centric machine learning model, "groups" are people who share one or multiple characteristics. For human-centric computer vision models, the visual presentation of age, gender, and skin type may be relevant.
+<!-- Tooltip: Provide the distinct categories with similar characteristics that are present in the evaluation of data instances. For a human-centric machine learning model, "groups" are people who share one or multiple characteristics. For human-centric computer vision models, the visual presentation of age, gender, and skin type may be relevant. -->
 
 ###### Instrumentation
 
 <!-- Insert text here -->
 
-> **Tooltip:** Provide information about the instruments that were used to capture the training and evaluation datasets for model development. For example, for a face detection model, the instruments may include the type of camera used, type of lens, image stabilization method or dynamic range techniques used in the camera's software.
+<!-- Tooltip: Provide information about the instruments that were used to capture the training and evaluation datasets for model development. For example, for a face detection model, the instruments may include the type of camera used, type of lens, image stabilization method or dynamic range techniques used in the camera's software. -->
 
 ###### Environment
 
 <!-- Insert text here -->
 
-> **Tooltip:** Provide information about the model's performance with respect to the different environmental settings considered in the development of the model. For example, environment settings may include level of humidity, amount of light, and type of light in the environment in which training and evaluation datasets have been captured.
+<!-- Tooltip: Provide information about the model's performance with respect to the different environmental settings considered in the development of the model. For example, environment settings may include level of humidity, amount of light, and type of light in the environment in which training and evaluation datasets have been captured. -->
 
 ---
 
 #### Metrics
 
-> **Tooltip:** This section reflects potential real-world impacts of the model. Metrics should be determined based on the model's structure and intended use.
+<!-- Tooltip: This section reflects potential real-world impacts of the model. Metrics should be determined based on the model's structure and intended use. -->
 
 ###### Performance Measures
 
 <!-- Insert text here -->
 
-> **Tooltip:** What measures of model performance are being reported, and why were they selected over other measures of model performance?
+<!-- Tooltip: What measures of model performance are being reported, and why were they selected over other measures of model performance? -->
 
 ###### Decision thresholds
 
 <!-- Insert text here -->
 
-> **Tooltip:** Cite all the decision thresholds that were applied in developing the model. For example, the accuracy threshold that was set for the model was at least of 95% accuracy due to its target application in the medical domain.
+<!-- Tooltip: Cite all the decision thresholds that were applied in developing the model. For example, the accuracy threshold that was set for the model was at least of 95% accuracy due to its target application in the medical domain. -->
 
 ###### Approaches to uncertainty and variability
 
 <!-- Insert text here -->
 
-> **Tooltip:** How are the measurements and estimations of these metrics calculated? For example, this may include standard deviation, variance, confidence intervals, or KL divergence. Details of how these values are approximated should also be included (e.g., average of 5 runs, 10-fold cross-validation).
+<!-- Tooltip: How are the measurements and estimations of these metrics calculated? For example, this may include standard deviation, variance, confidence intervals, or KL divergence. Details of how these values are approximated should also be included (e.g., average of 5 runs, 10-fold cross-validation). -->
 
 ---
 
 #### Ethical considerations and biases
 
-> **Tooltip:** Information about the ethical considerations that went into model development, surfacing ethical challenges and solutions to stakeholders. Include other ethical considerations such as review by an external board or testing with a specific group for clearing.
+<!-- Tooltip: Information about the ethical considerations that went into model development, surfacing ethical challenges and solutions to stakeholders. Include other ethical considerations such as review by an external board or testing with a specific group for clearing. -->
 
 ###### Data
 
 <!-- Insert text here -->
 
-> **Tooltip:** Does the model use any sensitive data. For example, classified data.
+<!-- Tooltip: Does the model use any sensitive data. For example, classified data. -->
 
 ###### Human Life
 
 <!-- Insert text here -->
 
-> **Tooltip:** Is the model intended to perform in a situation for decision-making in matters that are central to human life or flourishing. For example, criminal sentence, health, and safety.
+<!-- Tooltip: Is the model intended to perform in a situation for decision-making in matters that are central to human life or flourishing. For example, criminal sentence, health, and safety. -->
 
 ###### Mitigations
 
 <!-- Insert text here -->
 
-> **Tooltip:** What were the risk mitigations employed during model development?
+<!-- Tooltip: What were the risk mitigations employed during model development? -->
 
 ###### Risks and harms
 
 <!-- Insert text here -->
 
-> **Tooltip:** What risks may occur when using the model? Identify potential recipients of risks, likelihood of risks, and magnitude of harms brought by the risks.
+<!-- Tooltip: What risks may occur when using the model? Identify potential recipients of risks, likelihood of risks, and magnitude of harms brought by the risks. -->
 
 ###### Use cases
 
 <!-- Insert text here -->
 
-> **Tooltip:** Are there any model use cases that are considered as disturbing?
+<!-- Tooltip: Are there any model use cases that are considered as disturbing? -->
 ```
 
 ## 8. Change control
