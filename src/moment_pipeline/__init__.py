@@ -27,6 +27,7 @@ from .config import (
     MomentConfig,
     ResourceLimits,
 )
+from .csvio import read_long_csv_bytes
 from .embedding import EmbeddingResult, TaskMismatchError, embed
 from .imputation import (
     DegenerateMaskError,
@@ -94,6 +95,7 @@ __all__ = [
     "impute",
     "load_moment",
     "masked_point_metrics",
+    "read_long_csv_bytes",
     "reconstruct",
     "residual",
     "score_anomalies",
