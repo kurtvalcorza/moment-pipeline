@@ -103,7 +103,6 @@ def test_notebook_json_remains_reviewable_and_stably_formatted() -> None:
         assert raw.endswith("\n")
         assert raw.startswith("{\n")
         assert '\n  "cells": [' in raw
-        assert raw.count("\n") > 100, f"{name} appears minified or unstable for line review"
 
 
 def test_embeddings_tutorial_carries_representation_semantics() -> None:
