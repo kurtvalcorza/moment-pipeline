@@ -12,6 +12,7 @@ NOTEBOOKS = {
     "moment_anomaly_detection_colab.ipynb": "anomaly-scoring",
 }
 PLACEHOLDER = re.compile(r"\b(?:TODO|TBD|FIXME)\b")
+NUMBERED_STAGE = re.compile(r"^## \d+\.")
 
 
 def _load(name: str) -> dict:
@@ -69,12 +70,37 @@ def test_common_release_grade_learning_contract_is_durable() -> None:
         assert 'version("momentfm")' in code
         assert "validate_long_frame" in code
         assert "build_provenance" in code
+        assert "read_long_csv_bytes(payload)" in code
+        assert "pd.read_csv(io.BytesIO(payload))" not in code
 
         for cell in payload["cells"]:
             if cell.get("cell_type") != "code":
                 continue
             assert cell.get("execution_count") is None
             assert cell.get("outputs") == []
+
+
+def test_numbered_major_stages_explain_success_semantics() -> None:
+    for name in NOTEBOOKS:
+        payload = _load(name)
+        for cell in payload["cells"]:
+            if cell.get("cell_type") != "markdown":
+                continue
+            source = _source(cell).strip()
+            if not NUMBERED_STAGE.match(source):
+                continue
+            lines = source.splitlines()
+            prose = "\n".join(lines[1:]).strip().lower()
+            assert prose, f"{name}: numbered stage is heading-only: {lines[0]}"
+            assert "success" in prose, f"{name}: stage lacks successful-output semantics: {lines[0]}"
+
+
+def test_notebook_json_remains_reviewable_and_stably_formatted() -> None:
+    for name in NOTEBOOKS:
+        raw = (TUTORIALS / name).read_text(encoding="utf-8")
+        assert raw.endswith("\n")
+        assert raw.startswith("{\n")
+        assert '\n  "cells": [' in raw
 
 
 def test_embeddings_tutorial_carries_representation_semantics() -> None:
