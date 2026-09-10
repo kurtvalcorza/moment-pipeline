@@ -92,7 +92,9 @@ def test_numbered_major_stages_explain_success_semantics() -> None:
             lines = source.splitlines()
             prose = "\n".join(lines[1:]).strip().lower()
             assert prose, f"{name}: numbered stage is heading-only: {lines[0]}"
-            assert "success" in prose, f"{name}: stage lacks successful-output semantics: {lines[0]}"
+            assert "success" in prose, (
+                f"{name}: stage lacks successful-output semantics: {lines[0]}"
+            )
 
 
 def test_notebook_json_remains_reviewable_and_stably_formatted() -> None:
