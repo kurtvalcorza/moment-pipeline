@@ -136,7 +136,8 @@ def test_anomaly_tutorial_carries_score_direction_threshold_and_byod_semantics()
     assert "higher residual scores mean stronger anomaly evidence" in lower
     assert "no universal/default threshold" in lower
     assert "a calibrated detector" in lower
-    assert "not calibrated anomaly probabilities" in lower
+    assert "calibrated anomaly probabilities" in lower
+    assert "does not mean" in lower
     assert "labels = None" in code
     assert "top_k_recall" in code
     assert "moment_anomaly_scores.csv" in code
