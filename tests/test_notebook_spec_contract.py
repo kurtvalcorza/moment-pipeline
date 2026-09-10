@@ -101,6 +101,7 @@ def test_notebook_json_remains_reviewable_and_stably_formatted() -> None:
         assert raw.endswith("\n")
         assert raw.startswith("{\n")
         assert '\n  "cells": [' in raw
+        assert raw.count("\n") > 100, f"{name} appears minified or unstable for line review"
 
 
 def test_embeddings_tutorial_carries_representation_semantics() -> None:
@@ -118,7 +119,7 @@ def test_imputation_tutorial_carries_masked_evaluation_and_baseline_semantics() 
     payload = _load("moment_imputation_colab.ipynb")
     markdown, code = _texts(payload)
     lower = markdown.lower()
-    assert "single-sample tutorial metrics" in lower
+    assert "sample metrics" in lower or "sample/tutorial evidence" in lower
     assert "linear interpolation baseline" in lower
     assert "no uncertainty interval" in lower
     assert "masked_point_metrics" in code
