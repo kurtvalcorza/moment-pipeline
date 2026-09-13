@@ -7,14 +7,18 @@ requires-python = ">=3.12,<3.13"
 license = { text = "MIT" }
 authors = [{ name = "Kurt Valcorza" }]
 keywords = ["time-series", "foundation-model", "moment", "dimer"]
+# Runtime dependencies are pinned exactly (DIMER NOTEBOOK_SPEC 1.1 ENV2/PAR2) to the versions
+# requirements.lock.txt resolved; a standalone tutorial notebook carries the same pins inline.
+# `momentfm` is the exception: it is installed from source at the exact upstream commit named in
+# [tool.uv.sources] below (RFC M-7), because no usable PyPI release exists.
 dependencies = [
     "momentfm",
-    "torch>=2.0.1",
-    "numpy>=1.25.2",
-    "pandas>=2.0.0",
-    "huggingface-hub>=0.24.0",
-    "safetensors>=0.4.0",
-    "transformers>=4.54.1",
+    "torch==2.14.0",
+    "numpy==2.5.3",
+    "pandas==3.0.5",
+    "huggingface-hub==1.30.0",
+    "safetensors==0.8.0",
+    "transformers==5.16.1",
 ]
 
 [dependency-groups]

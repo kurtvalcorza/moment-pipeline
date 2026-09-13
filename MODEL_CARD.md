@@ -1,6 +1,6 @@
 ---
 license: mit
-model_card_spec: "1.0"
+model_card_spec: "1.1"
 tags:
   - time-series
   - time-series-foundation-model
@@ -10,11 +10,39 @@ tags:
 base_model: AutonLab/MOMENT-1-base
 ---
 
-# MOMENT-1-base (v1.0)
+# MOMENT-1-base (v1.0) — Time-Series Foundation Model (Embeddings, Imputation & Anomaly Detection)
 
 [![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-AutonLab%2FMOMENT--1--base-ffcc4d?style=flat)](https://huggingface.co/AutonLab/MOMENT-1-base)
-[![Upstream](https://img.shields.io/badge/Upstream-moment--timeseries--foundation--model%2Fmoment-181717?style=flat&logo=github&logoColor=white)](https://github.com/moment-timeseries-foundation-model/moment)
+[![Upstream GitHub](https://img.shields.io/badge/Upstream%20GitHub-moment--timeseries--foundation--model%2Fmoment-181717?style=flat&logo=github&logoColor=white)](https://github.com/moment-timeseries-foundation-model/moment)
+[![arXiv Paper](https://img.shields.io/badge/arXiv-2402.03885-b31b1b.svg)](https://arxiv.org/abs/2402.03885)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Pipeline](https://img.shields.io/badge/Pipeline-moment--pipeline-2ea44f?style=flat&logo=github)](https://github.com/kurtvalcorza/moment-pipeline)
+
+> [!WARNING]
+> ⚠️ **Provided for research, training, and evaluation purposes only.** Model weights are redistributed unmodified under their upstream license, which controls your use, including any commercial use or redistribution; the accompanying code and notebooks are released under this repository's license. All of it is supplied **"as is"**, without warranty of any kind, and has not been validated for production, clinical, or safety-critical use. Running the notebooks downloads third-party weights and datasets governed by their own licenses and consumes compute on your own Colab/Kaggle account. To the maximum extent permitted by law, the maintainers of this repository and the DIMER platform accept no liability for any damages arising from their use. Hosting implies no affiliation with or endorsement by the original authors.
+
+---
+
+## Interactive Colab Tutorials
+
+This pipeline provides three ready-to-run interactive Google Colab notebooks, one per task head, each resolving the pinned `AutonLab/MOMENT-1-base` revision and exercising the repository's public API on bundled or your own series:
+
+- **Embeddings Tutorial**:  
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_embeddings_colab.ipynb) [`moment_embeddings_colab.ipynb`](https://github.com/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_embeddings_colab.ipynb)  
+  *Pretrained time-series representation extraction: encode windows into MOMENT embeddings and export them for downstream use.*
+
+- **Imputation Tutorial**:  
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_imputation_colab.ipynb) [`moment_imputation_colab.ipynb`](https://github.com/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_imputation_colab.ipynb)  
+  *Reconstruction-backed imputation: mask missing values, reconstruct them with the pretrained model, and score the reconstruction against ground truth.*
+
+- **Anomaly Detection Tutorial**:  
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_anomaly_detection_colab.ipynb) [`moment_anomaly_detection_colab.ipynb`](https://github.com/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_anomaly_detection_colab.ipynb)  
+  *Reconstruction-residual anomaly ranking: score each timestep by residual and rank anomalies; raw scores, no threshold is fitted.*
+
+> [!NOTE]
+> All three notebooks run on the default CPU runtime; no GPU is required.
+
+---
 
 ###### Description
 
@@ -63,7 +91,7 @@ Training and evaluation data for MOMENT originate from diverse instrumentation, 
 
 ###### Performance Measures
 
-For reconstruction and imputation tasks, performance is evaluated using Mean Squared Error (MSE) and Mean Absolute Error (MAE) computed strictly over masked target points (`masked_point_mae`, `masked_point_rmse`). For anomaly scoring, per-element residuals are computed under MSE or MAE. For embeddings, representation quality is judged downstream via silhouette scores, retrieval precision, or linear probe classification accuracy. Evaluating metrics over masked positions only is essential; including observed positions in reconstruction metrics artificially deflates error and masks poor imputation fidelity.
+For reconstruction and imputation tasks, performance is evaluated using Mean Squared Error (MSE) and Mean Absolute Error (MAE) computed strictly over masked target points (`masked_point_mae`, `masked_point_rmse`). For anomaly scoring, per-element residuals are computed under MSE or MAE. For embeddings, representation quality is judged downstream via silhouette scores, retrieval precision, or linear probe classification accuracy. Evaluating metrics over masked positions only is essential; including observed positions in reconstruction metrics artificially deflates error and masks poor imputation fidelity. The public `evaluation_report` helper packages the tutorial metrics — `masked_point_metrics` (MAE/RMSE on deliberately hidden points, imputation) and `top_k_recall` (anomaly ranking) — into a machine-readable report whose verdict is `sample-sanity` on the synthetic samples and `not-measurable` for embeddings or unlabelled data.
 
 ###### Decision thresholds
 
@@ -92,7 +120,7 @@ The pipeline implements extensive architectural and supply-chain mitigations:
 2. **Tensor identity proof:** At load time, all 116 non-head and head tensors are verified against `model.safetensors` using `torch.equal`.
 3. **Numerical sanitization:** Implements mandatory finite prefill (`prefill_value`) to prevent NaN propagation during patch embedding, and explicitly surfaces `masked_point_fraction` and `masked_patch_fraction`.
 4. **Head refusal:** Rejects untrained classification and forecasting heads at API boundary.
-5. **Reproducibility:** Locks runtime dependencies via `uv.lock` and exports structured provenance with every result.
+5. **Reproducibility:** Locks runtime dependencies via `uv.lock` and exports structured provenance with every result. The public `validate_inputs` helper applies exactly the long-format validation and canonicalization checks the task paths apply and returns an input manifest of the schema, ceilings, per-window observations and verdict before the model runs.
 
 ###### Risks and harms
 

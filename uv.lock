@@ -307,13 +307,13 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "huggingface-hub", specifier = ">=0.24.0" },
+    { name = "huggingface-hub", specifier = "==1.30.0" },
     { name = "momentfm", git = "https://github.com/moment-timeseries-foundation-model/moment?rev=38f7310ad594100747ca2a8357e9c7ca7d323e0e" },
-    { name = "numpy", specifier = ">=1.25.2" },
-    { name = "pandas", specifier = ">=2.0.0" },
-    { name = "safetensors", specifier = ">=0.4.0" },
-    { name = "torch", specifier = ">=2.0.1" },
-    { name = "transformers", specifier = ">=4.54.1" },
+    { name = "numpy", specifier = "==2.5.3" },
+    { name = "pandas", specifier = "==3.0.5" },
+    { name = "safetensors", specifier = "==0.8.0" },
+    { name = "torch", specifier = "==2.14.0" },
+    { name = "transformers", specifier = "==5.16.1" },
 ]
 
 [package.metadata.requires-dev]
