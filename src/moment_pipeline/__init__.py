@@ -16,6 +16,7 @@ from .anomaly import (
     residual,
     score_anomalies,
     score_from_reconstruction,
+    top_k_recall,
 )
 from .canonical import WindowSet, expand_patch_view, to_patch_view, to_windows
 from .config import (
@@ -38,6 +39,12 @@ from .imputation import (
     reconstruct,
 )
 from .model import (
+    DEFAULT_WEIGHTS_DIR,
+    MANIFEST_NAME,
+    MODEL_ID,
+    MODEL_KEY,
+    MODEL_LICENSE,
+    MODEL_REVISION,
     PINNED_CONFIG_SHA256,
     PINNED_MODEL_ID,
     PINNED_REVISION,
@@ -50,8 +57,11 @@ from .model import (
     VerifiedSnapshot,
     fetch_verified_snapshot,
     load_moment,
+    stage_missing_files,
+    verify_snapshot,
 )
 from .provenance import build_provenance
+from .roles import INPUT_SCHEMA, evaluation_report, validate_inputs
 from .validation import ValidationError, ValidationReport, validate_long_frame
 
 __version__ = "0.1.0"
@@ -59,6 +69,13 @@ __version__ = "0.1.0"
 __all__ = [
     "ANOMALY_LOSSES",
     "CHANNEL_AGGREGATIONS",
+    "DEFAULT_WEIGHTS_DIR",
+    "INPUT_SCHEMA",
+    "MANIFEST_NAME",
+    "MODEL_ID",
+    "MODEL_KEY",
+    "MODEL_LICENSE",
+    "MODEL_REVISION",
     "N_PATCHES",
     "PATCH_LENGTH",
     "PATCH_STRIDE",
@@ -90,6 +107,7 @@ __all__ = [
     "aggregate_channels",
     "build_provenance",
     "embed",
+    "evaluation_report",
     "expand_patch_view",
     "fetch_verified_snapshot",
     "impute",
@@ -100,7 +118,11 @@ __all__ = [
     "residual",
     "score_anomalies",
     "score_from_reconstruction",
+    "stage_missing_files",
     "to_patch_view",
     "to_windows",
+    "top_k_recall",
     "validate_long_frame",
+    "validate_inputs",
+    "verify_snapshot",
 ]

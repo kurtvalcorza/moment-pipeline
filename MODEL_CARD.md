@@ -91,7 +91,7 @@ Training and evaluation data for MOMENT originate from diverse instrumentation, 
 
 ###### Performance Measures
 
-For reconstruction and imputation tasks, performance is evaluated using Mean Squared Error (MSE) and Mean Absolute Error (MAE) computed strictly over masked target points (`masked_point_mae`, `masked_point_rmse`). For anomaly scoring, per-element residuals are computed under MSE or MAE. For embeddings, representation quality is judged downstream via silhouette scores, retrieval precision, or linear probe classification accuracy. Evaluating metrics over masked positions only is essential; including observed positions in reconstruction metrics artificially deflates error and masks poor imputation fidelity.
+For reconstruction and imputation tasks, performance is evaluated using Mean Squared Error (MSE) and Mean Absolute Error (MAE) computed strictly over masked target points (`masked_point_mae`, `masked_point_rmse`). For anomaly scoring, per-element residuals are computed under MSE or MAE. For embeddings, representation quality is judged downstream via silhouette scores, retrieval precision, or linear probe classification accuracy. Evaluating metrics over masked positions only is essential; including observed positions in reconstruction metrics artificially deflates error and masks poor imputation fidelity. The public `evaluation_report` helper packages the tutorial metrics — `masked_point_metrics` (MAE/RMSE on deliberately hidden points, imputation) and `top_k_recall` (anomaly ranking) — into a machine-readable report whose verdict is `sample-sanity` on the synthetic samples and `not-measurable` for embeddings or unlabelled data.
 
 ###### Decision thresholds
 
@@ -120,7 +120,7 @@ The pipeline implements extensive architectural and supply-chain mitigations:
 2. **Tensor identity proof:** At load time, all 116 non-head and head tensors are verified against `model.safetensors` using `torch.equal`.
 3. **Numerical sanitization:** Implements mandatory finite prefill (`prefill_value`) to prevent NaN propagation during patch embedding, and explicitly surfaces `masked_point_fraction` and `masked_patch_fraction`.
 4. **Head refusal:** Rejects untrained classification and forecasting heads at API boundary.
-5. **Reproducibility:** Locks runtime dependencies via `uv.lock` and exports structured provenance with every result.
+5. **Reproducibility:** Locks runtime dependencies via `uv.lock` and exports structured provenance with every result. The public `validate_inputs` helper applies exactly the long-format validation and canonicalization checks the task paths apply and returns an input manifest of the schema, ceilings, per-window observations and verdict before the model runs.
 
 ###### Risks and harms
 

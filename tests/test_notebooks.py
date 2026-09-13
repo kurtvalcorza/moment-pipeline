@@ -38,9 +38,12 @@ def test_tutorial_bootstraps_reference_the_lock_and_pinned_public_api() -> None:
     combined = "\n".join(
         (TUTORIALS / name).read_text(encoding="utf-8") for name in sorted(EXPECTED)
     )
-    assert "requirements.lock.txt" in combined
+    # Standalone carrier (NOTEBOOK_SPEC 1.1 §3.6): inline PINS replace the lock bootstrap and the
+    # loader reads the manifest-described weights directory; the device follows the runtime.
+    assert "PINS = [" in combined
+    assert "momentfm @ git+https://github.com/moment-timeseries-foundation-model/" in combined
     assert "load_moment" in combined
-    assert 'device=\\"cpu\\"' in combined
+    assert "weights_dir=WEIGHTS_DIR" in combined
     assert "threshold" in (TUTORIALS / "moment_anomaly_detection_colab.ipynb").read_text(
         encoding="utf-8"
     ).lower()

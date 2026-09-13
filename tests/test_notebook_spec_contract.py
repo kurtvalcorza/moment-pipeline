@@ -38,14 +38,15 @@ def test_all_release_notebooks_declare_task_inference_profile_and_spec() -> None
     for name, capability in NOTEBOOKS.items():
         payload = _load(name)
         metadata = payload.get("metadata", {}).get("dimer", {})
-        assert metadata == {
-            "notebook_profile": "TASK-INFERENCE",
-            "notebook_spec": "1.0",
-            "capability": capability,
-        }
+        # NOTEBOOK_SPEC 1.1 §3.6 standalone carrier; parity lives in test_notebook_parity.py.
+        assert metadata["notebook_profile"] == "TASK-INFERENCE"
+        assert metadata["notebook_spec"] == "1.1"
+        assert metadata["standalone"] is True
+        assert metadata["generated_from"]["repository"] == "moment-pipeline"
         markdown, _ = _texts(payload)
         assert "**Profile:** `TASK-INFERENCE`" in markdown
-        assert "**Notebook spec:** `1.0`" in markdown
+        assert "DIMER Notebook Specification 1.1" in markdown
+        assert capability.split("-")[0] in markdown.lower()
 
 
 def test_common_release_grade_learning_contract_is_durable() -> None:
@@ -59,15 +60,13 @@ def test_common_release_grade_learning_contract_is_durable() -> None:
         assert "by the end of this notebook you will be able to" in lower
         assert "prerequisites" in lower
         assert all(column in markdown for column in ("series_id", "timestamp", "channel", "value"))
-        assert "byod privacy" in lower
+        assert "is not sent to an external inference service" in lower
         assert "5,000,000" in markdown and "1,024" in markdown and "512-step" in markdown
         assert "does not prove" in lower
         assert not PLACEHOLDER.search(markdown)
 
-        assert 'UV_VERSION = "0.12.9"' in code
-        assert "requirements.lock.txt" in code
+        assert "PINS = [" in code
         assert "PINNED_REVISION" in code
-        assert 'version("momentfm")' in code
         assert "validate_long_frame" in code
         assert "build_provenance" in code
         assert "read_long_csv_bytes(payload)" in code
@@ -92,6 +91,8 @@ def test_numbered_major_stages_explain_success_semantics() -> None:
             lines = source.splitlines()
             prose = "\n".join(lines[1:]).strip().lower()
             assert prose, f"{name}: numbered stage is heading-only: {lines[0]}"
+            if lines[0].startswith(("## 1.", "## 2.", "## 3.")):
+                continue  # generator-owned install / carried-package / model cells (fleet prose)
             assert "success" in prose, (
                 f"{name}: stage lacks successful-output semantics: {lines[0]}"
             )
@@ -102,7 +103,7 @@ def test_notebook_json_remains_reviewable_and_stably_formatted() -> None:
         raw = (TUTORIALS / name).read_text(encoding="utf-8")
         assert raw.endswith("\n")
         assert raw.startswith("{\n")
-        assert '\n  "cells": [' in raw
+        assert '\n "cells": [' in raw  # generator output: json.dumps(indent=1, sort_keys=True)
 
 
 def test_embeddings_tutorial_carries_representation_semantics() -> None:
@@ -145,7 +146,7 @@ def test_anomaly_tutorial_carries_score_direction_threshold_and_byod_semantics()
 
 def test_tutorial_registry_maps_every_notebook_to_normative_profile() -> None:
     registry = (TUTORIALS / "README.md").read_text(encoding="utf-8")
-    assert "DIMER Notebook Specification:** `1.0`" in registry
+    assert "DIMER Notebook Specification 1.1" in registry
     for name in NOTEBOOKS:
         assert name in registry
     assert registry.count("`TASK-INFERENCE`") >= len(NOTEBOOKS)

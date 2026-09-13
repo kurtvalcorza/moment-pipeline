@@ -41,6 +41,7 @@ from __future__ import annotations
 import dataclasses
 import time
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -338,4 +339,50 @@ __all__ = [
     "residual",
     "score_anomalies",
     "score_from_reconstruction",
+    "top_k_recall",
 ]
+
+
+def top_k_recall(
+    scores: pd.DataFrame, labels: pd.DataFrame, *, channel: str | None = None
+) -> dict[str, Any]:
+    """The tutorial's ranking metric: recall of the labelled anomalies within the top-k of
+    the raw-score ranking, where k is the number of labelled anomalies on `channel`.
+
+    `scores` is `AnomalyResult.to_frame()`; `labels` carries `series_id`, `timestamp` and a
+    boolean `is_injected_anomaly`. Only scored positions rank. Raises `ValueError` when no
+    position is scored or the labels mark no anomaly among the scored positions. Returns the
+    value plus the ranked frame and the labelled ranks so a reader can inspect the ordering.
+    """
+    if channel is None:
+        present = set(scores["channel"])
+        channel = "vibration" if "vibration" in present else str(scores["channel"].iloc[0])
+    ranked = (
+        scores[(scores["channel"] == channel) & scores["scored"]]
+        .copy()
+        .sort_values("anomaly_score", ascending=False, kind="mergesort")
+        .reset_index(drop=True)
+    )
+    if ranked.empty:
+        raise ValueError(
+            "No scored positions are available after masking/padding; provide a series with "
+            "observed values."
+        )
+    ranked["rank"] = ranked.index + 1
+    marks = labels.copy()
+    marks["timestamp"] = pd.to_datetime(marks["timestamp"])
+    ranked = ranked.merge(marks, on=["series_id", "timestamp"], how="left")
+    ranked["is_injected_anomaly"] = ranked["is_injected_anomaly"].fillna(False).astype(bool)
+    k = int(ranked["is_injected_anomaly"].sum())
+    if k == 0:
+        raise ValueError("the labels mark no anomaly among the scored positions of " + channel)
+    hits = int(ranked.head(k)["is_injected_anomaly"].sum())
+    return {
+        "k": k,
+        "channel": channel,
+        "value": hits / k,
+        "injected_ranks": ranked.loc[
+            ranked["is_injected_anomaly"], ["timestamp", "rank", "anomaly_score"]
+        ].to_dict("records"),
+        "ranked": ranked,
+    }

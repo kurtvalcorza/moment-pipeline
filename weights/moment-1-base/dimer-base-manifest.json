@@ -1,0 +1,25 @@
+{
+  "format": "dimer_hf_snapshot",
+  "formatVersion": 1,
+  "modelKey": "moment-1-base",
+  "modelId": "AutonLab/MOMENT-1-base",
+  "revision": "9fea447e740eb968a9e8d80c7562ae122bdb5dde",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 6349,
+      "sha256": "6640901cb08586c3ba2e440b72de58f13aa1415c5b6d6454bbf7f30cfc503e88"
+    },
+    {
+      "path": "config.json",
+      "bytes": 949,
+      "sha256": "f1c66c2bb845229c0ed27a1600dbcc956b85ab21f9e5fd8a1663e6641bed7755"
+    },
+    {
+      "path": "model.safetensors",
+      "bytes": 453940120,
+      "sha256": "1a436826ffe618273ec62b9656dc4cab8edc470364f104e90542a4ebc14fb825"
+    }
+  ],
+  "totalBytes": 453947418
+}

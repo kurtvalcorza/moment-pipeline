@@ -11,9 +11,15 @@ outputs/
 # Deterministic tutorial CSVs are generated from the committed generator + SHA256 manifest.
 examples/sample-data/*.csv
 
-# Local HF cache overrides / downloaded weights are never committed.
-weights/
+# Local HF cache overrides are never committed.
 hf-cache/
-*.safetensors
-*.bin
-*.ckpt
+
+# Model weights are pulled locally; only small config/tokenizer files and the
+# dimer-base-manifest.json are committable
+weights/**/*.safetensors
+weights/**/*.ckpt
+weights/**/*.bin
+weights/**/*.pt
+weights/**/*.pth
+weights/**/*.onnx
+weights/**/.cache/

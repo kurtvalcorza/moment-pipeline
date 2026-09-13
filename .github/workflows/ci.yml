@@ -31,6 +31,13 @@ jobs:
         run: uv run ruff check .
       - name: Unit tests + notebook compile contracts (no network, no weights)
         run: uv run pytest -m "not integration" -q
+      - name: Validate tutorials and model-card source
+        run: uv run python tools/validate_release_assets.py
+      - name: Standalone notebook parity (NOTEBOOK_SPEC 1.1 PAR3)
+        run: |
+          uv run python tools/build_notebook.py --check
+          uv run python tools/build_notebook.py --check --template tools/notebook_template_imputation.py --out tutorials/moment_imputation_colab.ipynb
+          uv run python tools/build_notebook.py --check --template tools/notebook_template_anomaly_detection.py --out tutorials/moment_anomaly_detection_colab.ipynb
 
   integration:
     name: CPU real-weight integration + live tutorials
@@ -52,7 +59,12 @@ jobs:
         run: uv sync --locked
       - name: Integration tests (CPU, real model.safetensors)
         run: uv run pytest -m integration -q
+      # The notebooks are standalone (NOTEBOOK_SPEC 1.1 §3.6): each carries the package and pins its own
+      # runtime. DIMER_NOTEBOOK_CI_PREINSTALLED=1 skips the inline pip install (the uv venv has no pip and is
+      # already the locked stack); each notebook stages the weights itself into ./weights/moment-1-base/.
       - name: Execute all v1 tutorial notebooks top-to-bottom
+        env:
+          DIMER_NOTEBOOK_CI_PREINSTALLED: "1"
         run: |
           rm -rf outputs
           uv run python scripts/run_notebook.py \

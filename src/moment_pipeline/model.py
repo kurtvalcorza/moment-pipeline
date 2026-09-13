@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -41,8 +42,16 @@ from .config import (
     Task,
 )
 
-PINNED_MODEL_ID = "AutonLab/MOMENT-1-base"
-PINNED_REVISION = "9fea447e740eb968a9e8d80c7562ae122bdb5dde"
+#: Fleet identity names (DIMER NOTEBOOK_SPEC 1.1 ST3): the constants every DIMER package spells
+#: the same way, so a generated standalone notebook and the fleet tooling can read the identity
+#: without knowing this package's own vocabulary. The ``PINNED_*`` names below are the package's
+#: original spelling and stay in use everywhere; they alias these, never the reverse.
+MODEL_ID = "AutonLab/MOMENT-1-base"
+MODEL_REVISION = "9fea447e740eb968a9e8d80c7562ae122bdb5dde"
+MODEL_KEY = "moment-1-base"
+
+PINNED_MODEL_ID = MODEL_ID
+PINNED_REVISION = MODEL_REVISION
 PINNED_CONFIG_SHA256 = "f1c66c2bb845229c0ed27a1600dbcc956b85ab21f9e5fd8a1663e6641bed7755"
 PINNED_CONFIG_BYTES = 949
 PINNED_WEIGHTS_FILENAME = "model.safetensors"
@@ -59,6 +68,14 @@ KNOWN_FORBIDDEN_WEIGHT_SHA256 = (
 )
 
 ALLOW_PATTERNS = ["config.json", "model.safetensors", "README.md"]
+
+#: Fleet snapshot scheme (DIMER NOTEBOOK_SPEC 1.1 MOD13): the pinned files also live in a
+#: repository-local snapshot directory named by ``MODEL_KEY``, described by a committed
+#: ``dimer-base-manifest.json`` (paths, byte sizes, SHA-256). The manifest is the parity anchor a
+#: standalone notebook carries inline; ``verify_snapshot`` asserts its digests equal the
+#: ``PINNED_*`` constants above on every load, so the two can never disagree silently.
+MANIFEST_NAME = "dimer-base-manifest.json"
+DEFAULT_WEIGHTS_DIR = Path(__file__).resolve().parents[2] / "weights" / MODEL_KEY
 
 #: How the revision is established on this path, recorded in every export. The sibling
 #: chronos-2 pipeline asks the Hub which commit the pin resolves to and records whether that
@@ -199,6 +216,144 @@ def find_forbidden_weight_files(directory: str | os.PathLike[str]) -> list[str]:
     return sorted(set(found))
 
 
+def _read_manifest(root: Path) -> dict[str, Any]:
+    """Load and identity-check ``<root>/dimer-base-manifest.json``."""
+    import json
+
+    manifest_path = root / MANIFEST_NAME
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise IntegrityError(
+            "MANIFEST_MISSING", f"could not read snapshot manifest {manifest_path}: {exc}"
+        ) from exc
+    if manifest.get("modelId") != PINNED_MODEL_ID or manifest.get("revision") != PINNED_REVISION:
+        raise IntegrityError(
+            "MANIFEST_IDENTITY_MISMATCH",
+            f"snapshot manifest names {manifest.get('modelId')}@{manifest.get('revision')}, "
+            f"package pins {PINNED_MODEL_ID}@{PINNED_REVISION}",
+            {"manifest": manifest_path.as_posix()},
+        )
+    if not isinstance(manifest.get("files"), list) or not manifest["files"]:
+        raise IntegrityError("MANIFEST_EMPTY", f"snapshot manifest lists no files: {manifest_path}")
+    return manifest
+
+
+def has_manifest(directory: str | os.PathLike[str]) -> bool:
+    """True when the directory is a fleet snapshot (``weights/<MODEL_KEY>/``) with a manifest."""
+    return (Path(directory) / MANIFEST_NAME).is_file()
+
+
+def verify_snapshot(path: str | os.PathLike[str] | None = None) -> dict[str, Any]:
+    """Manifest-driven verification of a fleet snapshot directory; raise on the first mismatch.
+
+    Every manifest entry is size- and SHA-256-checked, then the manifest's ``config.json`` and
+    ``model.safetensors`` digests and the weight byte count are asserted **equal to** the pinned
+    ``PINNED_*`` constants, so this path is never weaker than the revision-directory path of
+    :func:`verify_snapshot_dir`. Returns ``{"path": ..., **manifest}``.
+    """
+    root = Path(path) if path is not None else DEFAULT_WEIGHTS_DIR
+    if not root.is_dir():
+        raise IntegrityError("SNAPSHOT_MISSING", f"snapshot directory not found: {root}")
+    manifest = _read_manifest(root)
+    forbidden = find_forbidden_weight_files(root)
+    if forbidden:
+        raise IntegrityError(
+            "FORBIDDEN_WEIGHT_FILE",
+            f"snapshot contains pickle weight file(s) {forbidden}; the standard path "
+            "must load model.safetensors and must never risk a silent .bin fallback",
+            {"files": forbidden},
+        )
+    digests: dict[str, str] = {}
+    sizes: dict[str, int] = {}
+    for entry in manifest["files"]:
+        file_path = root / entry["path"]
+        if not file_path.is_file():
+            raise IntegrityError(
+                "SNAPSHOT_INCOMPLETE",
+                f"manifest-listed file missing from snapshot: {entry['path']}",
+            )
+        size = file_path.stat().st_size
+        if size != entry["bytes"]:
+            raise IntegrityError(
+                "MANIFEST_SIZE_MISMATCH",
+                f"{entry['path']} is {size} bytes, manifest says {entry['bytes']}",
+                {"path": entry["path"], "actual": size, "expected": entry["bytes"]},
+            )
+        digest = sha256_file(file_path)
+        if digest != entry["sha256"]:
+            raise IntegrityError(
+                "MANIFEST_DIGEST_MISMATCH",
+                f"{entry['path']} sha256 {digest} != manifest {entry['sha256']}",
+                {"path": entry["path"], "actual": digest, "expected": entry["sha256"]},
+            )
+        digests[entry["path"]] = digest
+        sizes[entry["path"]] = size
+    for required in ("config.json", PINNED_WEIGHTS_FILENAME):
+        if required not in digests:
+            raise IntegrityError(
+                "MANIFEST_INCOMPLETE", f"snapshot manifest does not list {required} ({root})"
+            )
+    if digests["config.json"] != PINNED_CONFIG_SHA256:
+        raise IntegrityError(
+            "CONFIG_DIGEST_MISMATCH",
+            f"manifest config.json sha256 {digests['config.json']} != "
+            f"pinned {PINNED_CONFIG_SHA256}",
+            {"actual": digests["config.json"], "expected": PINNED_CONFIG_SHA256},
+        )
+    if digests[PINNED_WEIGHTS_FILENAME] != PINNED_WEIGHTS_SHA256:
+        raise IntegrityError(
+            "WEIGHTS_DIGEST_MISMATCH",
+            f"manifest {PINNED_WEIGHTS_FILENAME} sha256 {digests[PINNED_WEIGHTS_FILENAME]} != "
+            f"pinned {PINNED_WEIGHTS_SHA256}",
+            {"actual": digests[PINNED_WEIGHTS_FILENAME], "expected": PINNED_WEIGHTS_SHA256},
+        )
+    if sizes[PINNED_WEIGHTS_FILENAME] != PINNED_WEIGHTS_BYTES:
+        raise IntegrityError(
+            "WEIGHTS_SIZE_MISMATCH",
+            f"manifest {PINNED_WEIGHTS_FILENAME} is {sizes[PINNED_WEIGHTS_FILENAME]} bytes, "
+            f"pinned {PINNED_WEIGHTS_BYTES}",
+            {"actual": sizes[PINNED_WEIGHTS_FILENAME], "expected": PINNED_WEIGHTS_BYTES},
+        )
+    return {"path": str(root), **manifest}
+
+
+def _hub_download(relative_path: str, root: Path) -> None:
+    """Fetch one manifest-listed file at ``PINNED_REVISION`` straight into ``root``."""
+    from huggingface_hub import hf_hub_download
+
+    hf_hub_download(PINNED_MODEL_ID, relative_path, revision=PINNED_REVISION, local_dir=str(root))
+
+
+def stage_missing_files(
+    path: str | os.PathLike[str] | None = None,
+    *,
+    allow_download: bool = False,
+    downloader: Callable[[str, Path], None] | None = None,
+) -> list[str]:
+    """Fetch manifest-listed files that are absent from the fleet snapshot directory.
+
+    A fresh clone commits the manifest and git-ignores the weights, so this is how the
+    snapshot is populated. Only files named by the manifest are fetched, only at
+    ``PINNED_REVISION``, and :func:`verify_snapshot` still re-hashes everything afterwards.
+    Returns the relative paths fetched (empty when nothing was missing).
+    """
+    root = Path(path) if path is not None else DEFAULT_WEIGHTS_DIR
+    manifest = _read_manifest(root)
+    missing = [entry["path"] for entry in manifest["files"] if not (root / entry["path"]).is_file()]
+    if not missing:
+        return []
+    if not allow_download:
+        raise FileNotFoundError(
+            f"snapshot at {root} is missing {missing}; pass allow_download=True to fetch them "
+            f"at {PINNED_REVISION}"
+        )
+    fetch = downloader or _hub_download
+    for relative_path in missing:
+        fetch(relative_path, root)
+    return missing
+
+
 def verify_snapshot_dir(
     directory: str | os.PathLike[str],
     *,
@@ -236,7 +391,20 @@ def verify_snapshot_dir(
             {"files": forbidden},
         )
 
-    if check_directory_name and root.name != expected_revision:
+    if has_manifest(root):
+        # Fleet snapshot directory (``weights/<MODEL_KEY>/``): the revision is carried by the
+        # committed manifest rather than by the directory name. ``verify_snapshot`` re-hashes
+        # every manifest entry and asserts the manifest digests equal the pinned constants; the
+        # per-file assertions below then run on the same bytes with the caller's expectations.
+        manifest = verify_snapshot(root)
+        if manifest["revision"] != expected_revision:
+            raise IntegrityError(
+                "REVISION_MISMATCH",
+                f"snapshot manifest names {manifest['revision']!r}, "
+                f"expected commit {expected_revision!r}",
+                {"resolved": manifest["revision"], "expected": expected_revision},
+            )
+    elif check_directory_name and root.name != expected_revision:
         raise IntegrityError(
             "REVISION_MISMATCH",
             f"snapshot resolved to {root.name!r}, expected commit {expected_revision!r}",
@@ -304,13 +472,15 @@ def verified_snapshot_from_dir(
         )
 
     root = Path(directory)
-    # `verify_snapshot_dir` has already asserted `root.name == PINNED_REVISION`, so the
-    # directory name is a verified fact rather than a claim.
-    assert_pinned_source(model_id, root.name)
+    # `verify_snapshot_dir` has already asserted `root.name == PINNED_REVISION` (or, for a
+    # fleet snapshot directory, that the digest-verified manifest names it), so the revision
+    # is a verified fact rather than a claim.
+    revision = _read_manifest(root)["revision"] if has_manifest(root) else root.name
+    assert_pinned_source(model_id, revision)
     return VerifiedSnapshot(
         path=root,
         model_id=model_id,
-        revision=root.name,
+        revision=revision,
         config_sha256=config_sha,
         config_bytes=config_bytes,
         weights_path=root / PINNED_WEIGHTS_FILENAME,
@@ -456,8 +626,17 @@ def load_moment(
     dtype: str = "float32",
     snapshot: VerifiedSnapshot | None = None,
     cache_dir: str | os.PathLike[str] | None = None,
+    weights_dir: str | os.PathLike[str] | None = None,
+    allow_download: bool = False,
 ) -> LoadedMoment:
     """Load a task-specific MOMENT instance from the verified pinned snapshot.
+
+    ``weights_dir`` names a fleet snapshot directory holding ``dimer-base-manifest.json``
+    (normally ``weights/<MODEL_KEY>/``). When given, nothing goes through
+    ``snapshot_download``: manifest entries that are absent are staged with
+    :func:`stage_missing_files` (only when ``allow_download=True``), :func:`verify_snapshot`
+    re-hashes every entry against the manifest *and* the pinned digests, and the same
+    ``MOMENTPipeline.from_pretrained`` call loads from that directory.
 
     Task instances are explicit because `MOMENTPipeline.init()` replaces the head when
     the task changes (RFC M-8): `reconstruction` keeps the pretrained `PretrainHead`;
@@ -483,7 +662,12 @@ def load_moment(
     if dtype not in SUPPORTED_DTYPES:
         raise ConfigError(_UNSUPPORTED_DTYPE.format(dtype=dtype))
 
-    if snapshot is None:
+    if weights_dir is not None:
+        if snapshot is not None:
+            raise ModelSourceError("pass either weights_dir or snapshot, not both")
+        stage_missing_files(weights_dir, allow_download=allow_download)
+        snapshot = verified_snapshot_from_dir(weights_dir)
+    elif snapshot is None:
         snapshot = fetch_verified_snapshot(cache_dir=cache_dir)
     else:
         snapshot = verified_snapshot_from_dir(snapshot.path, snapshot.model_id)
