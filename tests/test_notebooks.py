@@ -38,7 +38,7 @@ def test_tutorial_bootstraps_reference_the_lock_and_pinned_public_api() -> None:
     combined = "\n".join(
         (TUTORIALS / name).read_text(encoding="utf-8") for name in sorted(EXPECTED)
     )
-    # Standalone carrier (NOTEBOOK_SPEC 1.1 §3.6): inline PINS replace the lock bootstrap and the
+    # Standalone carrier (NOTEBOOK_SPEC 2.0 §4): inline PINS replace the lock bootstrap and the
     # loader reads the manifest-described weights directory; the device follows the runtime.
     assert "PINS = [" in combined
     assert "momentfm @ git+https://github.com/moment-timeseries-foundation-model/" in combined
