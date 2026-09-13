@@ -1,6 +1,6 @@
 ---
 license: mit
-model_card_spec: "1.0"
+model_card_spec: "1.1"
 tags:
   - time-series
   - time-series-foundation-model
@@ -10,11 +10,39 @@ tags:
 base_model: AutonLab/MOMENT-1-base
 ---
 
-# MOMENT-1-base (v1.0)
+# MOMENT-1-base (v1.0) — Time-Series Foundation Model (Embeddings, Imputation & Anomaly Detection)
 
 [![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-AutonLab%2FMOMENT--1--base-ffcc4d?style=flat)](https://huggingface.co/AutonLab/MOMENT-1-base)
-[![Upstream](https://img.shields.io/badge/Upstream-moment--timeseries--foundation--model%2Fmoment-181717?style=flat&logo=github&logoColor=white)](https://github.com/moment-timeseries-foundation-model/moment)
+[![Upstream GitHub](https://img.shields.io/badge/Upstream%20GitHub-moment--timeseries--foundation--model%2Fmoment-181717?style=flat&logo=github&logoColor=white)](https://github.com/moment-timeseries-foundation-model/moment)
+[![arXiv Paper](https://img.shields.io/badge/arXiv-2402.03885-b31b1b.svg)](https://arxiv.org/abs/2402.03885)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Pipeline](https://img.shields.io/badge/Pipeline-moment--pipeline-2ea44f?style=flat&logo=github)](https://github.com/kurtvalcorza/moment-pipeline)
+
+> [!WARNING]
+> ⚠️ **Provided for research, training, and evaluation purposes only.** Model weights are redistributed unmodified under their upstream license, which controls your use, including any commercial use or redistribution; the accompanying code and notebooks are released under this repository's license. All of it is supplied **"as is"**, without warranty of any kind, and has not been validated for production, clinical, or safety-critical use. Running the notebooks downloads third-party weights and datasets governed by their own licenses and consumes compute on your own Colab/Kaggle account. To the maximum extent permitted by law, the maintainers of this repository and the DIMER platform accept no liability for any damages arising from their use. Hosting implies no affiliation with or endorsement by the original authors.
+
+---
+
+## Interactive Colab Tutorials
+
+This pipeline provides three ready-to-run interactive Google Colab notebooks, one per task head, each resolving the pinned `AutonLab/MOMENT-1-base` revision and exercising the repository's public API on bundled or your own series:
+
+- **Embeddings Tutorial**:  
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_embeddings_colab.ipynb) [`moment_embeddings_colab.ipynb`](https://github.com/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_embeddings_colab.ipynb)  
+  *Pretrained time-series representation extraction: encode windows into MOMENT embeddings and export them for downstream use.*
+
+- **Imputation Tutorial**:  
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_imputation_colab.ipynb) [`moment_imputation_colab.ipynb`](https://github.com/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_imputation_colab.ipynb)  
+  *Reconstruction-backed imputation: mask missing values, reconstruct them with the pretrained model, and score the reconstruction against ground truth.*
+
+- **Anomaly Detection Tutorial**:  
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_anomaly_detection_colab.ipynb) [`moment_anomaly_detection_colab.ipynb`](https://github.com/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_anomaly_detection_colab.ipynb)  
+  *Reconstruction-residual anomaly ranking: score each timestep by residual and rank anomalies; raw scores, no threshold is fitted.*
+
+> [!NOTE]
+> All three notebooks run on the default CPU runtime; no GPU is required.
+
+---
 
 ###### Description
 

@@ -1,6 +1,6 @@
 # DIMER Model Card Specification
 
-**Version 1.0 — 2026-09-09**
+**Version 1.1 — 2026-09-12**
 
 ## 1. Purpose and scope
 
@@ -31,16 +31,37 @@ card is where a later reader looks.
 | ID | Requirement |
 |---|---|
 | **G1** | The card MUST open with a YAML front-matter block delimited by `---`, declaring at minimum `license` and `model_card_spec` — the version of this specification the card is written against, e.g. `model_card_spec: "1.0"`. Where the pipeline wraps an upstream model, the block MUST also declare `base_model` with the upstream model identifier. `model_card_spec` makes §8's fleet-wide coordination obligation checkable from the card itself, rather than by diffing copies of this document. |
-| **G2** | The card MUST carry exactly one level-1 heading, naming the model and the packaged version. |
+| **G2** | The card MUST carry exactly one level-1 heading, naming the model and the packaged version. It SHOULD take the form `<Model> <version> — <descriptor>`, where the descriptor names the model class and the role(s) the card covers, e.g. `TabDPT v1.2 — Tabular Foundation Model (Classifier & Regressor)`. A shared family card (G14) names every covered role in the descriptor. |
 | **G3** | The card MUST contain every section listed in §4. Heading text is matched **case-insensitively**, ignoring surrounding emphasis: `Out-of-scope use cases` and `Out-of-Scope Use Cases` are the same section. §4 reproduces the DIMER template's own casing, which mixes Title Case and sentence case; a casing difference is not a nonconformance and MUST NOT be raised as one. |
 | **G4** | Each required section MUST appear at the heading level given in §4. These levels reproduce the DIMER card template verbatim and are a **fidelity requirement, not a semantic hierarchy**: the block renders h1 → h6 → h4 → h6, which a table-of-contents generator, an accessibility linter, or GitHub's own outline will read as broken nesting. They are fixed so that every DIMER card renders identically against the same template. Correcting the nesting is a change to the template, and therefore a §8 change to this specification — never a per-card decision. |
 | **G5** | Required sections MUST appear in the order given in §4, as one contiguous block. |
-| **G6** | That block SHOULD sit directly after the title and any badge row, before repository-specific sections such as model details, provenance, or references. A reader reaching the technical detail should already have read the intended use and the limits. |
+| **G6** | That block SHOULD sit directly after the header block of §3.1 (title, badge row, notice, tutorials section), before repository-specific sections such as model details, provenance, or references. The header block is the only content that MAY precede it. A reader reaching the technical detail should already have read the intended use and the limits. |
 | **G7** | Each required section MUST be answered in the author's own prose. `<!-- Insert text here -->`, `TODO`, `TBD`, `FIXME`, and equivalent markers MUST NOT survive into a released card. |
 | **G8** | A section MUST NOT be answered with a bare `N/A`, `None`, or `Not applicable`. Where a section genuinely does not apply, the card MUST say so **and say why**. "Not applicable in the demographic sense: this pipeline consumes machine telemetry with no human subjects" is an answer; `N/A` is not. |
 | **G9** | Tooltips (`<!-- Tooltip: … -->`) are authoring scaffolding, not card content. They are the same class of comment as the `<!-- Insert text here -->` placeholders and leave the card under the same rule (G7): a tooltip MUST NOT survive into a released card, in the comment form or in the `> **Tooltip:** …` blockquote form carried by cards copied from an earlier template. Because a comment renders as nothing, a surviving tooltip is invisible in the published page — conformance is checked against the card's source, not its rendering. A tooltip left in the source marks an unfinished card, and a section carrying only its tooltip is unanswered. The guidance itself is not lost: §5 of this document is where an editor reads what each section must answer. |
 | **G10** | Every factual claim in a required section MUST be checkable against this repository — pinned revisions, recorded digests, the code path named, or a cited upstream paper. Claims about performance the pipeline does not measure MUST NOT appear. Where the pipeline does not measure something a section asks about, the card MUST state that it is not measured rather than estimate it. |
 | **G11** | Each content section SHOULD run to at least 40 words. The binding criterion is the element list in §5, not the length; the floor exists because no listed element set can be discharged in a sentence fragment. |
+| **G12** | Directly after the level-1 heading the card MUST carry a **badge row**: one shields.io badge per line, each linking to its target, in this order — the upstream Hugging Face repository (`🤗 Hugging Face`) where the weights are hosted on the Hub, the upstream source repository (`Upstream GitHub`) where one exists, the primary paper (`arXiv`) where one exists, the upstream weight licence (`License: <SPDX id>`, or the licence's own name where it has no SPDX id), and one badge per DIMER pipeline repository the card covers (`<Role> Repo` for a family card, `Pipeline Repo` otherwise). Further repository-specific badges (checkpoint, sample evaluation, runtime constraints) MAY follow those. The identifiers on the badges MUST agree with the front matter (`base_model`, `license`) and with the card's provenance section; a badge is a claim under G10. |
+| **G13** | Directly after the badge row the card MUST carry the fleet **usage-and-liability notice** given in §7.1, as a GitHub `[!WARNING]` alert, verbatim. The wording is fleet-wide and MUST NOT be paraphrased or shortened per card; changing it is a §8 change to this specification. It is a notice, not the licence: the licence itself is declared in the front matter and the badge row and, where the repository carries one, in the provenance section. |
+| **G14** | After the notice, separated from it and from the required block by horizontal rules (`---`), the card MUST carry a level-2 section `## Interactive Colab Tutorials` listing every release-grade tutorial notebook (`NOTEBOOK_SPEC` §3) the covered repositories ship under `tutorials/`. Each entry carries an `Open In Colab` badge linking to the notebook on the repository's default branch, the notebook filename in code formatting linking to the file in the repository, and one italic sentence saying what the notebook does. The classifier and regressor pipelines of one model family SHOULD share a single **family header** — one H1 naming both roles, both repository badges, and one `### <Family> <Role> (\`<repository>\`)` subsection per repository — carried identically in both cards, so that a reader landing on either card sees the whole family. A repository that ships no release-grade notebook MUST say so in this section and say why (for example, only `SMOKE`-profile notebooks exist) rather than omit the section. A `[!NOTE]` alert closing the section MAY record execution caveats shared by the listed notebooks, and MUST do so where a notebook needs a non-default setting to run on the Colab free tier (for example, `use_flash=False` on a Tesla T4). |
+
+### 3.1 Header block
+
+G2, G12, G13 and G14 together fix the top of every card. In source order:
+
+| Order | Element | Rule |
+|---|---|---|
+| 1 | YAML front matter, `model_card_spec: "1.1"` | G1 |
+| 2 | `# <Model> <version> — <descriptor>` | G2 |
+| 3 | Badge row: Hugging Face, Upstream GitHub, arXiv, License, pipeline repository badge(s) | G12 |
+| 4 | `> [!WARNING]` usage-and-liability notice, verbatim from §7.1 | G13 |
+| 5 | `---` | G14 |
+| 6 | `## Interactive Colab Tutorials`, with `###` per-repository subsections for a family header | G14 |
+| 7 | `> [!NOTE]` execution caveats (conditional) | G14 |
+| 8 | `---` | G14 |
+| 9 | The required block of §4, opening with `###### Description` | G3–G6 |
+
+Nothing else precedes the required block. Hugging Face's card renderer does not support GitHub alerts; there the `[!WARNING]` and `[!NOTE]` lines render as plain blockquotes, which is why the notice opens with the ⚠️ glyph and a bold lead-in rather than relying on the alert chrome.
 
 ## 4. Required sections
 
@@ -380,12 +401,15 @@ Run this before opening a release pull request, and again as a reviewer. Every l
 
 **Structure**
 
-- [ ] Front matter present, declaring `license`, and `base_model` where an upstream model is wrapped (G1).
-- [ ] Exactly one level-1 title, naming model and version (G2).
+- [ ] Front matter present, declaring `license`, `model_card_spec: "1.1"`, and `base_model` where an upstream model is wrapped (G1).
+- [ ] Exactly one level-1 title, naming model and version, in the `<Model> <version> — <descriptor>` form (G2).
+- [ ] Badge row directly under the title, in the §3.1 order, identifiers matching front matter and provenance (G12).
+- [ ] The §7.1 notice directly under the badge row, verbatim, as a `[!WARNING]` alert (G13).
+- [ ] `## Interactive Colab Tutorials` between horizontal rules, one entry per release-grade notebook with Colab badge, filename link and one-sentence description; family header shared by paired repositories; `[!NOTE]` caveats where a notebook needs a non-default setting on the Colab free tier (G14).
 - [ ] All 19 sections of §4 present, spelled as given (G3).
 - [ ] Every heading at its specified level (G4).
 - [ ] Sections in the specified order, as one contiguous block (G5).
-- [ ] Block positioned ahead of repository-specific sections (G6, SHOULD).
+- [ ] Block positioned directly after the header block and ahead of repository-specific sections (G6, SHOULD).
 
 **Content**
 
@@ -407,8 +431,47 @@ Run this before opening a release pull request, and again as a reviewer. Every l
 
 ## 7. Template
 
-Copy this block into a new pipeline's `MODEL_CARD.md`, directly after the title and badge
-row, and replace each placeholder. The tooltips and the placeholders are the same kind of
+### 7.1 Header block
+
+Copy this block to the top of a new pipeline's `MODEL_CARD.md`, after the front matter, and
+replace each `<…>` placeholder. The `[!WARNING]` notice is fleet text (G13): fill nothing in
+it and change nothing in it. Delete the `###` subsection wrapper for a single-repository
+card; keep one subsection per repository for a family card. Delete the `[!NOTE]` if no listed
+notebook needs a non-default setting on the Colab free tier.
+
+````markdown
+# <Model> <version> — <Model class> (<Role>[ & <Role>])
+
+[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-<Org>%2F<Model>-ffcc4d?style=flat)](https://huggingface.co/<Org>/<Model>)
+[![Upstream GitHub](https://img.shields.io/badge/Upstream%20GitHub-<org>%2F<repo>-181717?style=flat&logo=github&logoColor=white)](https://github.com/<org>/<repo>)
+[![arXiv Paper](https://img.shields.io/badge/arXiv-<id>-b31b1b.svg)](https://arxiv.org/abs/<id>)
+[![License: <SPDX>](https://img.shields.io/badge/License-<SPDX>-blue.svg)](<licence url>)
+[![<Role> Pipeline](https://img.shields.io/badge/<Role>%20Repo-<pipeline--repo>-2ea44f?style=flat&logo=github)](https://github.com/kurtvalcorza/<pipeline-repo>)
+
+> [!WARNING]
+> ⚠️ **Provided for research, training, and evaluation purposes only.** Model weights are redistributed unmodified under their upstream license, which controls your use, including any commercial use or redistribution; the accompanying code and notebooks are released under this repository's license. All of it is supplied **"as is"**, without warranty of any kind, and has not been validated for production, clinical, or safety-critical use. Running the notebooks downloads third-party weights and datasets governed by their own licenses and consumes compute on your own Colab/Kaggle account. To the maximum extent permitted by law, the maintainers of this repository and the DIMER platform accept no liability for any damages arising from their use. Hosting implies no affiliation with or endorsement by the original authors.
+
+---
+
+## Interactive Colab Tutorials
+
+<One framing sentence: what the notebooks demonstrate end to end.>
+
+### <Family> <Role> (`<pipeline-repo>`)
+
+- **<Tutorial title>**:  
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/<pipeline-repo>/blob/main/tutorials/<notebook>.ipynb) [`<notebook>.ipynb`](https://github.com/kurtvalcorza/<pipeline-repo>/blob/main/tutorials/<notebook>.ipynb)  
+  *<One sentence: what the notebook does.>*
+
+> [!NOTE]
+> <Execution caveat shared by the listed notebooks, e.g. the flag needed on a Tesla T4.>
+
+---
+````
+
+### 7.2 Required block
+
+Copy this block directly after the header block of §7.1 and replace each placeholder. The tooltips and the placeholders are the same kind of
 scaffolding — HTML comments, which the renderer shows to nobody — and **neither survives
 into the released card** (G7, G9). Delete each tooltip as you answer its section, and grep
 the source before release rather than trusting the rendered page; §5 is where that guidance
@@ -538,3 +601,33 @@ This specification is versioned and shared across DIMER pipeline repositories. A
   mandatory element, is a major increment; clarified wording is a minor one;
 - SHOULD be accompanied by an assessment of which existing cards it puts out of
   conformance, so that the work is visible rather than discovered later.
+
+The header block of §3.1 is held to the same rule: the notice text of §7.1 is fleet-wide, so a
+change to it is a change to this document, applied to every card, never a per-card edit.
+
+## 9. Version history
+
+### 1.1 — 2026-09-12
+
+Adds the header block. No §4 or §5 requirement was added, removed, or reworded; the required
+block is unchanged, which is why this is a minor increment under §8 even though G12–G14 are new
+MUSTs.
+
+- G2 — the `<Model> <version> — <descriptor>` title form (SHOULD).
+- G6 — reworded: the header block is the only content that precedes the required block.
+- G12 — the badge row and its order; badges are G10 claims.
+- G13 — the fleet usage-and-liability notice, verbatim, as a `[!WARNING]` alert.
+- G14 — the `## Interactive Colab Tutorials` section, the shared family header for
+  classifier/regressor pairs, and the conditional `[!NOTE]` caveats.
+- §3.1 — the header-block order table; §6 — five checklist lines; §7 — split into the header
+  template (7.1) and the required-block template (7.2).
+
+Conformance impact (§8 assessment): every card written against 1.0 lacks G13 and G14 and most
+lack the pipeline-repository badge of G12, so every 1.0 card is out of conformance with 1.1
+until its header block is added. The fleet-wide application shipped in the same change set as
+this revision; a card declaring `model_card_spec: "1.1"` carries the header block.
+
+### 1.0 — 2026-09-09
+
+Initial fleet-wide specification: front matter, the 19-section required block, G1–G11, the
+pre-flight checklist, the template, and change control.
