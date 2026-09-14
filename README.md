@@ -226,3 +226,7 @@ tests/
 Pipeline code: MIT, Copyright (c) 2026 Kurt Valcorza — see [LICENSE](LICENSE).
 
 Model weights and upstream `momentfm` code carry their own MIT terms. Their identities and provenance are documented separately in [MODEL_CARD.md](MODEL_CARD.md).
+
+## AI Assistance Disclosure
+
+This tutorial and its accompanying documentation were developed with generative AI assistance for code development and technical writing under maintainer direction. The maintainer remains responsible for reviewing the implementation, validating results, and making release decisions. AI assistance does not constitute independent verification, provider endorsement, or release approval.
