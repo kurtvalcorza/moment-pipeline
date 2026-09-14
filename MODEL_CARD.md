@@ -2,6 +2,7 @@
 license: mit
 model_card_spec: "1.1"
 pipeline_tag: time-series-forecasting
+task: "Others - Time-Series Analysis"
 tags:
   - time-series
   - time-series-foundation-model
