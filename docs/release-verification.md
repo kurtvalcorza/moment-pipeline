@@ -103,7 +103,7 @@ download; they are measurements for the stated runtime, not general estimates.
 
 | Date (UTC) | Notebook | Commit / notebook blob | Executor | Path exercised | Wall | Outcome |
 |---|---|---|---|---|---|---|
-| | `moment_embeddings_colab.ipynb` | | | Default sample path | | pending — queued to the GPU lane |
+| 2026-09-14 | `31ddb06` / `505e74302b0d` | Kaggle CPU (`kurtvalcorza/dimer-nb2-moment-imputation` v1) | Default sample path | 252.7 s | **PASSED** — 18/18 ok code cells executed cleanly, 9 files, 454 MB staged |
 | | `moment_imputation_colab.ipynb` | | | Default sample path | | pending — queued to the GPU lane |
 | | `moment_anomaly_detection_colab.ipynb` | | | Default sample path | | pending — queued to the GPU lane |
 

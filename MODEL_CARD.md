@@ -1,6 +1,7 @@
 ---
 license: mit
 model_card_spec: "1.1"
+pipeline_tag: time-series-forecasting
 tags:
   - time-series
   - time-series-foundation-model
@@ -8,6 +9,8 @@ tags:
   - imputation
   - anomaly-detection
 base_model: AutonLab/MOMENT-1-base
+date_published: "2024-10-12"
+date_published_source: "Hugging Face Hub repository creation date of the exact hosted checkpoint (`createdAt`, https://huggingface.co/api/models/AutonLab/MOMENT-1-base)"
 ---
 
 # MOMENT-1-base (v1.0) — Time-Series Foundation Model (Embeddings, Imputation & Anomaly Detection)
@@ -16,7 +19,6 @@ base_model: AutonLab/MOMENT-1-base
 [![Upstream GitHub](https://img.shields.io/badge/Upstream%20GitHub-moment--timeseries--foundation--model%2Fmoment-181717?style=flat&logo=github&logoColor=white)](https://github.com/moment-timeseries-foundation-model/moment)
 [![arXiv Paper](https://img.shields.io/badge/arXiv-2402.03885-b31b1b.svg)](https://arxiv.org/abs/2402.03885)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Pipeline](https://img.shields.io/badge/Pipeline-moment--pipeline-2ea44f?style=flat&logo=github)](https://github.com/kurtvalcorza/moment-pipeline)
 
 > [!WARNING]
 > ⚠️ **Provided for research, training, and evaluation purposes only.** Model weights are redistributed unmodified under their upstream license, which controls your use, including any commercial use or redistribution; the accompanying code and notebooks are released under this repository's license. All of it is supplied **"as is"**, without warranty of any kind, and has not been validated for production, clinical, or safety-critical use. Running the notebooks downloads third-party weights and datasets governed by their own licenses and consumes compute on your own Colab/Kaggle account. To the maximum extent permitted by law, the maintainers of this repository and the DIMER platform accept no liability for any damages arising from their use. Hosting implies no affiliation with or endorsement by the original authors.
@@ -44,7 +46,7 @@ This pipeline provides three ready-to-run interactive Google Colab notebooks, on
 
 ---
 
-###### Description
+#### Description
 
 MOMENT-1-base is an open-weights time-series foundation model from the Auton Lab at Carnegie Mellon University (`AutonLab/MOMENT-1-base`, pinned revision `9fea447e740eb968a9e8d80c7562ae122bdb5dde`), packaged by this repository for representation learning, imputation, and anomaly scoring. Built on a patch-based encoder over a FLAN-T5-base backbone (~113.5M parameters in `model.safetensors`), it segments multi-channel time series into non-overlapping 8-step patches across a fixed 512-timestep window (64 patches, effective dimension 768) and maps them into latent representations. The released base checkpoint is fundamentally a self-reconstruction model (`task_name: reconstruction` with a pretrained `PretrainHead`), while classification and forecasting heads are untrained and deliberately refused. This repository provides a verified, robust DIMER pipeline wrapper: strict safetensors loading, supply-chain verification enforcing digest and byte-size checks, total exclusion of legacy pickle checkpoints, canonical data transformation with mandatory finite pre-fill, explicit patch-quantized masking contracts, raw anomaly residual scoring, and complete provenance tracking.
 

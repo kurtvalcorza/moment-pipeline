@@ -38,14 +38,14 @@ def test_all_release_notebooks_declare_task_inference_profile_and_spec() -> None
     for name, capability in NOTEBOOKS.items():
         payload = _load(name)
         metadata = payload.get("metadata", {}).get("dimer", {})
-        # NOTEBOOK_SPEC 1.1 §3.6 standalone carrier; parity lives in test_notebook_parity.py.
+        # NOTEBOOK_SPEC 2.0 §4 standalone carrier; parity lives in test_notebook_parity.py.
         assert metadata["notebook_profile"] == "TASK-INFERENCE"
-        assert metadata["notebook_spec"] == "1.1"
+        assert metadata["notebook_spec"] == "2.0"
         assert metadata["standalone"] is True
         assert metadata["generated_from"]["repository"] == "moment-pipeline"
         markdown, _ = _texts(payload)
         assert "**Profile:** `TASK-INFERENCE`" in markdown
-        assert "DIMER Notebook Specification 1.1" in markdown
+        assert "DIMER Notebook Specification 2.0" in markdown
         assert capability.split("-")[0] in markdown.lower()
 
 
@@ -146,7 +146,7 @@ def test_anomaly_tutorial_carries_score_direction_threshold_and_byod_semantics()
 
 def test_tutorial_registry_maps_every_notebook_to_normative_profile() -> None:
     registry = (TUTORIALS / "README.md").read_text(encoding="utf-8")
-    assert "DIMER Notebook Specification 1.1" in registry
+    assert "DIMER Notebook Specification 2.0" in registry
     for name in NOTEBOOKS:
         assert name in registry
     assert registry.count("`TASK-INFERENCE`") >= len(NOTEBOOKS)

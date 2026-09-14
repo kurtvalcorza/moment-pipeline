@@ -14,6 +14,8 @@ keywords = ["time-series", "foundation-model", "moment", "dimer"]
 dependencies = [
     "momentfm",
     "torch==2.14.0",
+    "torchvision==0.29.0",
+    "torchaudio==2.11.0",
     "numpy==2.5.3",
     "pandas==3.0.5",
     "huggingface-hub==1.30.0",
