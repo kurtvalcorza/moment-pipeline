@@ -13,7 +13,7 @@ date_published: "2024-10-12"
 date_published_source: "Hugging Face Hub repository creation date of the exact hosted checkpoint (`createdAt`, https://huggingface.co/api/models/AutonLab/MOMENT-1-base)"
 ---
 
-# MOMENT-1-base (v1.0) — Time-Series Foundation Model (Embeddings, Imputation & Anomaly Detection)
+# MOMENT-1-base — Time-Series Foundation Model (Embeddings, Imputation & Anomaly Detection)
 
 [![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-AutonLab%2FMOMENT--1--base-ffcc4d?style=flat)](https://huggingface.co/AutonLab/MOMENT-1-base)
 [![Upstream GitHub](https://img.shields.io/badge/Upstream%20GitHub-moment--timeseries--foundation--model%2Fmoment-181717?style=flat&logo=github&logoColor=white)](https://github.com/moment-timeseries-foundation-model/moment)
