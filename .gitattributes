@@ -2,3 +2,6 @@
 docs/rfc/0001-moment-base.md -text
 *.zip binary
 *.png binary
+
+# Snapshot files are digest-verified byte-for-byte against dimer-base-manifest.json; never convert their line endings.
+weights/** -text
