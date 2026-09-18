@@ -28,7 +28,7 @@ date_published_source: "Hugging Face Hub repository creation date of the exact h
 
 ## Interactive Colab Tutorials
 
-This pipeline provides three ready-to-run interactive Google Colab notebooks, one per task head, each resolving the pinned `AutonLab/MOMENT-1-base` revision and exercising the repository's public API on bundled or your own series:
+This pipeline provides four ready-to-run interactive Google Colab notebooks — one per inference capability and one end-to-end adaptation tutorial — each resolving the pinned `AutonLab/MOMENT-1-base` revision and exercising the repository's public API on bundled, referenced or your own series:
 
 - **Embeddings Tutorial**:  
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_embeddings_colab.ipynb) [`moment_embeddings_colab.ipynb`](https://github.com/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_embeddings_colab.ipynb)  
@@ -42,8 +42,12 @@ This pipeline provides three ready-to-run interactive Google Colab notebooks, on
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_anomaly_detection_colab.ipynb) [`moment_anomaly_detection_colab.ipynb`](https://github.com/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_anomaly_detection_colab.ipynb)  
   *Reconstruction-residual anomaly ranking: score each timestep by residual and rank anomalies; raw scores, no threshold is fitted.*
 
+- **End-to-End Fine-Tuning Tutorial (classification)**:  
+  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_classification_colab.ipynb) [`moment_classification_colab.ipynb`](https://github.com/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_classification_colab.ipynb)  
+  *Bounded supervised adaptation on 179 UCI HAPT motion windows (six activities, 30 volunteers, CC BY 4.0, pinned and fetched at run time, split by volunteer 107 / 36 / 36): the inference contract on real windows, a majority floor (16.7 %), a cosine 5-NN vote (72.2 %) and a linear probe on the frozen embeddings — the **frozen policy** — (72.2 % accuracy, macro-F1 0.715), a bounded unfreeze of the last two encoder blocks selected against the probe by validation log-loss — the **unfrozen policy** — (77.8 % / 0.776, selected at epoch 3 of 3 at 3e-4), predictions before and after, and a 56.7 MB safetensors adapter (head plus trained blocks) whose reload reproduces the probabilities and the accuracy.*
+
 > [!NOTE]
-> All three notebooks run on the default CPU runtime; no GPU is required.
+> All four notebooks run on the default CPU runtime; no GPU is required. The classification tutorial trains for about three minutes on CPU.
 
 ---
 
@@ -94,15 +98,15 @@ Training and evaluation data for MOMENT originate from diverse instrumentation, 
 
 ###### Performance Measures
 
-For reconstruction and imputation tasks, performance is evaluated using Mean Squared Error (MSE) and Mean Absolute Error (MAE) computed strictly over masked target points (`masked_point_mae`, `masked_point_rmse`). For anomaly scoring, per-element residuals are computed under MSE or MAE. For embeddings, representation quality is judged downstream via silhouette scores, retrieval precision, or linear probe classification accuracy. Evaluating metrics over masked positions only is essential; including observed positions in reconstruction metrics artificially deflates error and masks poor imputation fidelity. The public `evaluation_report` helper packages the tutorial metrics — `masked_point_metrics` (MAE/RMSE on deliberately hidden points, imputation) and `top_k_recall` (anomaly ranking) — into a machine-readable report whose verdict is `sample-sanity` on the synthetic samples and `not-measurable` for embeddings or unlabelled data.
+For reconstruction and imputation tasks, performance is evaluated using Mean Squared Error (MSE) and Mean Absolute Error (MAE) computed strictly over masked target points (`masked_point_mae`, `masked_point_rmse`). For anomaly scoring, per-element residuals are computed under MSE or MAE. For embeddings, representation quality is judged downstream via silhouette scores, retrieval precision, or linear probe classification accuracy — and the classification adaptation contract (`adaptation.py`) implements exactly that probe, with **accuracy** and **macro-F1** (unweighted mean of per-class F1) plus per-class precision / recall / F1 / support, the confusion matrix and the head's **log-loss** (the epoch-selection signal), all computed in the repository with no external scorer; `majority_baseline` and `knn_baseline` (cosine k-NN over the frozen embeddings) are its reference points. Recorded values on the seeded HAPT test split (36 windows, six volunteers, six activities, CPU float32): majority floor 16.7 % / 0.048; cosine 5-NN 72.2 % / 0.708; frozen policy (linear probe, 300 steps) 72.2 % / 0.715 (log-loss 0.697); unfrozen policy (last two blocks, best of 3 epochs by validation log-loss, selected at epoch 3 at 3e-4) 77.8 % / 0.776 (log-loss 0.565) — two windows of 36 over the probe; the build record's sweep: at 1e-4 epoch 2 was selected (75.0 %), at 3e-5 validation kept the probe (72.2 %). Evaluating metrics over masked positions only is essential; including observed positions in reconstruction metrics artificially deflates error and masks poor imputation fidelity. The public `evaluation_report` helper packages the tutorial metrics — `masked_point_metrics` (MAE/RMSE on deliberately hidden points, imputation) and `top_k_recall` (anomaly ranking) — into a machine-readable report whose verdict is `sample-sanity` on the synthetic samples and `not-measurable` for embeddings or unlabelled data.
 
 ###### Decision thresholds
 
-The anomaly scoring module deliberately ships **no binary threshold**—neither as a default, a constant, nor a keyword argument. Residual scales vary across different physical series, and a hardcoded threshold would be falsely interpreted as an empirical decision boundary. Output residuals are provided unthresholded, accompanied by explicit `threshold_policy` metadata. Downstream operators own threshold calibration against clean, holdout reference windows based on the asymmetric operational costs of false positives (unnecessary alarms) versus false negatives (missed failures).
+The anomaly scoring module deliberately ships **no binary threshold**—neither as a default, a constant, nor a keyword argument. Residual scales vary across different physical series, and a hardcoded threshold would be falsely interpreted as an empirical decision boundary. Output residuals are provided unthresholded, accompanied by explicit `threshold_policy` metadata. Downstream operators own threshold calibration against clean, holdout reference windows based on the asymmetric operational costs of false positives (unnecessary alarms) versus false negatives (missed failures). The classification adaptation adds two explicit rules and no threshold: the trained head predicts the argmax of its softmax (no abstention, no minimum probability), and `adapt` keeps the epoch with the lowest validation log-loss, epoch 0 being the linear probe — so the frozen policy competes on equal terms and wins whenever the unfreeze does not lower validation loss; `best_epoch`, the per-epoch history and the selected `policy` are reported, and whether a two-window gain is worth an adapter that changes every embedding is the operator's decision.
 
 ###### Approaches to uncertainty and variability
 
-Inference for embedding, imputation, and anomaly scoring is completely deterministic on CPU under standard runtime execution. The model uses no dropout or stochastic sampling at inference time. Output anomaly scores and reconstruction residuals are raw scalar distances, not statistical probabilities, p-values, or calibrated confidence intervals. Operators requiring calibrated uncertainty must apply conformal prediction, extreme value theory, or empirical quantiles over domain-specific validation splits.
+Inference for embedding, imputation, and anomaly scoring is completely deterministic on CPU under standard runtime execution. The model uses no dropout or stochastic sampling at inference time. Output anomaly scores and reconstruction residuals are raw scalar distances, not statistical probabilities, p-values, or calibrated confidence intervals. Operators requiring calibrated uncertainty must apply conformal prediction, extreme value theory, or empirical quantiles over domain-specific validation splits. Every classification metric of the adaptation tutorial is one value on one seeded split of one small corpus: `build_sample_dataset(seed=42)` fixes the volunteer draw (18 / 6 / 6), `adapt(seed=0)` fixes the shuffle order, and no repetition over seeds or splits is performed, so no confidence interval or standard deviation is available and none is claimed — on 36 test windows one window is about 2.8 points of accuracy, so the recorded 5.6-point gain is two windows; the per-class recall (six windows per class) is the only spread shown. Training is deterministic on one CPU for one seed and library set (T5 dropout 0.1 is active in train mode under the fixed seed) but not bit-reproducible across devices or `torch` builds.
 
 ---
 
@@ -110,7 +114,7 @@ Inference for embedding, imputation, and anomaly scoring is completely determini
 
 ###### Data
 
-MOMENT-1-base was pretrained on the Timeseries-PILE, an extensive compilation of publicly available time-series datasets spanning multiple domains. The upstream authors have not published a complete instance-level inventory of every private or sensitive artifact that might have been included in the public crawls. This repository distributes code, pipeline adapters, and tests; model weights are cached from Hugging Face Hub and never committed. Operators supplying inference data are responsible for auditing payloads to prevent accidental transmission of confidential, classified, or protected health information.
+MOMENT-1-base was pretrained on the Timeseries-PILE, an extensive compilation of publicly available time-series datasets spanning multiple domains. The upstream authors have not published a complete instance-level inventory of every private or sensitive artifact that might have been included in the public crawls. This repository distributes code, pipeline adapters, and tests; model weights are cached from Hugging Face Hub and never committed. The classification tutorial's adaptation corpus is the UCI *Smartphone-Based Recognition of Human Activities and Postural Transitions* dataset (HAPT; Reyes-Ortiz et al., 2015; CC BY 4.0 per the UCI repository's licence notice): the 79.6 MB archive is pinned in `samples.py` by byte size and SHA-256 (`4ac4ae06…`), fetched from the UCI static host at run time into the git-ignored `weights/hapt/` cache, refused on any mismatch and read without extraction; 179 ten-second windows are cut from the raw accelerometer and gyroscope files by an a-priori rule (per volunteer and activity, the centre 512 samples of the first labelled segment at least 512 samples long). The recordings are of 30 volunteers wearing a smartphone; the archive carries no names or other identifiers beyond volunteer and experiment numbers, and the repository redistributes none of it. Operators supplying inference data are responsible for auditing payloads to prevent accidental transmission of confidential, classified, or protected health information.
 
 ###### Human Life
 
@@ -122,7 +126,8 @@ The pipeline implements extensive architectural and supply-chain mitigations:
 1. **Supply-chain security:** Pins immutable revision `9fea447e…`, validates SHA-256 digests for `config.json` (`f1c66c2b…`) and `model.safetensors` (`1a436826…`), validates weight byte count (`453,940,120`), and strictly forbids legacy pickle files (`pytorch_model.bin`) via `allow_patterns` and snapshot inspection.
 2. **Tensor identity proof:** At load time, all 116 non-head and head tensors are verified against `model.safetensors` using `torch.equal`.
 3. **Numerical sanitization:** Implements mandatory finite prefill (`prefill_value`) to prevent NaN propagation during patch embedding, and explicitly surfaces `masked_point_fraction` and `masked_patch_fraction`.
-4. **Head refusal:** Rejects untrained classification and forecasting heads at API boundary.
+4. **Head refusal:** Rejects untrained classification and forecasting heads at API boundary; the only classification head is the caller-trained one of the adaptation contract, which never loads an upstream head.
+4a. **Adaptation integrity:** `validate_dataset` enforces the `{id, x, label}` contract (unique ids, one channel count, finite windows of exactly 512 samples with |value| ≤ 1,000, 2..100 classes, 8..1,024 records) before any model import, and every window then passes the package's own long-format validation and canonical windowing; `adapt` bounds `probe_steps` (1..5,000), `probe_lr` ((0, 1]), `epochs` (0..20), `lr` ((0, 1e-2]), `batch_size` (1..32) and `trainable_blocks` (0..12), trains only the head and `encoder.block.{k}.*` tensors and restores the best-validation state; `load_artifact` verifies the artifact format, the base model id / revision / weight digest and the file size and SHA-256 **before** deserialising, rebuilds the head from the manifest's classes and `d_model`, refuses any tensor that is not an encoder-block tensor of the base or whose shape differs, and overlays the rest onto a freshly loaded, digest-verified instance. Offline tests cover every refusal and the full probe / unfreeze / artifact path against a stand-in encoder; the integration tests repeat the path against the real weights.
 5. **Reproducibility:** Locks runtime dependencies via `uv.lock` and exports structured provenance with every result. The public `validate_inputs` helper applies exactly the long-format validation and canonicalization checks the task paths apply and returns an input manifest of the schema, ceilings, per-window observations and verdict before the model runs.
 
 ###### Risks and harms
@@ -290,6 +295,14 @@ A score is defined only where a position is non-padded and visible to the model.
 
 Unscored positions are marked `NaN` by construction. They are not NaNs propagated from the model; raw reconstruction error remains available separately for diagnostics.
 
+## Public capability 4 — classification adaptation (caller-trained head)
+
+`moment_pipeline.adaptation` is the repository's first task-head contract, and the head is the caller's own: MOMENT-1-base ships no classification head and its upstream `classification` task head is not pretrained (RFC M-1/M-4 still hold — `load_moment` refuses that task). `adapt(model, train, val, *, probe_steps=300, probe_lr=1e-2, trainable_blocks=2, epochs=3, lr=3e-4, batch_size=8, seed=0)` takes an `embedding` task instance and validated `{id, x, label}` records (`samples.validate_dataset`: float32 `(channels, 512)` windows, 8..1,024 records, 2..100 classes, one channel count), pushes them through the package's own long-format validation and canonical windowing (`records_to_long_frame` → `validate_long_frame` → `to_windows` → `embed`), and runs two stages: **A — the frozen policy**, a `Linear(768, classes)` head trained full-batch on the frozen L2-normalised pooled embeddings (AdamW, `probe_lr`, weight decay 1e-4, `probe_steps` steps), recorded as epoch 0; **B — the unfrozen policy** (when `trainable_blocks` > 0 and `epochs` > 0), the last *k* of the 12 T5 encoder blocks trained with the head end to end (AdamW at `lr`, weight decay 0.01, clip 1.0, seeded shuffling, no augmentation; patch embedding, earlier blocks and final norm frozen). Every epoch is scored on `val` by `evaluate` and the epoch with the lowest validation log-loss is kept, its tensors restored — epoch 0 competes, so the selected policy may be the probe. `evaluate` returns accuracy, macro-F1, per-class precision / recall / F1 / support, the confusion matrix and log-loss (`adaptation.classification_metrics`, no external scorer) with the verdict `measured` (≥ 50 records) or `measured-small-sample`; `majority_baseline` and `knn_baseline` (cosine k-NN over the frozen embeddings) are the reference points; `classify` returns argmax labels and uncalibrated softmax probabilities. `save_artifact` writes the head and any trained `encoder.block.{k}.*` tensors as safetensors (`org.valcorza.moment-1-base.classifier-adapter.v1`) with a manifest naming the base id, revision and weight digest, the classes, the policy, the tensor names, the file digest and the epoch history; `load_artifact` verifies the manifest and digest before deserialising, rebuilds the head from the manifest's classes, refuses any tensor that is not an encoder-block tensor of the base, and overlays the rest onto a freshly loaded, digest-verified instance. When the unfrozen policy is selected the encoder inside the loaded instance is modified in place — `embed` then returns different vectors for every window, and the artifact records which policy won.
+
+### What the tutorial found
+
+On the pinned UCI HAPT sample (179 six-channel windows of six activities from 30 volunteers, split by volunteer 107 / 36 / 36; CC BY 4.0, fetched at run time) the frozen embeddings put a cosine 5-NN vote at 72.2 % accuracy and a linear probe at 72.2 % / macro-F1 0.715 against a majority floor of 16.7 %; the three walking activities are separated almost perfectly and the three static postures collapse into each other, because MOMENT instance-normalises every window before patching and the constant gravity component that tells sitting from standing from laying never reaches the encoder. The bounded unfreeze (last two blocks, three epochs at 3e-4) was selected at epoch 3 by validation log-loss and scored 77.8 % / 0.776 on the test split — two windows better than the probe on 36, with the postures partly recovered (laying and sitting recall 0.33 → 0.50); at 1e-4 epoch 2 was selected for 75.0 %, and at 3e-5 validation kept the probe. The finding is a property of the normalisation, not something a head can repair; the notebook, the registry and the closing say so.
+
 ## Canonical input contract
 
 Preferred user input is long-format data:
@@ -325,11 +338,12 @@ The public loader refuses unsupported task names rather than giving users freshl
 
 ## Tutorials
 
-The v1 repository contains three executable Colab tutorials:
+The repository contains four executable Colab tutorials — three `TASK-INFERENCE` notebooks and one `E2E` adaptation notebook:
 
 - [`tutorials/moment_embeddings_colab.ipynb`](tutorials/moment_embeddings_colab.ipynb)
 - [`tutorials/moment_imputation_colab.ipynb`](tutorials/moment_imputation_colab.ipynb)
 - [`tutorials/moment_anomaly_detection_colab.ipynb`](tutorials/moment_anomaly_detection_colab.ipynb)
+- [`tutorials/moment_classification_colab.ipynb`](tutorials/moment_classification_colab.ipynb) — the classification adaptation (capability 4) on the pinned UCI HAPT sample fetched at run time
 
 The default tutorial assets are deterministic synthetic series generated by [`examples/sample-data/generate_samples.py`](examples/sample-data/generate_samples.py). [`SHA256SUMS`](examples/sample-data/SHA256SUMS) records the expected materialized CSV digests and [`DATASET_CARD.md`](examples/sample-data/DATASET_CARD.md) documents their purpose and provenance.
 
@@ -358,14 +372,15 @@ Appropriate v1 use cases include:
 
 - feature extraction from clean or explicitly preprocessed time-series windows;
 - reconstruction-backed imputation where patch-level masking semantics are acceptable;
-- exploratory/raw anomaly-score ranking where downstream calibration and domain interpretation remain explicit.
+- exploratory/raw anomaly-score ranking where downstream calibration and domain interpretation remain explicit;
+- bounded supervised adaptation to a small labelled-window classification task through the caller-trained head of `adaptation.py`, under an explicit frozen-vs-unfrozen policy selected on validation.
 
 ## Limitations
 
-- Fixed 512-step canonical context in the current DIMER v1 converter.
+- Fixed 512-step canonical context in the current DIMER v1 converter (the adaptation contract windows must be exactly 512 samples).
 - Patch length 8 means point missingness expands to patch-level model masking.
 - Embeddings cannot receive per-point missingness masks upstream.
-- No pretrained classification head is exposed.
+- No pretrained classification head is exposed; the adaptation contract trains the caller's own head, and per-window instance normalisation removes level and offset information (the HAPT static postures are indistinguishable to it).
 - No MOMENT zero-shot forecasting claim is made.
 - Anomaly scores are uncalibrated self-reconstruction residuals, not universal anomaly probabilities.
 - No universal anomaly threshold is provided.

@@ -29,8 +29,8 @@ PIPELINE_CLASS = "LoadedMoment"
 KNOWN_SHAS: frozenset[str] = frozenset(("38f7310ad594100747ca2a8357e9c7ca7d323e0e",))
 # Colab form gates that must default to the non-interactive sample path.
 BYOD_GATES = ("USE_BYOD",)
-# This repository ships THREE standalone TASK-INFERENCE notebooks generated from three templates that
-# share the carried package and the model cell; every per-notebook expectation lives in this table
+# This repository ships THREE standalone TASK-INFERENCE notebooks and ONE E2E adaptation notebook, generated
+# from four templates that share the carried package and the model cell; every per-notebook expectation lives in this table
 # and `validate_notebooks` binds the module-level names below to one entry at a time.
 _COMMON_CODE = (
     "input_manifest = validate_inputs(frame, config, names=[str(w) for w in windows.window_ids])",
@@ -146,6 +146,86 @@ NOTEBOOKS = {
             "**Higher = larger reconstruction discrepancy**",
             "**no binary decision threshold**",
             "No arbitrary threshold is presented as universal",
+        ),
+    },
+    "moment_classification_colab.ipynb": {
+        "template": "notebook_template_classification",
+        "profile": "E2E",
+        "model_load": "load_moment(task=\"embedding\", weights_dir=WEIGHTS_DIR)",
+        "outputs": (
+            "outputs/moment_classification_train.csv",
+            "outputs/moment_classification_input_manifest.json",
+            "outputs/moment_classification_evaluation_report.json",
+            "outputs/moment_classification_predictions.csv",
+            "outputs/moment_classification_adapter",
+            "outputs/moment_classification_result.json",
+        ),
+        "code_markers": (
+            # Stage 4: pinned corpus, validation, volunteer-level split, CSV, refusal probes
+            "USE_BYOD = False",
+            "corpus = read_corpus(fetch_corpus(cache_dir='weights/hapt'))",
+            "splits = build_sample_dataset(corpus, seed=SPLIT_SEED)",
+            "records = load_byod_dataset(byod_path)",
+            "dataset_manifests = {name: validate_dataset(part) for name, part in splits.items()}",
+            "classes = class_names(train_records)",
+            "disjoint = check_split_disjoint(splits)",
+            "summary = user_summary(splits)",
+            "write_dataset_csv(train_records, 'outputs/moment_classification_train.csv')",
+            # Stage 5: the inference contract through the package's own path
+            "config = MomentConfig(task='embedding')",
+            "frame = records_to_long_frame(probe_records)",
+            "input_manifest = validate_inputs(frame, config, names=[r['id'] for r in probe_records])",
+            "validate_inputs(broken, config)",
+            "report, normalized = validate_long_frame(frame, config)",
+            "windows = to_windows(normalized, config, report=report, frame=normalized)",
+            "result = embed(windows, pipe, warmup=False)",
+            "batch_report = evaluation_report(result, model=pipe, sample_kind=",
+            "provenance = build_provenance(pipe, windows, result)",
+            "'cosine_same_activity'",
+            # Stage 6: majority floor, k-NN baseline and the frozen policy
+            "floor = majority_baseline([r['label'] for r in train_records], [r['label'] for r in test_records], classes)",
+            "baseline_knn = knn_baseline(pipe, train_records, test_records, k=5)",
+            "probe_adapter = adapt(pipe, train_records, val_records, probe_steps=PROBE_STEPS, probe_lr=PROBE_LR, trainable_blocks=0)",
+            "frozen_test = evaluate(pipe, probe_adapter, test_records)",
+            "assert frozen_test['accuracy'] > floor['accuracy'] and probe_adapter.policy == POLICY_FROZEN",
+            # Stage 7: the unfrozen policy with explicit hyperparameters
+            "adapter = adapt(pipe, train_records, val_records, probe_steps=PROBE_STEPS, probe_lr=PROBE_LR, trainable_blocks=TRAINABLE_BLOCKS",
+            "lr=LEARNING_RATE",
+            "'selected_policy': adapter.policy",
+            # Stage 8: held-out evaluation, comparison, assertion
+            "adapted_test = evaluate(pipe, adapter, test_records)",
+            "adapted_val = evaluate(pipe, adapter, val_records)",
+            "'delta_vs_frozen'",
+            "assert adapted_test['accuracy'] > floor['accuracy']",
+            # Stage 9: predictions before/after, artifact, reload parity, provenance
+            "after = classify(pipe, adapter, show)",
+            "frozen_pipe = load_moment(task='embedding', weights_dir=WEIGHTS_DIR)",
+            "save_artifact(pipe, adapter, artifact_dir, metadata=",
+            "reloaded = load_artifact(reloaded_pipe, artifact_dir)",
+            "assert parity['probabilities_identical'] and parity['classes_identical'] and abs(adapted_test['accuracy'] - reloaded_test['accuracy']) < 1e-9",
+            "'weight_format': 'safetensors, digest-verified'",
+            "'corpus': {'name': CORPUS_NAME, 'release': CORPUS_RELEASE, 'url': CORPUS_URL",
+            "'model_revision': MODEL_REVISION",
+            "'model_license': MODEL_LICENSE",
+            "transformers.__version__",
+            "pandas.__version__",
+            "'device': pipe.identity.device",
+        ),
+        "markdown_markers": (
+            "**Capability:** pretrained time-series representation extraction (pooled 768-d window embeddings) and bounded supervised adaptation",
+            "a linear probe on the frozen embeddings with an optional unfreeze of the last encoder blocks",
+            "**supervised adaptation under an explicit frozen-vs-unfrozen policy**",
+            "MOMENT-1-base ships no classification head",
+            "**majority floor**",
+            "**cosine 5-NN vote**",
+            "**frozen policy**",
+            "**unfrozen policy**",
+            "**lowest validation log-loss**",
+            "**cosine is a similarity, not a score**",
+            "`not-measurable`",
+            "no dispersion estimate",
+            "forecasting, anomaly decisions, imputation quality claims, full-encoder or patch-embedding training",
+            "CC BY 4.0",
         ),
     },
 }

@@ -8,16 +8,18 @@ evidence under DIMER Notebook Specification 1.1. This file is the durable releas
 
 ## Automatic coverage (static, every pull request)
 
-CI runs `tools/validate_release_assets.py`, which checks, for each of the three notebooks against its own template:
+CI runs `tools/validate_release_assets.py`, which checks, for each of the four notebooks (three `TASK-INFERENCE`, one `E2E`) against its own template:
 
 - notebook JSON parses; every code cell compiles as plain Python (no `%`/`!` magics); no persisted outputs or
   execution counts; no unresolved placeholder markers; every code cell is preceded by an explanatory markdown cell;
-- exactly the three notebooks, each named in `tutorials/README.md` with its `TASK-INFERENCE` profile, the notebook-spec
-  version and the standalone carrier; `metadata.dimer` declares that profile, spec `1.1`, `standalone: true` and
-  `generated_from` (repository, module commit, the ten carried modules, their combined SHA-256, generator);
+- exactly the four notebooks, each named in `tutorials/README.md` with its profile (`TASK-INFERENCE` ×3, `E2E` for the
+  classification adaptation), the notebook-spec version and the standalone carrier; `metadata.dimer` declares that profile,
+  spec `2.0`, `standalone: true` and `generated_from` (repository, module commit, the carried modules — ten, or twelve
+  for the classification notebook — their combined SHA-256, generator);
 - the standalone carrier (ST1–ST6, PAR1–PAR3): no clone, repository install or repository import on the primary path;
-  one cell tagged `embedded_module` per module of `src/moment_pipeline/` (ten, in dependency order: `config`, `model`,
-  `validation`, `canonical`, `csvio`, `embedding`, `provenance`, `imputation`, `anomaly`, `roles`), each equal to its module
+  one cell tagged `embedded_module` per carried module of `src/moment_pipeline/` (ten, in dependency order: `config`, `model`,
+  `validation`, `canonical`, `csvio`, `embedding`, `provenance`, `imputation`, `anomaly`, `roles`; the classification
+  notebook adds `samples` and `adaptation`), each equal to its module
   after the generator's documented rewrites (the `DEFAULT_WEIGHTS_DIR` rule plus the removal of package-relative imports);
   the inline `MANIFEST` equal to the committed `weights/moment-1-base/dimer-base-manifest.json` (3 files); the inline `PINS`
   equal to the `pyproject.toml` runtime pins with `momentfm` carried as the `[tool.uv.sources]` commit-pinned direct reference;
@@ -28,9 +30,14 @@ CI runs `tools/validate_release_assets.py`, which checks, for each of the three 
   string appears in `README.md` and `MODEL_CARD.md` with no stray revisions (the `momentfm` source commit is whitelisted);
 - the profile-specific public-API calls per notebook (`stage_missing_files`, `verify_snapshot`, `load_moment(task=...,
   weights_dir=...)`, `validate_long_frame`, `to_windows`, `validate_inputs`, then `embed` / `impute` + `masked_point_metrics` /
-  `score_anomalies` + `top_k_recall`, `evaluation_report`, `build_provenance`), the ceiling print (`ResourceLimits`, the 512-step
-  window, the 8-step patch), the exports, the learner-facing statements (no adaptation, upstream-vs-repository split, raw CSV
-  header defence, representation / masked-evaluation / raw-residual semantics, no threshold) and the gated-off BYOD default
+  `score_anomalies` + `top_k_recall`, `evaluation_report`, `build_provenance`; for the classification notebook `fetch_corpus`,
+  `read_corpus`, `build_sample_dataset`, `validate_dataset`, `check_split_disjoint`, `user_summary`, `records_to_long_frame`,
+  `majority_baseline`, `knn_baseline`, `adapt(... trainable_blocks=0)` and `adapt(... trainable_blocks=TRAINABLE_BLOCKS ...)`,
+  `evaluate`, `classify`, `save_artifact`, `load_artifact` and the reload-parity assertion), the ceiling print (`ResourceLimits`,
+  the 512-step window, the 8-step patch), the exports, the learner-facing statements (no adaptation for the inference notebooks;
+  the frozen / unfrozen policies, the majority floor, the k-NN vote, lowest validation log-loss, no dispersion estimate and the
+  CC BY 4.0 licence for the classification notebook; upstream-vs-repository split, raw CSV header defence, representation /
+  masked-evaluation / raw-residual semantics, no threshold) and the gated-off BYOD default
   listed in the validator; forbidden patterns (credential-in-URL, any `git clone` / `github.com/kurtvalcorza` / repository import
   on the primary path, an unpinned `git+https://` dependency, a mutable `revision='main'`, direct `momentfm` /
   `MOMENTPipeline` / `snapshot_download` / `from huggingface_hub import` / `from transformers import` use **outside the carried
@@ -68,7 +75,8 @@ Before changing the registry status from `Candidate` to `Release-grade`, for **e
    `momentfm` at the pinned source commit);
 5. verify every default-path stage completes:
    - pinned runtime installed from the inline `PINS` with no GitHub access other than the commit-pinned `momentfm` source install;
-   - the ten carried module cells execute (define `load_moment`, `validate_inputs`, `evaluation_report` and the rest) with no
+   - the carried module cells execute (define `load_moment`, `validate_inputs`, `evaluation_report` and the rest; for the
+     classification notebook also `fetch_corpus`, `read_corpus`, `adapt`, `evaluate`, `save_artifact`, `load_artifact`) with no
      import of the repository package;
    - pinned `AutonLab/MOMENT-1-base` acquisition at the immutable revision through the package: the inline `MANIFEST` is
      asserted against the module identity and written to `weights/moment-1-base/`, `stage_missing_files(WEIGHTS_DIR,
@@ -77,14 +85,31 @@ Before changing the registry status from `Candidate` to `Release-grade`, for **e
      weights_dir=WEIGHTS_DIR)` returns a `LoadedMoment` whose identity names that revision and whose live-weight proof passes;
    - the synthetic sample regenerated in code with SHA-256 equal to the repository's `examples/sample-data/SHA256SUMS`
      (`moment_clean.csv` 34fc4758… for embeddings/imputation; `moment_anomaly.csv` 58855d89… + labels f35ec637… for anomaly);
+     for the classification notebook, `fetch_corpus` fetching the UCI HAPT archive (79,596,192 bytes, SHA-256 `4ac4ae06…`)
+     into `weights/hapt/`, `read_corpus` cutting 179 windows from the raw files of 30 volunteers, `build_sample_dataset` drawing
+     18 / 6 / 6 volunteers (107 / 36 / 36 windows) with `check_split_disjoint` reporting no shared window and no shared
+     volunteer, the three dataset digests `__DIG_TRAIN__` / `__DIG_VAL__` / `__DIG_TEST__`, `outputs/…_train.csv` written and the
+     four dataset refusal probes each raising `ValueError`;
    - `validate_inputs` writes `outputs/<stem>_input_manifest.json` (verdict `accepted`, one recorded rejection finding from the
      empty-channel probe) and the ceilings are printed;
-   - the task path runs (`embed` / `impute` with the 8-step artificial holdout / `score_anomalies`);
+   - the task path runs (`embed` / `impute` with the 8-step artificial holdout / `score_anomalies`); for the classification
+     notebook: `embed` on three real test windows with the four sanity checks `True`, `evaluation_report` `not-measurable`,
+     `build_provenance`; the majority floor (16.7 %), the cosine 5-NN vote (≈ 72 %) and the frozen policy
+     (`adapt(trainable_blocks=0)`, ≈ 72 % / macro-F1 ≈ 0.71 on the test split) with the cell's assertion that the probe beats
+     the floor; `adapt` printing epoch 0 as the probe (validation log-loss ≈ 0.746) then 3 unfreeze epochs of the last two
+     blocks (14,158,848 trainable of 109,635,456 parameters plus the 4,614-parameter head) with validation log-loss /
+     accuracy each epoch (0.746 → 0.703 → 0.751 → 0.605 in the recorded run) and the selected policy `unfrozen last 2 blocks
+     + linear head` (`best_epoch` 3); `evaluate` on the validation and test splits with the four-way comparison (the cell
+     asserts the selected model beats the floor — ≈ 78 % versus 16.7 % on the sample; the delta over the probe is reported,
+     not asserted); six windows classified by the selected model and by the probe adapter over a fresh `load_moment`
+     instance; `save_artifact` (20 tensors, about 56.7 MB) and `load_artifact` on a fresh instance with identical
+     probabilities and test accuracy (asserted);
    - `evaluation_report` writes `outputs/<stem>_evaluation_report.json` — `not-measurable` (embeddings), `sample-sanity` with
      `masked_point_metrics` and the interpolation baseline (imputation), `sample-sanity` with `top_k_recall` (anomaly);
    - the task exports (`moment_embeddings.csv` + provenance; `moment_imputed_series.csv`, metrics, provenance, SVG;
-     `moment_anomaly_scores.csv`, provenance, SVG) and `outputs/<stem>_result.json` written with `NOTEBOOK_SOURCE`, model
-     revision, model licence, runtime versions, device and dtype;
+     `moment_anomaly_scores.csv`, provenance, SVG; `moment_classification_train.csv`, `_predictions.csv`, the `_adapter/`
+     directory) and `outputs/<stem>_result.json` written with `NOTEBOOK_SOURCE`, model revision, model licence, runtime
+     versions, device and dtype;
 6. verify the exports exist and the interpretation section matches the observed path;
 7. record the notebook Git blob id, commit, runtime (platform, Python, PyTorch, transformers, device), model identifier and
    immutable revision, whether the model cache was clean, outcome, produced outputs, and any warning or applicable `SHOULD`
@@ -106,9 +131,14 @@ download; they are measurements for the stated runtime, not general estimates.
 | 2026-09-14 | `31ddb06` / `505e74302b0d` | Kaggle CPU (`kurtvalcorza/dimer-nb2-moment-imputation` v1) | Default sample path | 252.7 s | **PASSED** — 18/18 ok code cells executed cleanly, 9 files, 454 MB staged |
 | | `moment_imputation_colab.ipynb` | | | Default sample path | | pending — queued to the GPU lane |
 | | `moment_anomaly_detection_colab.ipynb` | | | Default sample path | | pending — queued to the GPU lane |
+| 2026-09-19 | `moment_classification_colab.ipynb` (`E2E`) | `__LOCAL_ROW__` | Local pre-flight harness (Windows, CPython 3.12.10, CPU float32, `torch 2.14.0+cpu`, `transformers 5.16.1`, `momentfm` at the pinned commit; snapshot and HAPT archive pre-staged) | `__LOCAL_EXEC__` | __WALL__ s | **PASSED** — 11/11 code cells; pre-flight only, **not** promotion evidence; hosted clean-runtime run still required |
 
 ## Current status
 
+The classification-adaptation notebook (`E2E`) has a local pre-flight execution of its committed blob recorded above —
+the whole default path on CPU with the snapshot and the HAPT archive pre-staged, so neither the 454 MB Hub fetch nor the
+79.6 MB archive download has been exercised by that notebook end to end; the repository CI integration job executes it on
+every push to `main` against the real weights, which is a pre-flight on the locked stack, not a fresh-boundary run.
 No clean-runtime execution of any standalone notebook has been recorded yet; the runs are **pending** and queued to the
 GPU lane. Static validation (`tools/validate_release_assets.py`), nbformat validation, a `compile()` sweep over every code
 cell, and the offline unit suite passed on the tutorial sources at the candidate revision, which is necessary but not

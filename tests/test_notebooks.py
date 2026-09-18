@@ -9,6 +9,7 @@ EXPECTED = {
     "moment_embeddings_colab.ipynb",
     "moment_imputation_colab.ipynb",
     "moment_anomaly_detection_colab.ipynb",
+    "moment_classification_colab.ipynb",
 }
 
 
