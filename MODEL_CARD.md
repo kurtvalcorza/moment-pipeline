@@ -366,6 +366,8 @@ Pushes to `main` and manual workflow dispatch additionally run:
 
 Static notebook JSON validation alone is not accepted as evidence that the tutorials work.
 
+Recorded supported-runtime executions: `tutorials/moment_classification_colab.ipynb` blob `7c5c3732` at `ac2f9ef` ran top-to-bottom on a clean Kaggle Tesla T4 kernel (`kurtvalcorza/dimer-nb2-moment-classification` v1, `torch 2.14.0+cu130`, `transformers 5.16.1`) on 2026-09-19: 20/20 ok (1 restart after install cell), 294.3 s, 10 files, 534 MB fetched from the Hub; comparison {accuracy: {majority_floor: 0.1667, knn5: 0.7222, frozen_policy: 0.7222, selected_policy: 0.75}, macro_f1: {majority_floor: 0.0476, knn5: 0.7083, frozen_policy: 0.7145, selected_policy: 0.741}, log_loss: {frozen_policy: 0.6965, selected_policy: 0.5634}, per_class_recall: {laying: {knn5: 0.17, frozen: 0.33, selected: 0.33}, sitting: {knn5: 0.5, frozen: 0.33, selected: 0.5}, standing: {knn5: 0.67, frozen: 0.67, selected: 0.67}, walking: {knn5: 1, frozen: 1, selected: 1}, walking_downstairs: {knn5: 1, frozen: 1, selected: 1}, walking_upstairs: {knn5: 1, frozen: 1, selected: 1}}, delta_vs_frozen: {accuracy: 0.0278, macro_f1: 0.0265}, selected_policy: unfrozen last 2 blocks + linear head}. The three `TASK-INFERENCE` notebooks ran on Kaggle CPU on 2026-09-14 (blobs unchanged at `ac2f9ef`). Both are recorded in `docs/release-verification.md`.
+
 ## Intended use
 
 Appropriate v1 use cases include:

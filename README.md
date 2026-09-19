@@ -67,7 +67,7 @@ See `tutorials/README.md` for the registry and `docs/release-verification.md` fo
 
 ## Release status
 
-**Candidate.** Static/unit checks do not constitute clean-runtime notebook evidence. The clean-runtime runs of the four standalone tutorials are pending; complete `docs/release-verification.md` against the exact release revision before calling a notebook release-grade. See `STATUS.md`.
+**Release-grade** — all four standalone tutorials have a clean-runtime execution of their exact committed blob recorded in `docs/release-verification.md` and `STATUS.md`: the three `TASK-INFERENCE` notebooks on Kaggle CPU (2026-09-14) and the `E2E` classification notebook blob `7c5c3732` (committed at `ac2f9ef`) on a clean Kaggle Tesla T4 runtime on 2026-09-19 (20/20 ok (1 restart after install cell), 294.3 s). Static and unit checks — including the standalone generator parity checks — are necessary but were never the evidence; the hosted runs are. A later change to the carried modules or a notebook returns that notebook to Candidate until re-verified.
 
 ## Installation and tests
 
