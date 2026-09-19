@@ -473,7 +473,6 @@ def test_adapt_and_artifacts_guard_their_arguments(tmp_path):
         adapt(model, [{**r, "label": "a"} for r in _records()])
 
 
-
 def test_load_artifact_rejects_bad_manifests_before_touching_weights(tmp_path):
     model = _model()
     manifest = {
@@ -483,9 +482,10 @@ def test_load_artifact_rejects_bad_manifests_before_touching_weights(tmp_path):
             "revision": model.identity.revision,
             "weight_sha256": model.identity.weights_sha256,
         },
+        "format_version": ad.ARTIFACT_FORMAT_VERSION,
         "files": [{"path": ad.ARTIFACT_WEIGHTS_NAME, "bytes": 1, "sha256": "0" * 64}],
         "tensors": ["encoder.block.11.weight", "head.bias", "head.weight"],
-        "adapter": {"classes": ["a", "b"], "policy": POLICY_FROZEN},
+        "adapter": {"classes": ["a", "b"], "policy": POLICY_FROZEN, "trainable_blocks": 0},
     }
     (tmp_path / ad.ARTIFACT_MANIFEST_NAME).write_text(json.dumps({**manifest, "format": "other"}))
     with pytest.raises(ValueError, match="artifact format"):
@@ -501,3 +501,222 @@ def test_load_artifact_rejects_bad_manifests_before_touching_weights(tmp_path):
     with pytest.raises(ValueError, match="digest or size mismatch"):
         load_artifact(model, tmp_path)
     assert class_names(_records()) == ["a", "b", "c"]
+
+
+def test_load_artifact_refuses_versions_files_traversal_classes_and_policies(tmp_path):
+    model = _model()
+    good = {
+        "format": ARTIFACT_FORMAT,
+        "format_version": ad.ARTIFACT_FORMAT_VERSION,
+        "base_model": {
+            "id": model.identity.name,
+            "revision": model.identity.revision,
+            "weight_sha256": model.identity.weights_sha256,
+        },
+        "files": [{"path": ad.ARTIFACT_WEIGHTS_NAME, "bytes": 1, "sha256": "0" * 64}],
+        "tensors": ["head.bias", "head.weight"],
+        "adapter": {"classes": ["a", "b"], "policy": POLICY_FROZEN, "trainable_blocks": 0},
+    }
+
+    def write(manifest):
+        (tmp_path / ad.ARTIFACT_MANIFEST_NAME).write_text(json.dumps(manifest))
+
+    cases = [
+        ({**good, "format_version": "0.9"}, "format_version"),
+        ({**good, "files": good["files"] * 2}, "exactly one file"),
+        (
+            {**good, "files": [{**good["files"][0], "path": "../" + ad.ARTIFACT_WEIGHTS_NAME}]},
+            "must name exactly|inside the artifact directory",
+        ),
+        (
+            {**good, "base_model": {**good["base_model"], "weight_file": "other.bin"}},
+            "different base weight file",
+        ),
+        ({**good, "base_model": {**good["base_model"], "task": "reconstruction"}}, "base task"),
+        ({**good, "adapter": {**good["adapter"], "classes": ["a", "a"]}}, "unique valid classes"),
+        ({**good, "adapter": {**good["adapter"], "classes": ["a", " b"]}}, "unique valid classes"),
+        (
+            {**good, "adapter": {**good["adapter"], "policy": "something else"}},
+            "not a canonical policy",
+        ),
+        (
+            {
+                **good,
+                "adapter": {
+                    **good["adapter"],
+                    "policy": ad.POLICY_UNFROZEN.format(k=2),
+                    "trainable_blocks": 1,
+                },
+            },
+            "not a canonical policy",
+        ),
+        ({**good, "adapter": {**good["adapter"], "trainable_blocks": 99}}, "trainable_blocks"),
+    ]
+    for manifest, pattern in cases:
+        write(manifest)
+        with pytest.raises(ValueError, match=pattern):
+            load_artifact(model, tmp_path)
+    write(good)  # every manifest check passes; the weights file is still missing
+    with pytest.raises(FileNotFoundError, match="artifact weights missing"):
+        load_artifact(model, tmp_path)
+    with pytest.raises(ValueError, match="task='embedding'"):
+        load_artifact(_model(task="reconstruction"), tmp_path)
+
+
+def test_load_artifact_refuses_a_tensor_set_that_differs_from_the_recorded_policy(tmp_path):
+    """A manifest that claims the frozen policy but carries block tensors, records other blocks than the
+    tensors it lists, or whose payload carries an extra head tensor is refused before any tensor is applied."""
+    import shutil
+
+    from safetensors.torch import load_file, save_file
+
+    model = _model()
+    records = _records(24)
+    adapter = adapt(
+        model,
+        records[:18],
+        None,
+        probe_steps=50,
+        trainable_blocks=1,
+        epochs=1,
+        lr=1e-3,
+        batch_size=6,
+    )
+    assert adapter.policy == ad.POLICY_UNFROZEN.format(k=1)
+    artifact = save_artifact(model, adapter, tmp_path / "ok")
+    manifest = json.loads((artifact / "manifest.json").read_text(encoding="utf-8"))
+    assert any(t.startswith("encoder.block.11.") for t in manifest["tensors"])
+    claims_frozen = tmp_path / "claims_frozen"
+    shutil.copytree(artifact, claims_frozen)
+    frozen = {**manifest["adapter"], "policy": POLICY_FROZEN, "trainable_blocks": 0}
+    (claims_frozen / "manifest.json").write_text(json.dumps({**manifest, "adapter": frozen}))
+    with pytest.raises(ValueError, match="does not match its recorded policy"):
+        load_artifact(_model(), claims_frozen)
+    other = tmp_path / "other_blocks"
+    shutil.copytree(artifact, other)
+    two = {**manifest["adapter"], "policy": ad.POLICY_UNFROZEN.format(k=2), "trainable_blocks": 2}
+    (other / "manifest.json").write_text(json.dumps({**manifest, "adapter": two}))
+    with pytest.raises(ValueError, match="does not match its recorded policy"):
+        load_artifact(_model(), other)
+    extra = tmp_path / "extra"
+    shutil.copytree(artifact, extra)
+    tensors = load_file(str(extra / "adapter.safetensors"))
+    tensors["head.extra"] = torch.zeros(1)
+    save_file(tensors, str(extra / "adapter.safetensors"), metadata={"format": "pt"})
+    digest = hashlib.sha256((extra / "adapter.safetensors").read_bytes()).hexdigest()
+    size = (extra / "adapter.safetensors").stat().st_size
+    files = [{**manifest["files"][0], "bytes": size, "sha256": digest}]
+    (extra / "manifest.json").write_text(json.dumps({**manifest, "files": files}))
+    with pytest.raises(ValueError, match="tensor names differ"):
+        load_artifact(_model(), extra)
+
+
+def test_channel_schema_is_explicit_and_fails_closed():
+    seven = [{**r, "x": _window(r["label"], i, channels=7)} for i, r in enumerate(_records(9))]
+    report = validate_dataset(seven)
+    assert report["n_channels"] == 7 and report["channels"] == [
+        f"channel_{c:02d}" for c in range(7)
+    ]
+    windows, ordered = windows_for(seven)
+    assert windows.n_channels == 7 and windows.x_enc.shape == (9, 7, WINDOW_LENGTH)
+    assert np.allclose(windows.x_enc[0], ordered[0]["x"])  # nothing dropped, nothing reordered
+    named = [{**r, "channels": [f"c{c}" for c in range(7)]} for r in seven]
+    assert validate_dataset(named)["channels"] == [f"c{c}" for c in range(7)]
+    for bad, pattern in (
+        ([f"c{c}" for c in range(6)], "names 6 channels but x has 7"),
+        ([f"c{c}" for c in range(8)], "names 8 channels but x has 7"),
+        (["c0"] * 7, "unique names"),
+        ("c0,c1,c2,c3,c4,c5,c6", "list of channel names"),
+    ):
+        with pytest.raises(ValueError, match=pattern):
+            validate_dataset([{**seven[0], "channels": bad}, *seven[1:]])
+    mixed = [{**seven[0], "channels": [f"z{c}" for c in range(7)]}, *named[1:]]
+    with pytest.raises(ValueError, match="same ordered channel schema"):
+        validate_dataset(mixed)
+    six = _records(9)
+    assert validate_dataset(six)["channels"] == list(CHANNELS)
+
+
+def test_byod_requires_a_group_and_refuses_duplicates_and_escapes(tmp_path):
+    records = _records(9)
+    folder = tmp_path / "byod"
+    folder.mkdir()
+    for record in records:
+        np.save(folder / f"{record['id']}.npy", record["x"])
+
+    def write_rows(rows):
+        with open(folder / "records.csv", "w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=["id", "file", "label", "group"])
+            writer.writeheader()
+            writer.writerows(rows)
+
+    rows = [
+        {"id": r["id"], "file": f"{r['id']}.npy", "label": r["label"], "group": ""} for r in records
+    ]
+    write_rows(rows)
+    with pytest.raises(ValueError, match="has no `group`"):
+        load_byod_dataset(folder)
+    assert len(load_byod_dataset(folder, require_group=False)) == 9  # the explicit opt-out
+    grouped = [{**row, "group": records[i]["user"]} for i, row in enumerate(rows)]
+    write_rows(grouped)
+    loaded = load_byod_dataset(folder)
+    splits = (
+        split_dataset(loaded, val_fraction=0.34, test_fraction=0.33, seed=0)
+        if len(loaded) >= 24
+        else None
+    )
+    assert {r["group"] for r in loaded} == {r["user"] for r in records} and splits is None
+    write_rows(grouped + [grouped[0]])
+    with pytest.raises(ValueError, match="more than once"):
+        load_byod_dataset(folder)
+    outside = tmp_path / "outside.npy"
+    np.save(outside, records[0]["x"])
+    write_rows([{**grouped[0], "file": "../outside.npy"}, *grouped[1:]])
+    with pytest.raises(ValueError, match="leaves the dataset directory"):
+        load_byod_dataset(folder)
+    write_rows(grouped)
+    archive = tmp_path / "dup.zip"
+    with zipfile.ZipFile(archive, "w") as zf:
+        for path in folder.iterdir():
+            zf.write(path, f"a/{path.name}")
+        zf.write(folder / "r00.npy", "b/r00.npy")
+    with pytest.raises(ValueError, match="more than one member named"):
+        load_byod_dataset(archive)
+
+
+def test_groups_never_straddle_splits_after_byod_load(tmp_path):
+    records = [{**r, "group": r["user"]} for r in _records(30)]
+    for r in records:
+        r.pop("user")
+    splits = split_dataset(records, val_fraction=0.2, test_fraction=0.2, seed=1)
+    where = {}
+    for name, part in splits.items():
+        for r in part:
+            assert where.setdefault(r["group"], name) == name
+    assert len(where) == 10 and check_split_disjoint(splits)
+
+
+def test_adapt_is_transactional_when_the_progress_callback_raises():
+    model = _model()
+    records = _records(24)
+    before = {k: v.clone() for k, v in model.pipeline.state_dict().items()}
+
+    def boom(entry):
+        if entry["epoch"] == 1:
+            raise RuntimeError("boom")
+
+    with pytest.raises(RuntimeError, match="boom"):
+        adapt(
+            model,
+            records[:18],
+            None,
+            probe_steps=20,
+            trainable_blocks=1,
+            epochs=2,
+            lr=1e-3,
+            batch_size=6,
+            progress=boom,
+        )
+    after = model.pipeline.state_dict()
+    assert all(torch.equal(before[k], after[k]) for k in before)
+    assert not any(p.requires_grad for p in model.pipeline.parameters())

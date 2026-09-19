@@ -76,6 +76,7 @@ MAX_RECORDS = 1_024  # the canonical path's max_windows
 MIN_CLASSES = 2
 MAX_CLASSES = 100
 MAX_CHANNELS = 32
+_CHANNEL_RE = re.compile(r"^[A-Za-z0-9_.-]{1,32}$")
 MAX_LABEL_CHARS = 64
 MAX_ABS_VALUE = 1_000.0
 _ID_RE = re.compile(r"^[A-Za-z0-9_.:-]{1,64}$")
@@ -172,6 +173,25 @@ def read_corpus(payload: bytes) -> list[dict[str, Any]]:
     return out
 
 
+def channel_names(record: Mapping[str, Any], n_channels: int) -> list[str]:
+    """The record's explicit channel schema, fail-closed: `channels` must name exactly `n_channels` unique,
+    valid channels; when it is omitted, the six-channel case takes the HAPT names and every other count takes
+    deterministic `channel_00`.. names, so no channel is ever dropped or duplicated by a default."""
+    given = record.get("channels")
+    if given is None:
+        if n_channels == len(CHANNELS):
+            return list(CHANNELS)
+        return [f"channel_{c:02d}" for c in range(n_channels)]
+    if isinstance(given, str | bytes) or not isinstance(given, Sequence):
+        raise ValueError("channels must be a list of channel names")
+    names = [str(n) for n in given]
+    if len(names) != n_channels:
+        raise ValueError(f"channels names {len(names)} channels but x has {n_channels}")
+    if len(set(names)) != len(names) or not all(_CHANNEL_RE.match(n) for n in names):
+        raise ValueError(f"channels must be unique names matching {_CHANNEL_RE.pattern}")
+    return names
+
+
 def records_to_long_frame(records: Sequence[Mapping[str, Any]]) -> pd.DataFrame:
     """The `series_id, timestamp, channel, value` frame of validated records (50 Hz stamps from a fixed
     epoch), one 512-sample series per record, in the shape `validate_long_frame` and `to_windows` take."""
@@ -181,7 +201,7 @@ def records_to_long_frame(records: Sequence[Mapping[str, Any]]) -> pd.DataFrame:
     )
     for record in records:
         x = np.asarray(record["x"], dtype=np.float32)
-        names = list(record.get("channels") or CHANNELS[: x.shape[0]])
+        names = channel_names(record, x.shape[0])
         for c, name in enumerate(names):
             frames.append(
                 pd.DataFrame(
@@ -269,7 +289,12 @@ def _check_record(record: Any, index: int) -> dict[str, Any]:
         raise ValueError(
             f"{label_name}: label must be a non-empty string of at most {MAX_LABEL_CHARS} plain characters"
         )
-    item = {"id": rid, "x": np.ascontiguousarray(x, dtype=np.float32), "label": label.strip()}
+    item = {
+        "id": rid,
+        "x": np.ascontiguousarray(x, dtype=np.float32),
+        "label": label.strip(),
+        "channels": channel_names(record, int(x.shape[0])),
+    }
     for key in (
         "source_id",
         "user",
@@ -278,7 +303,6 @@ def _check_record(record: Any, index: int) -> dict[str, Any]:
         "segment",
         "first_sample",
         "source",
-        "channels",
     ):
         if key in record:
             item[key] = record[key]
@@ -310,6 +334,12 @@ def validate_dataset(
         raise ValueError(
             f"every record must have the same channel count, found {sorted(n_channels)}"
         )
+    schemas = {tuple(r["channels"]) for r in checked}
+    if len(schemas) != 1:
+        raise ValueError(
+            "every record must use the same ordered channel schema, found "
+            f"{sorted(', '.join(s) for s in schemas)}"
+        )
     labels = sorted({r["label"] for r in checked})
     if not MIN_CLASSES <= len(labels) <= MAX_CLASSES:
         raise ValueError(
@@ -320,6 +350,7 @@ def validate_dataset(
         "records": checked,
         "n_records": len(checked),
         "n_channels": n_channels.pop(),
+        "channels": list(schemas.pop()),
         "window_length": WINDOW_LENGTH,
         "classes": labels,
         "label_counts": counts,
@@ -434,17 +465,32 @@ def split_dataset(
     return splits
 
 
-def load_byod_dataset(path: str | Path) -> list[dict[str, Any]]:
+def load_byod_dataset(path: str | Path, *, require_group: bool = True) -> list[dict[str, Any]]:
     """Read `{id, x, label}` records from a directory or a zip holding `records.csv` (columns `id`, `file`,
-    `label`, optional `group`) beside `.npy` windows of shape (channels, 512); arrays are decoded from the
-    archive, never extracted to disk."""
+    `label`, `group`) beside `.npy` windows of shape (channels, 512); arrays are decoded from the archive,
+    never extracted to disk. `group` (the person, session or device the window comes from) must be
+    non-empty on every row unless `require_group=False`, in which case the split falls back to one unit per
+    window and the person-disjoint guarantee is gone. File references stay inside the dataset directory;
+    a zip whose members share a basename is refused."""
     source = Path(path)
     if source.is_dir():
         table = (source / "records.csv").read_text(encoding="utf-8")
-        loader = lambda name: (source / name).read_bytes()  # noqa: E731
+        base_dir = source.resolve()
+
+        def loader(name: str) -> bytes:
+            target = (source / name).resolve()
+            if base_dir not in target.parents and target != base_dir:
+                raise ValueError(f"BYOD file reference {name!r} leaves the dataset directory")
+            return target.read_bytes()
+
     elif source.is_file() and source.suffix.lower() == ".zip":
         archive = zipfile.ZipFile(source)
-        members = {Path(n).name: n for n in archive.namelist()}
+        names = [n for n in archive.namelist() if not n.endswith("/")]
+        basenames = [Path(n).name for n in names]
+        if len(set(basenames)) != len(basenames):
+            duplicate = next(b for b in basenames if basenames.count(b) > 1)
+            raise ValueError(f"BYOD zip holds more than one member named {duplicate!r}")
+        members = dict(zip(basenames, names, strict=True))
         if "records.csv" not in members:
             raise ValueError("BYOD zip must contain records.csv")
         table = archive.read(members["records.csv"]).decode("utf-8")
@@ -458,14 +504,25 @@ def load_byod_dataset(path: str | Path) -> list[dict[str, Any]]:
     if missing:
         raise ValueError(f"records.csv is missing columns {sorted(missing)}")
     out = []
+    seen: set[str] = set()
     for row in rows:
+        group = (row.get("group") or row.get("user") or "").strip()
+        if require_group and not group:
+            raise ValueError(
+                f"records.csv row for id {row['id']!r} has no `group`; every row needs the person, session "
+                "or device the window comes from so the split stays group-disjoint (pass "
+                "require_group=False to split by window instead, without that guarantee)"
+            )
+        if row["id"] in seen:
+            raise ValueError(f"records.csv lists id {row['id']!r} more than once")
+        seen.add(row["id"])
         item: dict[str, Any] = {
             "id": row["id"],
             "x": np.load(io.BytesIO(loader(row["file"])), allow_pickle=False),
             "label": row["label"],
         }
-        if row.get("group"):
-            item["group"] = row["group"]
+        if group:
+            item["group"] = group
         out.append(item)
     return out
 

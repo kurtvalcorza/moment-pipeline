@@ -46,6 +46,7 @@ ARTIFACT_FORMAT_VERSION = "1.0"
 ARTIFACT_WEIGHTS_NAME = "adapter.safetensors"
 ARTIFACT_MANIFEST_NAME = "manifest.json"
 POLICY_FROZEN = "frozen encoder + linear probe"
+POLICY_UNFROZEN = "unfrozen last {k} blocks + linear head"
 
 METRIC_DEFINITIONS = {
     "accuracy": "fraction of windows whose predicted label equals the gold label",
@@ -382,7 +383,7 @@ def adapt(
             "n": metrics["n"],
             "accuracy": round(metrics["accuracy"], 6),
             "macro_f1": round(metrics["macro_f1"], 6),
-            "log_loss": round(metrics["log_loss"], 6),
+            "log_loss": metrics["log_loss"],  # full precision: the selection compares this value
         }
 
     history: list[dict[str, Any]] = [
@@ -402,7 +403,7 @@ def adapt(
     }
     policy = POLICY_FROZEN
     if names and epochs > 0:
-        policy_b = f"unfrozen last {trainable_blocks} blocks + linear head"
+        policy_b = POLICY_UNFROZEN.format(k=trainable_blocks)
         for p in model.pipeline.parameters():
             p.requires_grad_(False)
         for n in names:
@@ -410,43 +411,55 @@ def adapt(
         optimiser = torch.optim.AdamW(
             [*head.parameters(), *(params[n] for n in names)], lr=float(lr), weight_decay=0.01
         )
-        for epoch in range(1, epochs + 1):
-            model.pipeline.train()
-            order = list(range(train_windows.n_windows))
-            rng.shuffle(order)
-            losses = []
-            for start in range(0, len(order), batch_size):
-                index = order[start : start + batch_size]
-                feats = _embed_batch(model, train_windows, index, grad=True)
-                loss = torch.nn.functional.cross_entropy(head(feats), targets[index].to(device))
-                optimiser.zero_grad(set_to_none=True)
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(
-                    [*head.parameters(), *(params[n] for n in names)], 1.0
-                )
-                optimiser.step()
-                losses.append(float(loss.detach()))
-            model.pipeline.eval()
-            adapter.policy = policy_b
-            val_metrics = score()
-            entry = {
-                "epoch": epoch,
-                "stage": policy_b,
-                "train_loss": float(np.mean(losses)),
-                "val": val_metrics,
-            }
-            history.append(entry)
-            if progress is not None:
-                progress(entry)
-            current = (
-                val_metrics["log_loss"] if val_metrics else -epoch
-            )  # no val: the last epoch wins
-            if current < best_score:
-                best_epoch, best_score, policy = epoch, current, policy_b
-                best_state = {
-                    "head": {k: v.detach().clone() for k, v in head.state_dict().items()},
-                    "blocks": {n: params[n].detach().clone() for n in names},
+        initial_blocks = {n: v.clone() for n, v in best_state["blocks"].items()}
+        try:
+            for epoch in range(1, epochs + 1):
+                model.pipeline.train()
+                order = list(range(train_windows.n_windows))
+                rng.shuffle(order)
+                losses = []
+                for start in range(0, len(order), batch_size):
+                    index = order[start : start + batch_size]
+                    feats = _embed_batch(model, train_windows, index, grad=True)
+                    loss = torch.nn.functional.cross_entropy(head(feats), targets[index].to(device))
+                    optimiser.zero_grad(set_to_none=True)
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(
+                        [*head.parameters(), *(params[n] for n in names)], 1.0
+                    )
+                    optimiser.step()
+                    losses.append(float(loss.detach()))
+                model.pipeline.eval()
+                adapter.policy = policy_b
+                val_metrics = score()
+                entry = {
+                    "epoch": epoch,
+                    "stage": policy_b,
+                    "train_loss": float(np.mean(losses)),
+                    "val": val_metrics,
                 }
+                history.append(entry)
+                if progress is not None:
+                    progress(entry)
+                current = (
+                    val_metrics["log_loss"] if val_metrics else -epoch
+                )  # no val: the last epoch wins
+                if current < best_score:
+                    best_epoch, best_score, policy = epoch, current, policy_b
+                    best_state = {
+                        "head": {k: v.detach().clone() for k, v in head.state_dict().items()},
+                        "blocks": {n: params[n].detach().clone() for n in names},
+                    }
+        except BaseException:
+            # Transactional: a failure in training, validation or the progress callback leaves the base
+            # exactly as it was, frozen; the caller gets the exception, not a half-trained adapter.
+            with torch.no_grad():
+                for n, value in initial_blocks.items():
+                    params[n].copy_(value)
+            for p in model.pipeline.parameters():
+                p.requires_grad_(False)
+            model.pipeline.eval()
+            raise
         with torch.no_grad():
             head.load_state_dict(best_state["head"])
             for n, value in best_state["blocks"].items():
@@ -540,13 +553,22 @@ def save_artifact(
     return out
 
 
-def load_artifact(model: LoadedMoment, artifact_dir: str | Path) -> ClassifierAdapter:
-    """Verify an adapter's manifest and digest **before** deserialising, rebuild the head from the
-    manifest's classes and overlay any encoder-block tensors onto `model.pipeline`."""
-    root = Path(artifact_dir)
-    manifest = json.loads((root / ARTIFACT_MANIFEST_NAME).read_text(encoding="utf-8"))
+def _check_artifact_manifest(
+    model: LoadedMoment, root: Path, manifest: Mapping[str, Any]
+) -> tuple[Path, list[str], int]:
+    """Refuse an artifact whose manifest is not exactly the one `save_artifact` writes: the supported format
+    and version, the pinned base (id, revision, weight file, digest, task `embedding`), exactly one file entry
+    named `adapter.safetensors` that resolves inside the artifact directory, at least two unique valid
+    classes, a canonical policy and an integer `trainable_blocks` in range. Nothing is deserialised here.
+    The digest check that follows detects corruption or drift of the weights relative to the adjacent
+    manifest; it is not authenticity against an actor who can replace both files."""
     if manifest.get("format") != ARTIFACT_FORMAT:
         raise ValueError(f"artifact format {manifest.get('format')!r} != {ARTIFACT_FORMAT!r}")
+    if manifest.get("format_version") != ARTIFACT_FORMAT_VERSION:
+        raise ValueError(
+            f"artifact format_version {manifest.get('format_version')!r} is not the supported "
+            f"{ARTIFACT_FORMAT_VERSION!r}"
+        )
     base = manifest.get("base_model", {})
     if (base.get("id"), base.get("revision"), base.get("weight_sha256")) != (
         model.identity.name,
@@ -556,10 +578,56 @@ def load_artifact(model: LoadedMoment, artifact_dir: str | Path) -> ClassifierAd
         raise ValueError(
             "artifact was adapted from a different base model, revision or weight file"
         )
+    if base.get("weight_file", PINNED_WEIGHTS_FILENAME) != PINNED_WEIGHTS_FILENAME:
+        raise ValueError("artifact was adapted from a different base weight file")
+    if base.get("task", "embedding") != "embedding":
+        raise ValueError("artifact was adapted over a base task other than 'embedding'")
     if model.identity.task != "embedding":
         raise ValueError("load_artifact() needs a pipeline loaded with task='embedding'")
+    files = manifest.get("files")
+    if not isinstance(files, list) or len(files) != 1:
+        raise ValueError("artifact manifest must list exactly one file")
+    entry = files[0]
+    if not isinstance(entry, Mapping) or entry.get("path") != ARTIFACT_WEIGHTS_NAME:
+        raise ValueError(f"artifact manifest must name exactly {ARTIFACT_WEIGHTS_NAME!r}")
+    weights_path = (root / entry["path"]).resolve()
+    if weights_path.parent != root.resolve():
+        raise ValueError("artifact weight path must resolve inside the artifact directory")
+    adapter = manifest.get("adapter")
+    if not isinstance(adapter, Mapping):
+        raise ValueError("artifact manifest has no adapter block")
+    classes = list(adapter.get("classes") or [])
+    if (
+        len(classes) < 2
+        or len(set(classes)) != len(classes)
+        or not all(isinstance(c, str) and c.strip() == c and c for c in classes)
+    ):
+        raise ValueError("artifact manifest does not name at least two unique valid classes")
+    blocks = adapter.get("trainable_blocks")
+    if isinstance(blocks, bool) or not isinstance(blocks, int) or not 0 <= blocks <= ENCODER_BLOCKS:
+        raise ValueError(
+            f"artifact manifest does not record an integer trainable_blocks in 0..{ENCODER_BLOCKS}"
+        )
+    policy = adapter.get("policy")
+    if policy == POLICY_FROZEN:
+        blocks = 0
+    elif policy != POLICY_UNFROZEN.format(k=blocks) or blocks == 0:
+        raise ValueError(
+            f"artifact policy {policy!r} is not a canonical policy for trainable_blocks={blocks}"
+        )
+    if not isinstance(manifest.get("tensors"), list):
+        raise ValueError("artifact manifest must list its tensors")
+    return weights_path, classes, blocks
+
+
+def load_artifact(model: LoadedMoment, artifact_dir: str | Path) -> ClassifierAdapter:
+    """Verify an adapter's manifest, digest and exact tensor set **before** deserialising, rebuild the head
+    from the manifest's classes and overlay any encoder-block tensors onto `model.pipeline` (none under the
+    frozen policy)."""
+    root = Path(artifact_dir)
+    manifest = json.loads((root / ARTIFACT_MANIFEST_NAME).read_text(encoding="utf-8"))
+    weights_path, classes, blocks = _check_artifact_manifest(model, root, manifest)
     entry = manifest["files"][0]
-    weights_path = root / entry["path"]
     if not weights_path.is_file():
         raise FileNotFoundError(f"artifact weights missing: {weights_path}")
     if (
@@ -567,14 +635,17 @@ def load_artifact(model: LoadedMoment, artifact_dir: str | Path) -> ClassifierAd
         or weights_path.stat().st_size != entry["bytes"]
     ):
         raise ValueError(f"{entry['path']}: digest or size mismatch; refusing to load")
-    classes = list(manifest.get("adapter", {}).get("classes") or [])
-    if len(classes) < 2:
-        raise ValueError("artifact manifest does not name at least two classes")
+    # The exact tensor set the recorded policy implies: the head, plus the last `blocks` blocks only.
+    expected = sorted(["head.bias", "head.weight", *_trainable_names(model, blocks)])
+    if sorted(manifest["tensors"]) != expected:
+        raise ValueError(
+            "artifact tensor list does not match its recorded policy and trainable_blocks"
+        )
     import torch
     from safetensors.torch import load_file
 
     tensors = load_file(str(weights_path))
-    if sorted(tensors) != manifest["tensors"]:
+    if sorted(tensors) != expected:
         raise ValueError("artifact tensor names differ from its manifest")
     d_model = int(model.identity.d_model_effective)
     if (
@@ -585,10 +656,6 @@ def load_artifact(model: LoadedMoment, artifact_dir: str | Path) -> ClassifierAd
     params = dict(model.pipeline.named_parameters())
     block_tensors = {k: v for k, v in tensors.items() if not k.startswith("head.")}
     for key, value in block_tensors.items():
-        if key not in params or not key.startswith(BLOCK_PREFIX):
-            raise ValueError(
-                f"artifact tensor {key} is not an adaptable encoder-block tensor of the base"
-            )
         if tuple(value.shape) != tuple(params[key].shape):
             raise ValueError(
                 f"artifact tensor {key}: shape {tuple(value.shape)} != {tuple(params[key].shape)}"
