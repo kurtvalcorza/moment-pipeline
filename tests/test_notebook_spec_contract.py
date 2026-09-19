@@ -150,4 +150,8 @@ def test_tutorial_registry_maps_every_notebook_to_normative_profile() -> None:
     for name in NOTEBOOKS:
         assert name in registry
     assert registry.count("`TASK-INFERENCE`") >= len(NOTEBOOKS)
-    assert "current revision must pass live-notebook CI" in registry
+    # Candidate rows state the promotion gate; Release-grade rows cite the recorded clean run.
+    candidate = "current revision must pass live-notebook CI" in registry
+    release_grade = "**Release-grade**" in registry and "recorded" in registry
+    assert candidate or release_grade
+    assert "../docs/release-verification.md" in registry
