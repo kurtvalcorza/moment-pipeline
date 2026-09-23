@@ -63,7 +63,7 @@ The primary intended uses of this pipeline comprise three distinct zero-shot tim
 1. Multi-channel representation learning: Generating per-patch and pooled latent embeddings (`moment_pipeline.embedding.embed`) for downstream clustering, classification, or vector search.
 2. Missing-value imputation: Reconstructing missing or masked time-series segments (`moment_pipeline.imputation.reconstruct`) via patch-quantized self-attention.
 3. Reconstruction-based anomaly scoring: Emitting continuous, unthresholded reconstruction residuals (`moment_pipeline.anomaly.score_anomalies`) to highlight unexpected patterns.
-Concrete application domains include industrial machine vibration telemetry, ECG and biometric monitoring, environmental sensor network recovery, and data center metrics. The pipeline serves as a standardized feature extractor and anomaly detector within the DIMER platform.
+Concrete application domains include industrial machine vibration telemetry, ECG and biometric monitoring, environmental sensor network recovery, and data center metrics. The pipeline serves as a standardized feature extractor and anomaly detector.
 
 ###### Primary Intended Users
 
@@ -149,13 +149,13 @@ Prohibited use cases include:
 
 ## Summary
 
-MOMENT-1-base is an open-weight pretrained time-series foundation model from the Auton Lab at Carnegie Mellon University. The released base checkpoint is a **reconstruction model**: its pretrained task head reconstructs masked time-series patches. DIMER therefore exposes only capabilities defensible directly from those weights:
+MOMENT-1-base is an open-weight pretrained time-series foundation model from the Auton Lab at Carnegie Mellon University. The released base checkpoint is a **reconstruction model**: its pretrained task head reconstructs masked time-series patches. The pipeline therefore exposes only capabilities defensible directly from those weights:
 
 1. pretrained encoder embeddings;
 2. reconstruction-backed imputation;
 3. raw reconstruction-residual anomaly scoring.
 
-Classification and forecasting are not exposed as pretrained capabilities. Upstream can instantiate those heads, but they are freshly initialized and require a separate training/adaptation contract. DIMER's zero-shot forecasting path is Chronos-2.
+Classification and forecasting are not exposed as pretrained capabilities. Upstream can instantiate those heads, but they are freshly initialized and require a separate training/adaptation contract. For zero-shot forecasting, use the Chronos-2 pipeline (`chronos-2-forecasting-pipeline`).
 
 ## Model details
 
@@ -178,7 +178,7 @@ The effective representation dimension is read from the loaded model rather than
 
 ## Checkpoint and source provenance
 
-The DIMER path is immutable at both model and source-code layers.
+The pipeline path is immutable at both model and source-code layers.
 
 | Item | Pin / assertion |
 |---|---|
@@ -199,7 +199,7 @@ The loader's standard path:
 
 **What guarantees which file was loaded is (1) and (2), not (4).** `pytorch_model.bin` at this revision is a value-identical serialization of the same checkpoint, so a `.bin` load would satisfy the tensor comparison byte for byte. The comparison is still worth having — it discriminates a freshly initialized head, a partial or truncated load and a tampered file — but the file-identity claim rests on exclusion controls and digest checks. Pickle-format fallback is not part of the public path.
 
-A `pytorch_model.bin` artifact exists upstream at the same model revision, so the safetensors-only acquisition rule is material rather than cosmetic. The DIMER loader does not silently substitute it.
+A `pytorch_model.bin` artifact exists upstream at the same model revision, so the safetensors-only acquisition rule is material rather than cosmetic. The pipeline loader does not silently substitute it.
 
 ## Public capability 1 — pretrained embeddings
 
@@ -217,15 +217,15 @@ A `pytorch_model.bin` artifact exists upstream at the same model revision, so th
 
 Embeddings are **NOT missingness-aware** in the current upstream path. Upstream's `MOMENT.embed` accepts the padding `input_mask`, but has no per-point observedness parameter. Finite pre-filled missing values are therefore visible to the encoder as values. RFC common-validation rule 12 is therefore not satisfiable through upstream `embed`.
 
-DIMER does not hide this limitation. `EmbeddingResult` and provenance report `masked_point_fraction` and explicitly state that missingness was not visible to the model. For sensitive downstream clustering, retrieval, or classification, either use clean windows or perform an explicit imputation step first.
+The pipeline does not hide this limitation. `EmbeddingResult` and provenance report `masked_point_fraction` and explicitly state that missingness was not visible to the model. For sensitive downstream clustering, retrieval, or classification, either use clean windows or perform an explicit imputation step first.
 
 ## Public capability 2 — imputation / reconstruction
 
-`moment_pipeline.impute()` uses the pretrained reconstruction path while applying a DIMER-owned user-facing product contract.
+`moment_pipeline.impute()` uses the pretrained reconstruction path while applying a user-facing contract defined by this pipeline.
 
 ### Mask semantics
 
-MOMENT works on 8-step patches. A point-level missing or caller-hidden position can therefore hide the entire containing patch from the model. DIMER reports separately:
+MOMENT works on 8-step patches. A point-level missing or caller-hidden position can therefore hide the entire containing patch from the model. The pipeline reports separately:
 
 | Field | Meaning | Denominator |
 |---|---|---|
@@ -271,7 +271,7 @@ Supported residual losses:
 - `mae` — absolute reconstruction error;
 - `mse` — squared reconstruction error.
 
-Channel aggregation is explicit and DIMER-owned:
+Channel aggregation is explicit and defined by this pipeline:
 
 - `none` — default; preserves per-channel scores;
 - `mean`;
@@ -287,7 +287,7 @@ Any binary decision boundary must be calibrated by the downstream application on
 
 ### Scored domain
 
-A score is defined only where a position is non-padded and visible to the model. DIMER excludes:
+A score is defined only where a position is non-padded and visible to the model. The pipeline excludes:
 
 - padding;
 - source pre-filled positions whose residual would describe the sentinel rather than the series;
@@ -329,7 +329,7 @@ Raw NaN is not passed to the reconstruction path. The finite pre-fill + explicit
 
 ## Task-instance separation
 
-MOMENT changes task heads according to task configuration. DIMER therefore uses task-specific loaded instances:
+MOMENT changes task heads according to task configuration. The pipeline therefore uses task-specific loaded instances:
 
 - `task="embedding"` for embeddings;
 - `task="reconstruction"` for imputation and anomaly scoring.
@@ -379,7 +379,7 @@ Appropriate v1 use cases include:
 
 ## Limitations
 
-- Fixed 512-step canonical context in the current DIMER v1 converter (the adaptation contract windows must be exactly 512 samples).
+- Fixed 512-step canonical context in the current converter (the adaptation contract windows must be exactly 512 samples).
 - Patch length 8 means point missingness expands to patch-level model masking.
 - Embeddings cannot receive per-point missingness masks upstream.
 - No pretrained classification head is exposed; the adaptation contract trains the caller's own head, and per-window instance normalisation removes level and offset information (the HAPT static postures are indistinguishable to it).
@@ -397,5 +397,5 @@ Pipeline code in this repository is MIT licensed. The pinned MOMENT model and up
 
 - Hugging Face model: `AutonLab/MOMENT-1-base`
 - Upstream code: `moment-timeseries-foundation-model/moment`
-- DIMER model/task contract: [`docs/rfc/0001-moment-base.md`](docs/rfc/0001-moment-base.md)
+- Model and task contract: [`docs/rfc/0001-moment-base.md`](docs/rfc/0001-moment-base.md)
 - Release-completion tracking: issue #5
