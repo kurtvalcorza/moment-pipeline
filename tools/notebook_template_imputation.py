@@ -17,6 +17,20 @@ TEMPLATE = {
     'stem': 'moment_imputation',
     'notebook_name': 'moment_imputation_colab.ipynb',
     'profile': 'TASK-INFERENCE',
+    "isolated_runtime": True,
+    "infrastructure_labels": True,
+    # The fleet's uv isolated-environment mechanism (generator /2.2): managed CPython, a
+    # size- and SHA-256-verified uv wheel, and a lock compiled from the pyproject pins with
+    # `uv pip compile pyproject.toml --python-version 3.12 --python-platform x86_64-manylinux_2_28 --generate-hashes
+    # --only-binary :all: -o tutorials/requirements-colab.lock.txt`.
+    "managed_python": "3.12.12",
+    "uv": {
+        "version": "0.12.15",
+        "url": "https://files.pythonhosted.org/packages/1e/fd/432451d732917c49152a291de3ef171aa6b0f1a22d39780fb2c1f085ca4c/uv-0.12.15-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "bytes": 20081404,
+        "sha256": "aee9802f46bae436bd91751bb33ddeb379ef1596b5c19df193219d545d244b60",
+    },
+    "lock": "tutorials/requirements-colab.lock.txt",
     'pipeline_class': 'LoadedMoment',
     'weights_key': 'moment-1-base',
     'modules': ['anomaly.py', 'canonical.py', 'config.py', 'csvio.py', 'embedding.py', 'imputation.py', 'model.py', 'provenance.py', 'roles.py', 'validation.py'],
@@ -57,6 +71,9 @@ TEMPLATE = {
     'intro': (
         "This notebook uses MOMENT's pretrained reconstruction path for patch-granular artificial masking through the repository's public `moment_pipeline` API, carried in this notebook. It withholds known source values, evaluates only deliberately hidden truth, preserves observed values in the exported imputed series, and writes machine-readable metrics and provenance. **No gradient training, fine-tuning, in-context conditioning, or fitted preprocessing occurs** — **no adaptation occurs.** **Upstream vs. this repository.** Upstream MOMENT supplies the pretrained reconstruction model. This repository supplies immutable pinning/integrity verification, long-format validation and canonicalization, patch-quantized masking semantics, masked-point evaluation, an observed-value-preserving imputed product, and provenance/export contracts. The displayed MAE/RMSE values are sample/tutorial evidence only."
     ),
+    "guided": {"opening": [(
+        '**Who this notebook is for.** A learner who knows basic Python and pandas, has used Colab or Jupyter and has met time-series data, and wants to see how a pretrained time-series foundation model is used without any training to fill hidden values — what goes in, what comes out, and what the output does and does not prove. The audience is students and practitioners preparing their own sensor or monitoring series; no prior experience with MOMENT is assumed — each term is explained where it first matters and again in the **Glossary**. CPU is enough.\n\n**Input → Model → Output.**\n\n| | |\n|---|---|\n| Input | a long-format CSV: the synthetic two-channel series `A` (256 steps) or your own, plus an explicit visibility mask that hides one stretch of known values |\n| Model | the MOMENT-1-base reconstruction head (`task="reconstruction"`), with masking applied per 8-step patch |\n| Output | an imputed series in which only missing or deliberately hidden cells are replaced, MAE and RMSE on the hidden cells beside a linear-interpolation baseline, and a `sample-sanity` report |\n\n**How to use this notebook.** Choose a runtime, then **Runtime → Run all**. Run all completes in one pass: Section 1 installs nothing into the notebook\'s own Python, so no restart is needed (the recorded hosted runs of the previous version needed one; this version removes it). Sections 1–3 are **infrastructure** — the isolated environment, the carried package and the verified snapshot — and their cells are collapsed; you may run them without studying them. The learning path starts in Section 4. Form fields (`# @param`) are the only values meant to be edited, and the defaults reproduce the default path. Before each principal result the notebook asks you to **Predict**; after it comes a collapsible **Check your reasoning** with a worked answer. No per-cell outputs of the hosted runs are recorded in this repository (only their pass/fail), so the worked answers state what the code and the sample guarantee rather than quoting numbers; compare them with what your run prints. **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end. Writing your predictions down is optional.\n\n**Roadmap:** 1–3 infrastructure → 4 the synthetic sample (or your CSV) → 5 validation, canonicalization and the evaluation mask *(core concept: windows, padding, masks)* → 6 impute *(core concept: patch-quantized masking)* → 7 masked-point metrics against an interpolation baseline *(evaluation practice)* → 8 the plot → 9 → export and provenance *(engineering)* → conclude.'
+    )]},
     'learning_objectives': (
         'install the pinned runtime; read what the carried package guarantees; resolve and digest-verify the immutable model revision; generate the deterministic synthetic sample or bring your own long-format CSV; validate and canonicalize the input into an input manifest; hide one complete 8-step patch with known truth; impute and evaluate only withheld truth through an evaluation report; compare a simple interpolation baseline; and export the imputed series, metrics, and provenance. By the end of this notebook you will be able to do each of these without the repository being reachable.'
     ),
@@ -64,7 +81,9 @@ TEMPLATE = {
         'forecasting, classification, stochastic uncertainty intervals, or production fitness. This path returns point reconstructions only; no uncertainty interval is provided.'
     ),
     'prerequisites': [
-        '- **Runtime:** a fresh supported runtime (Google Colab or Jupyter, Python 3.12). CPU is the default path and no GPU is required; CUDA is used automatically when available. The public v1 API accepts `float32` only. The pinned `torch==2.14.0` install is the largest download of the run, followed by the ~454 MB `model.safetensors`.',
+        '- **Learner:** basic Python and pandas familiarity; no prior experience with MOMENT or time-series foundation models. Windows, patches, padding, masks and the evaluation verdicts are explained where they are first used and again in the Glossary.',
+        '- **Runtime:** a fresh supported **Linux x86_64** runtime (Google Colab, Kaggle or Linux Jupyter). Section 1 builds its own Python 3.12.12 environment from a hash-locked list of manylinux wheels (plus `momentfm`, built from its pinned commit), so the Python version of the kernel itself does not matter and nothing is installed into it; a Windows or macOS kernel is not supported.',
+        '- **Compute:** CPU is the default path and no GPU is required; CUDA is used automatically when available. The public v1 API accepts `float32` only. The pinned `torch==2.14.0` install is the largest download of the run, followed by the ~454 MB `model.safetensors`.',
         '- **Knowledge:** basic Python and pandas; what a long-format time-series table is.',
         "- **Data:** the default sample is the repository's deterministic clean two-channel synthetic series regenerated in code, so nothing is downloaded and no private data is needed. The artificial evaluation mask is deterministic, so no random seed is required. Optional BYOD upload is gated off by default so the sample path can run top-to-bottom without interaction. Expected BYOD input: one UTF-8 CSV with columns `series_id`, `timestamp`, `channel`, `value`; `value` numeric or missing; identifiers and timestamps valid. Duplicate or ambiguous column names are rejected from the raw CSV header before dataframe parsing, and duplicate `(series_id, channel, timestamp)` rows are rejected by production validation. Operational ceilings: at most 5,000,000 rows, 1,024 series, 32 channels, and 1,024 canonical windows; MOMENT uses 512-step windows and 8-step non-overlapping patches; short series are left-padded, long series keep the final 512 timestamps, irregular spacing is surfaced rather than silently interpolated. BYOD is read locally in the notebook runtime and is not sent to an external inference service. Do not upload confidential or restricted data (personal or otherwise sensitive data included) to a hosted notebook environment unless you are authorized to do so.",
     ],
@@ -73,7 +92,7 @@ TEMPLATE = {
             "md": (
                 '## 4. Generate the synthetic sample or optional BYOD\n'
                 '\n'
-                "The default sample is **synthetic**: the repository's `examples/sample-data/generate_samples.py` formulas (one series `A`, channels `vibration` and `temperature`, 256 steps at 15 minutes — a trend plus two sinusoids) regenerated in code and rendered to the same canonical CSV bytes, so the `moment_clean.csv` SHA-256 is asserted against the digest the repository checks in. It is deterministic teaching data, not benchmark evidence. The optional upload path first validates the **raw CSV header** with `read_long_csv_bytes()` (duplicate or ambiguous names cannot be silently renamed by pandas); the resulting frame still goes through the same production validation/canonicalization path in the next stage. Set `USE_BYOD=True` in Colab, or set `DIMER_BYOD_PATH` in automation. Successful completion means one identified input frame is available and its source/digest are recorded; look for the sample identity (kind, name, digest) and the first rows."
+                "The default sample is **synthetic**: the repository's `examples/sample-data/generate_samples.py` formulas (one series `A`, channels `vibration` and `temperature`, 256 steps at 15 minutes — a trend plus two sinusoids) regenerated in code and rendered to the same canonical CSV bytes, so the `moment_clean.csv` SHA-256 is asserted against the digest the repository checks in. It is deterministic teaching data, not benchmark evidence. The optional upload path first validates the **raw CSV header** with `read_long_csv_bytes()` (duplicate or ambiguous names cannot be silently renamed by pandas); the resulting frame still goes through the same production validation/canonicalization path in the next stage. Set `USE_BYOD=True` and `BYOD_PATH` to a CSV already in the runtime (Colab, Kaggle or Jupyter); on Colab an empty `BYOD_PATH` opens an upload dialog, and a cancelled upload stops with a message. `DIMER_BYOD_PATH` remains the automation hook. Successful completion means one identified input frame is available and its source/digest are recorded; look for the sample identity (kind, name, digest) and the first rows."
             ),
             "code": (
                 'import hashlib\n'
@@ -85,7 +104,9 @@ TEMPLATE = {
                 'import pandas as pd\n'
                 '\n'
                 'USE_BYOD = False  # @param {{type:"boolean"}}\n'
-                'BYOD_PATH = os.environ.get("DIMER_BYOD_PATH")\n'
+                'BYOD_PATH = ""  # @param {{type:"string"}}\n'
+                '# The form path is used when USE_BYOD is on; DIMER_BYOD_PATH remains the automation hook.\n'
+                'BYOD_PATH = (BYOD_PATH.strip() if USE_BYOD else "") or os.environ.get("DIMER_BYOD_PATH", "")\n'
                 'SAMPLE_SHA256 = "34fc475828d2f62108b340efd255501a898577be11286c034da2e0f766ee963c"  # examples/sample-data/SHA256SUMS\n'
                 '\n'
                 '\n'
@@ -113,16 +134,21 @@ TEMPLATE = {
                 '\n'
                 '\n'
                 'if BYOD_PATH:\n'
-                '    payload = Path(BYOD_PATH).read_bytes()\n'
+                '    if not Path(BYOD_PATH).expanduser().is_file():\n'
+                '        raise FileNotFoundError(f"BYOD_PATH {{BYOD_PATH!r}} does not exist or is not a file (relative paths start at {{os.getcwd()}}); give the path of one long-format CSV.")\n'
+                '    payload = Path(BYOD_PATH).expanduser().read_bytes()\n'
                 '    frame = read_long_csv_bytes(payload)\n'
                 '    labels = None\n'
                 '    sample_identity = {{"kind": "byod", "name": Path(BYOD_PATH).name, "sha256": hashlib.sha256(payload).hexdigest()}}\n'
                 '    sample_kind = "BYOD"\n'
                 'elif USE_BYOD:\n'
-                '    from google.colab import files\n'
+                '    try:\n'
+                '        from google.colab import files\n'
+                '    except ImportError:\n'
+                '        raise RuntimeError("USE_BYOD is on but BYOD_PATH is empty, and the upload dialog exists only in Google Colab: copy the CSV into this runtime (or attach it as a Kaggle dataset) and set BYOD_PATH.") from None\n'
                 '    uploaded = files.upload()\n'
                 '    if len(uploaded) != 1:\n'
-                '        raise ValueError("Upload exactly one CSV with columns series_id,timestamp,channel,value.")\n'
+                '        raise ValueError(f"Upload exactly one CSV with columns series_id,timestamp,channel,value (received {{len(uploaded)}} files; a cancelled dialog sends none). Run this cell again.")\n'
                 '    name, payload = next(iter(uploaded.items()))\n'
                 '    frame = read_long_csv_bytes(payload)\n'
                 '    labels = None\n'
@@ -147,6 +173,7 @@ TEMPLATE = {
                 '## 5. Validate and canonicalize → input manifest\n'
                 '\n'
                 "Before the model runs, the cell prints the effective runtime and the operational ceilings — the `ResourceLimits` (rows, series, channels, windows), the fixed 512-step window and 8-step patch — and the device/precision policy. `validate_inputs` is the package's public validation stage: it runs exactly the two calls every task path makes (`validate_long_frame`, then `to_windows`), so it raises exactly what canonicalization would raise, and returns an **input manifest** naming the schema and ceilings, each window's series, valid positions, padding and truncation, the source-missingness fractions, and the verdict; it is written to `outputs/moment_imputation_input_manifest.json`. To show what rejection looks like, the cell also validates a deliberately broken copy (a channel with no observed value) and records the pipeline's own error code as a finding. The canonical `WindowSet` used by the model is built by the same calls; any padding, truncation, source missingness, or irregular frequency is disclosed here before model execution. Successful output means the input passed validation and every canonicalization effect is disclosed before the model runs. The cell then selects the latest complete 8-step patch in the first window for which every channel has source-observed truth and hides it — the **masking unit is the 8-step patch**, and this separates **source-missing data from artificial evaluation masking**: the artificial holdout consists only of genuine known truth."
+                '\n\n**Predict before running:** the cell hides one stretch of known values for evaluation. How many points will be held out per channel, and why that number?'
             ),
             "code": (
                 'import os\n'
@@ -197,9 +224,15 @@ TEMPLATE = {
         },
         {
             "md": (
+                '<details><summary>Check your reasoning</summary>One 8-step patch per channel: MOMENT masks whole patches, so the evaluation holdout is one patch length (8 steps) per channel — the cell prints the held-out point count as channels × patch length, 2 × 8 = 16 on the two-channel sample. Hiding less than a patch is impossible for this model; hiding a single point would hide its whole patch.</details>'
+            ),
+        },
+        {
+            "md": (
                 '## 6. Impute\n'
                 '\n'
                 '`impute()` receives the explicit visibility mask and runs the pinned reconstruction path (loaded in Section 3 with `task="reconstruction"`); the requested mask is combined with source missingness and **patch-quantized** for MOMENT, and the result records how the requested masking mapped to the effective model masking (`masked_point_fraction` for the source, `model_masked_point_fraction` and `masked_patch_fraction` for what the model actually hid). In the exported imputed product, `imputed_value` replaces only source-missing or deliberately hidden cells — **observed values are preserved**, and observed neighbours hidden from the model only because they share a patch are not overwritten. Successful output means the verified reconstruction path executed on this validated input.'
+                '\n\n**Predict before running:** you asked to hide some timestamps. Will the model hide exactly those, or more? Will any value you supplied change in the exported product?'
             ),
             "code": (
                 'result = impute(windows, pipe, mask=visible, warmup=False)\n'
@@ -214,9 +247,15 @@ TEMPLATE = {
         },
         {
             "md": (
+                '<details><summary>Check your reasoning</summary>More, never fewer: the requested mask is combined with source missingness and rounded out to whole patches, which is why `model_masked_point_fraction` can exceed `masked_point_fraction`. And no supplied value changes: `imputed_value` replaces only source-missing or deliberately hidden cells; observed neighbours hidden only because they share a patch keep their original values.</details>'
+            ),
+        },
+        {
+            "md": (
                 '## 7. Evaluate → evaluation report (masked-point metrics and an interpolation baseline)\n'
                 '\n'
                 "`masked_point_metrics()` computes **MAE** and **RMSE** only on deliberately hidden cells that had genuine source truth — **MAE** is average absolute error in the original units; **RMSE** is also in the original units but weights larger errors more strongly. A linear interpolation baseline is evaluated on the **same artificially withheld positions**, using the source series with the held-out patch removed; it is a same-support descriptive comparison, not used to tune or select MOMENT, and one sample comparison does not establish superiority. `evaluation_report` is the package's public evaluation stage and always produces a report: with a deliberate artificial mask it carries the `masked_point_metrics` values and the baseline with the verdict `sample-sanity` (one deterministic holdout, no dispersion estimate); without a deliberate mask the verdict is `not-measurable` and the report says what would make the task measurable. Successful output means the verified reconstruction was scored on the declared holdout only; the reported sample metrics are not stable estimates of domain performance. The report is written to `outputs/{stem}_evaluation_report.json`."
+                '\n\n**Predict before running:** on a smooth synthetic series, will the pretrained model beat a straight line between the neighbours on the hidden patch?'
             ),
             "code": (
                 'metrics = masked_point_metrics(result)\n'
@@ -251,6 +290,11 @@ TEMPLATE = {
                 'print(json.dumps(report, indent=2, default=str))\n'
                 'if report["verdict"] == "not-measurable":\n'
                 '    print("No deliberately hidden truth exists, so masked_point_metrics is not computed.")'
+            ),
+        },
+        {
+            "md": (
+                '<details><summary>Check your reasoning</summary>Not necessarily, and the notebook does not claim it: over 8 steps a smooth trend plus sinusoids is close to linear, so interpolation can be hard to beat. The report compares both on the same hidden points with the verdict `sample-sanity` — one deterministic holdout with no dispersion estimate cannot rank the methods, whichever wins.</details>'
             ),
         },
         {
@@ -339,6 +383,34 @@ TEMPLATE = {
         'It **does not prove** that the displayed MAE/RMSE generalize to other series or domains, that MOMENT beats the interpolation baseline reliably, or that the model supplies calibrated per-prediction uncertainty; the evaluation report says `sample-sanity` for that reason. It does **not** establish benchmark superiority, deployment calibration, safety for high-consequence decisions, or production fitness on an unseen domain. This path returns point reconstructions only; no uncertainty interval is provided.\n'
         '\n'
         '**Next experiments:** repeat domain-appropriate masking over an independent dataset, report dispersion across windows/series, and compare multiple baselines without using the evaluation set for model selection; enable `USE_BYOD` with a series that has genuine source gaps and read how `masked_point_fraction` and `model_masked_point_fraction` diverge.\n'
+        '\n'
+        '## Troubleshooting\n\n'
+        '- **Section 1 stops with "This notebook needs a Linux x86_64 runtime"** — use Google Colab, Kaggle or a Linux x86_64 Jupyter server.\n'
+        '- **The uv wheel fails its size/SHA-256 check, or a download in Section 1 times out** — run Section 1 again; a complete environment is reused and an incomplete one is finished. If it repeats, `files.pythonhosted.org` or `pypi.org` is blocked or altered.\n'
+        '- **Section 1 fails while building `momentfm`** — the one source dependency is built from its pinned upstream commit and needs `git` and access to its Git host; run Section 1 again, or use Colab or Kaggle (both ship `git`).\n'
+        '- **You re-ran Section 1 on its own** — nothing is lost: it keeps the running worker and every variable. After a session restart, run from the top.\n'
+        '- **"The isolated environment\'s Python process exited"** — usually out of memory; restart the session and choose **Run all**.\n'
+        '- **Section 3 reports a size or SHA-256 mismatch, or cannot reach the Hub** — the message names the file. Delete the folder Section 3 prints as `weights_dir` and run Section 3 again.\n'
+        '- **BYOD: "BYOD_PATH … does not exist"** — the path is relative to the working directory printed in the message.\n'
+        '- **BYOD: "the upload dialog exists only in Google Colab"** — on Kaggle or Jupyter, copy the CSV into the runtime and set `BYOD_PATH`.\n'
+        '- **BYOD: "Upload exactly one CSV"** — the dialog was cancelled or several files were chosen; run Section 4 again.\n'
+        '- **BYOD: a `ValidationError`** — it carries a code and names the column, series or rule (duplicate header, duplicate row, a ceiling, an all-missing channel); fix the CSV.\n\n'
+        '## Glossary\n\n'
+        '- **Long-format table** — one row per `(series_id, timestamp, channel, value)`; the package turns it into windows.\n'
+        '- **Window / patch** — the 512-step input MOMENT reads per series, cut into 64 non-overlapping 8-step patches.\n'
+        '- **Left padding / truncation** — a series shorter than 512 steps is padded at the start and the padding masked out; a longer one keeps its final 512 timestamps.\n'
+        '- **Instance normalisation** — each window is rescaled by its own mean and spread before the encoder, so the absolute level is removed.\n'
+        '- **Input manifest** — the record of what validation saw and changed (padding, truncation, missingness) before the model ran.\n'
+        '- **Isolated environment** — the separate Python 3.12.12 environment Section 1 builds from the hash lock; every later cell runs there.\n'
+        '- **Visibility mask / patch quantization** — which positions the model may see; MOMENT hides whole 8-step patches, so a requested hidden point hides its patch neighbours too.\n'
+        '- **MAE / RMSE** — mean absolute error and root-mean-square error in the original units, computed only on deliberately hidden points with known truth.\n'
+        '- **Interpolation baseline** — a straight line between the nearest visible neighbours, scored on the same hidden points.\n'
+        '- **`sample-sanity`** — the evaluation verdict for one deterministic holdout: a check, not an estimate.\n'
+        '- **BYOD** — bring your own data: your long-format CSV through the same cells.\n\n'
+        '## Conclusion (your notes)\n\nOptional — fill in from **your** run:\n\n'
+        '- The model hid ___ points for the ___ I requested (`model_masked_point_fraction` vs `masked_point_fraction`).\n'
+        '- MOMENT scored MAE ___ / RMSE ___ against the interpolation baseline ___ / ___.\n'
+        '- One reason one holdout cannot rank the two methods: ___.\n'
         '\n'
         '## References\n'
         '\n'

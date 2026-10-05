@@ -23,8 +23,7 @@ CI runs `tools/validate_release_assets.py`, which checks, for each of the four n
   after the generator's documented rewrites (the `DEFAULT_WEIGHTS_DIR` rule plus the removal of package-relative imports);
   the inline `MANIFEST` equal to the committed `weights/moment-1-base/dimer-base-manifest.json` (3 files); the inline `PINS`
   equal to the `pyproject.toml` runtime pins with `momentfm` carried as the `[tool.uv.sources]` commit-pinned direct reference;
-  each notebook byte-identical to `tools/build_notebook.py` output from its template; the pinned-install cell with its
-  restart-on-stale-import guard; `NOTEBOOK_SOURCE` recorded in exports;
+  each notebook byte-identical to `tools/build_notebook.py` output from its template; the single kernel cell that builds (or reuses, by lock digest) the isolated hash-locked uv environment and routes every later cell to it, with no `pip install` into the kernel and no restart request; `NOTEBOOK_SOURCE` recorded in exports;
 - `MODEL_ID`/`MODEL_REVISION` are bound only in the carried module cells (and repeated in the inline manifest, which each
   notebook asserts against the module before fetching), the revision is a 40-hex immutable commit, and the same identity
   string appears in `README.md` and `MODEL_CARD.md` with no stray revisions (the `momentfm` source commit is whitelisted);

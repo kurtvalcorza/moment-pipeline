@@ -17,6 +17,20 @@ TEMPLATE = {
     'stem': 'moment_anomaly_detection',
     'notebook_name': 'moment_anomaly_detection_colab.ipynb',
     'profile': 'TASK-INFERENCE',
+    "isolated_runtime": True,
+    "infrastructure_labels": True,
+    # The fleet's uv isolated-environment mechanism (generator /2.2): managed CPython, a
+    # size- and SHA-256-verified uv wheel, and a lock compiled from the pyproject pins with
+    # `uv pip compile pyproject.toml --python-version 3.12 --python-platform x86_64-manylinux_2_28 --generate-hashes
+    # --only-binary :all: -o tutorials/requirements-colab.lock.txt`.
+    "managed_python": "3.12.12",
+    "uv": {
+        "version": "0.12.15",
+        "url": "https://files.pythonhosted.org/packages/1e/fd/432451d732917c49152a291de3ef171aa6b0f1a22d39780fb2c1f085ca4c/uv-0.12.15-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "bytes": 20081404,
+        "sha256": "aee9802f46bae436bd91751bb33ddeb379ef1596b5c19df193219d545d244b60",
+    },
+    "lock": "tutorials/requirements-colab.lock.txt",
     'pipeline_class': 'LoadedMoment',
     'weights_key': 'moment-1-base',
     'modules': ['anomaly.py', 'canonical.py', 'config.py', 'csvio.py', 'embedding.py', 'imputation.py', 'model.py', 'provenance.py', 'roles.py', 'validation.py'],
@@ -57,6 +71,9 @@ TEMPLATE = {
     'intro': (
         "This notebook demonstrates **raw reconstruction-residual scoring**, not a binary detector, through the repository's public `moment_pipeline` API carried in this notebook. MOMENT sees each scored point and the repository reports its self-reconstruction residual. Under the default MAE rule, **higher residual scores mean stronger anomaly evidence according to this score**. There is **no universal/default threshold in v1** and this tutorial never converts scores into binary anomaly labels. **No gradient training, fine-tuning, in-context conditioning, or fitted preprocessing occurs** — **no adaptation occurs.** **Upstream vs. this repository.** Upstream MOMENT supplies the pretrained reconstruction model. This repository supplies immutable pinning/integrity verification, long-format validation and canonicalization, explicit residual/aggregation policies, scored-domain accounting, threshold non-policy, the `top_k_recall` ranking check, and machine-readable provenance."
     ),
+    "guided": {"opening": [(
+        '**Who this notebook is for.** A learner who knows basic Python and pandas, has used Colab or Jupyter and has met time-series data, and wants to see how a pretrained time-series foundation model is used without any training to rank unusual points — what goes in, what comes out, and what the output does and does not prove. The audience is students and practitioners preparing their own sensor or monitoring series; no prior experience with MOMENT is assumed — each term is explained where it first matters and again in the **Glossary**. CPU is enough.\n\n**Input → Model → Output.**\n\n| | |\n|---|---|\n| Input | a long-format CSV: the synthetic series `A` with three injected `vibration` spikes (and their labels) or your own unlabelled CSV |\n| Model | the MOMENT-1-base reconstruction head (`task="reconstruction"`); each point is scored by how badly the model reconstructs it |\n| Output | a raw, uncalibrated residual score per series, channel and timestamp (higher = stronger anomaly evidence), a top-k recall check on the labelled sample, and no threshold |\n\n**How to use this notebook.** Choose a runtime, then **Runtime → Run all**. Run all completes in one pass: Section 1 installs nothing into the notebook\'s own Python, so no restart is needed (the recorded hosted runs of the previous version needed one; this version removes it). Sections 1–3 are **infrastructure** — the isolated environment, the carried package and the verified snapshot — and their cells are collapsed; you may run them without studying them. The learning path starts in Section 4. Form fields (`# @param`) are the only values meant to be edited, and the defaults reproduce the default path. Before each principal result the notebook asks you to **Predict**; after it comes a collapsible **Check your reasoning** with a worked answer. No per-cell outputs of the hosted runs are recorded in this repository (only their pass/fail), so the worked answers state what the code and the sample guarantee rather than quoting numbers; compare them with what your run prints. **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end. Writing your predictions down is optional.\n\n**Roadmap:** 1–3 infrastructure → 4 the synthetic sample with injected spikes (or your CSV) → 5 validation and canonicalization *(core concept: windows, padding, masks)* → 6 raw residual scores *(core concept: a score is not a decision)* → 7 ranking and top-k recall *(evaluation practice)* → 8 the plot → 9 → export and provenance *(engineering)* → conclude.'
+    )]},
     'learning_objectives': (
         'install the pinned runtime; read what the carried package guarantees; resolve and digest-verify the immutable model revision; generate the deterministic labelled synthetic sample or bring your own long-format CSV; validate and canonicalize the input into an input manifest; compute raw anomaly scores through the production-facing API; interpret score direction and threshold semantics; check the injected-spike ranking quantitatively through an evaluation report that is `sample-sanity` only when labels exist; and export raw scores with provenance. By the end of this notebook you will be able to do each of these without the repository being reachable.'
     ),
@@ -64,7 +81,9 @@ TEMPLATE = {
         'a calibrated detector, a universal threshold, forecasting, classification, or production fitness. High reconstruction error and real-world anomaly status are not equivalent concepts.'
     ),
     'prerequisites': [
-        '- **Runtime:** a fresh supported runtime (Google Colab or Jupyter, Python 3.12). CPU is the default path and no GPU is required; CUDA is used automatically when available. The public v1 API accepts `float32` only. The pinned `torch==2.14.0` install is the largest download of the run, followed by the ~454 MB `model.safetensors`.',
+        '- **Learner:** basic Python and pandas familiarity; no prior experience with MOMENT or time-series foundation models. Windows, patches, padding, masks and the evaluation verdicts are explained where they are first used and again in the Glossary.',
+        '- **Runtime:** a fresh supported **Linux x86_64** runtime (Google Colab, Kaggle or Linux Jupyter). Section 1 builds its own Python 3.12.12 environment from a hash-locked list of manylinux wheels (plus `momentfm`, built from its pinned commit), so the Python version of the kernel itself does not matter and nothing is installed into it; a Windows or macOS kernel is not supported.',
+        '- **Compute:** CPU is the default path and no GPU is required; CUDA is used automatically when available. The public v1 API accepts `float32` only. The pinned `torch==2.14.0` install is the largest download of the run, followed by the ~454 MB `model.safetensors`.',
         '- **Knowledge:** basic Python and pandas; what a long-format time-series table is.',
         "- **Data:** the default sample is the repository's deterministic two-channel synthetic series with three documented injected spikes in the `vibration` channel, regenerated in code together with its label table, so nothing is downloaded and no private data is needed. Labels make ranking behaviour falsifiable; they are not calibration data or benchmark evidence. Optional BYOD upload is gated off by default so the sample path can run top-to-bottom without interaction. Expected BYOD input: one UTF-8 CSV with columns `series_id`, `timestamp`, `channel`, `value`; `value` numeric or missing; identifiers and timestamps valid. Duplicate or ambiguous column names are rejected from the raw CSV header before dataframe parsing, and duplicate `(series_id, channel, timestamp)` rows are rejected by production validation. BYOD does not require anomaly labels; without labels the notebook ranks residuals but cannot measure detector quality. Operational ceilings: at most 5,000,000 rows, 1,024 series, 32 channels, and 1,024 canonical windows; MOMENT uses 512-step windows and 8-step non-overlapping patches; short series are left-padded, long series keep the final 512 timestamps, irregular spacing is surfaced rather than silently interpolated. BYOD is read locally in the notebook runtime and is not sent to an external inference service. Do not upload confidential or restricted data (personal or otherwise sensitive data included) to a hosted notebook environment unless you are authorized to do so.",
     ],
@@ -73,7 +92,7 @@ TEMPLATE = {
             "md": (
                 '## 4. Generate the synthetic sample or optional BYOD\n'
                 '\n'
-                "The default sample is **synthetic**: the repository's `examples/sample-data/generate_samples.py` formulas (one series `A`, channels `vibration` and `temperature`, 256 steps at 15 minutes — a trend plus two sinusoids) regenerated in code and rendered to the same canonical CSV bytes, so the `moment_anomaly.csv` SHA-256 is asserted against the digest the repository checks in. The three injected spikes in the `vibration` channel come with a label table, digest-asserted the same way, so the ranking check later is falsifiable; BYOD carries no labels. It is deterministic teaching data, not benchmark evidence. The optional upload path first validates the **raw CSV header** with `read_long_csv_bytes()` (duplicate or ambiguous names cannot be silently renamed by pandas); the resulting frame still goes through the same production validation/canonicalization path in the next stage. Set `USE_BYOD=True` in Colab, or set `DIMER_BYOD_PATH` in automation. Successful completion means one identified input frame is available and its source/digest are recorded; look for the sample identity (kind, name, digest) and the first rows."
+                "The default sample is **synthetic**: the repository's `examples/sample-data/generate_samples.py` formulas (one series `A`, channels `vibration` and `temperature`, 256 steps at 15 minutes — a trend plus two sinusoids) regenerated in code and rendered to the same canonical CSV bytes, so the `moment_anomaly.csv` SHA-256 is asserted against the digest the repository checks in. The three injected spikes in the `vibration` channel come with a label table, digest-asserted the same way, so the ranking check later is falsifiable; BYOD carries no labels. It is deterministic teaching data, not benchmark evidence. The optional upload path first validates the **raw CSV header** with `read_long_csv_bytes()` (duplicate or ambiguous names cannot be silently renamed by pandas); the resulting frame still goes through the same production validation/canonicalization path in the next stage. Set `USE_BYOD=True` and `BYOD_PATH` to a CSV already in the runtime (Colab, Kaggle or Jupyter); on Colab an empty `BYOD_PATH` opens an upload dialog, and a cancelled upload stops with a message. `DIMER_BYOD_PATH` remains the automation hook. Successful completion means one identified input frame is available and its source/digest are recorded; look for the sample identity (kind, name, digest) and the first rows."
             ),
             "code": (
                 'import hashlib\n'
@@ -85,7 +104,9 @@ TEMPLATE = {
                 'import pandas as pd\n'
                 '\n'
                 'USE_BYOD = False  # @param {{type:"boolean"}}\n'
-                'BYOD_PATH = os.environ.get("DIMER_BYOD_PATH")\n'
+                'BYOD_PATH = ""  # @param {{type:"string"}}\n'
+                '# The form path is used when USE_BYOD is on; DIMER_BYOD_PATH remains the automation hook.\n'
+                'BYOD_PATH = (BYOD_PATH.strip() if USE_BYOD else "") or os.environ.get("DIMER_BYOD_PATH", "")\n'
                 'SAMPLE_SHA256 = "58855d8961c2b0547e27763ffc95976435180477c2d31f0e217f64bb6dd19c54"  # examples/sample-data/SHA256SUMS\n'
                 'LABELS_SHA256 = "f35ec637441c72ee6a16d396c2e76b24de8a19c17ba62e415aefe1bfdc155f3e"  # examples/sample-data/SHA256SUMS\n'
                 '\n'
@@ -114,16 +135,21 @@ TEMPLATE = {
                 '\n'
                 '\n'
                 'if BYOD_PATH:\n'
-                '    payload = Path(BYOD_PATH).read_bytes()\n'
+                '    if not Path(BYOD_PATH).expanduser().is_file():\n'
+                '        raise FileNotFoundError(f"BYOD_PATH {{BYOD_PATH!r}} does not exist or is not a file (relative paths start at {{os.getcwd()}}); give the path of one long-format CSV.")\n'
+                '    payload = Path(BYOD_PATH).expanduser().read_bytes()\n'
                 '    frame = read_long_csv_bytes(payload)\n'
                 '    labels = None  # BYOD carries no anomaly labels; the ranking is shown without a correctness metric\n'
                 '    sample_identity = {{"kind": "byod", "name": Path(BYOD_PATH).name, "sha256": hashlib.sha256(payload).hexdigest()}}\n'
                 '    sample_kind = "BYOD"\n'
                 'elif USE_BYOD:\n'
-                '    from google.colab import files\n'
+                '    try:\n'
+                '        from google.colab import files\n'
+                '    except ImportError:\n'
+                '        raise RuntimeError("USE_BYOD is on but BYOD_PATH is empty, and the upload dialog exists only in Google Colab: copy the CSV into this runtime (or attach it as a Kaggle dataset) and set BYOD_PATH.") from None\n'
                 '    uploaded = files.upload()\n'
                 '    if len(uploaded) != 1:\n'
-                '        raise ValueError("Upload exactly one CSV with columns series_id,timestamp,channel,value.")\n'
+                '        raise ValueError(f"Upload exactly one CSV with columns series_id,timestamp,channel,value (received {{len(uploaded)}} files; a cancelled dialog sends none). Run this cell again.")\n'
                 '    name, payload = next(iter(uploaded.items()))\n'
                 '    frame = read_long_csv_bytes(payload)\n'
                 '    labels = None  # BYOD carries no anomaly labels; the ranking is shown without a correctness metric\n'
@@ -194,6 +220,7 @@ TEMPLATE = {
                 '## 6. Compute raw anomaly scores\n'
                 '\n'
                 'The core operation is `score_anomalies(..., loss="mae", channel_aggregation="none")` on the verified pinned reconstruction checkpoint (loaded in Section 3 with `task="reconstruction"`); `anomaly_score` is an uncalibrated absolute reconstruction residual per scored series/channel/timestamp. **Higher = larger reconstruction discrepancy** — higher values indicate greater anomaly evidence. The pipeline deliberately ships **no binary decision threshold** (`threshold_policy`), and positions the model could not score (pre-filled source gaps, patch-hidden neighbours, padding) are reported as unscored rather than silently dropped (`scored_point_fraction`). Successful output means this validated input was scored with the verified model under the displayed score/threshold policy; it does not mean those scores are calibrated anomaly probabilities.'
+                '\n\n**Predict before running:** will the cell output a list of anomalies? What does a high score mean, and what does a low score *not* mean?'
             ),
             "code": (
                 'result = score_anomalies(windows, pipe, loss="mae", channel_aggregation="none", warmup=False)\n'
@@ -210,9 +237,15 @@ TEMPLATE = {
         },
         {
             "md": (
+                '<details><summary>Check your reasoning</summary>No list of anomalies: the output is a raw residual per point and the pipeline ships no threshold. A high score means the model reconstructs that point badly — anomaly *evidence* under this score. A low score does not mean normal: smooth drift or any anomaly the model reproduces well scores low. Unscored positions (padding, pre-filled gaps, patch neighbours) are reported, not silently dropped.</details>'
+            ),
+        },
+        {
+            "md": (
                 '## 7. Rank residuals and evaluate → evaluation report\n'
                 '\n'
                 "For the bundled labelled sample, `top_k_recall` (the repository's ranking metric) ranks `vibration` residuals from highest to lowest and uses `k` equal to the number of injected spikes, asking how many injected points appear among the same number of highest-scoring positions. `evaluation_report` is the package's public evaluation stage and always produces a report: with labels it carries `top_k_recall` with the verdict `sample-sanity` — a falsifiable tutorial ranking check, **not** a calibrated detector metric or upstream benchmark; for BYOD without labels only the highest residuals are displayed, the verdict is `not-measurable`, and the report states what labelled data or calibration would make the task measurable. No arbitrary threshold is presented as universal. Successful output is a falsifiable tutorial ranking check on the labelled sample, or a ranking without a correctness claim on BYOD. The report is written to `outputs/{stem}_evaluation_report.json`."
+                '\n\n**Predict before running:** three spikes were injected into `vibration`, so k = 3. How many of them do you expect among the three highest residuals — and would 3 of 3 prove the model is a good detector?'
             ),
             "code": (
                 'score_channel = "vibration" if "vibration" in set(scores["channel"]) else str(scores["channel"].iloc[0])\n'
@@ -236,6 +269,11 @@ TEMPLATE = {
                 'print(json.dumps(report, indent=2, default=str))\n'
                 'if report["verdict"] == "not-measurable":\n'
                 '    print("No anomaly labels were supplied, so top_k_recall is not computed; the ranking above is sanity evidence only.")'
+            ),
+        },
+        {
+            "md": (
+                '<details><summary>Check your reasoning</summary>The verdict is `sample-sanity` whatever the count: the spikes are large, isolated jumps added to a smooth synthetic series, which is the easiest case a reconstruction model can face. Even 3 of 3 is one falsifiable check on one series, not a calibrated detector metric; your own data needs labelled true anomalies *and* hard normal events.</details>'
             ),
         },
         {
@@ -318,6 +356,34 @@ TEMPLATE = {
         'It **does not prove** that high residuals are real-world anomalies, that low residuals are normal, that the bundled top-k result generalizes, or that any numerical threshold is calibrated; the evaluation report says `sample-sanity` on the labelled sample and `not-measurable` without labels for that reason. It does **not** establish benchmark superiority, deployment calibration, safety for high-consequence decisions, or production fitness on an unseen domain. Deployment thresholds, if needed, belong to the downstream application and require representative calibration/validation data and an explicit false-positive/false-negative cost model.\n'
         '\n'
         '**Next experiments:** build a domain-specific labelled validation set containing both true anomalies and difficult normal events, then evaluate ranking and calibration separately; enable `USE_BYOD` with an unlabelled series and read the `not-measurable` report; switch `loss="mse"` and compare how the injected spikes rank.\n'
+        '\n'
+        '## Troubleshooting\n\n'
+        '- **Section 1 stops with "This notebook needs a Linux x86_64 runtime"** — use Google Colab, Kaggle or a Linux x86_64 Jupyter server.\n'
+        '- **The uv wheel fails its size/SHA-256 check, or a download in Section 1 times out** — run Section 1 again; a complete environment is reused and an incomplete one is finished. If it repeats, `files.pythonhosted.org` or `pypi.org` is blocked or altered.\n'
+        '- **Section 1 fails while building `momentfm`** — the one source dependency is built from its pinned upstream commit and needs `git` and access to its Git host; run Section 1 again, or use Colab or Kaggle (both ship `git`).\n'
+        '- **You re-ran Section 1 on its own** — nothing is lost: it keeps the running worker and every variable. After a session restart, run from the top.\n'
+        '- **"The isolated environment\'s Python process exited"** — usually out of memory; restart the session and choose **Run all**.\n'
+        '- **Section 3 reports a size or SHA-256 mismatch, or cannot reach the Hub** — the message names the file. Delete the folder Section 3 prints as `weights_dir` and run Section 3 again.\n'
+        '- **BYOD: "BYOD_PATH … does not exist"** — the path is relative to the working directory printed in the message.\n'
+        '- **BYOD: "the upload dialog exists only in Google Colab"** — on Kaggle or Jupyter, copy the CSV into the runtime and set `BYOD_PATH`.\n'
+        '- **BYOD: "Upload exactly one CSV"** — the dialog was cancelled or several files were chosen; run Section 4 again.\n'
+        '- **BYOD: a `ValidationError`** — it carries a code and names the column, series or rule (duplicate header, duplicate row, a ceiling, an all-missing channel); fix the CSV.\n\n'
+        '## Glossary\n\n'
+        '- **Long-format table** — one row per `(series_id, timestamp, channel, value)`; the package turns it into windows.\n'
+        '- **Window / patch** — the 512-step input MOMENT reads per series, cut into 64 non-overlapping 8-step patches.\n'
+        '- **Left padding / truncation** — a series shorter than 512 steps is padded at the start and the padding masked out; a longer one keeps its final 512 timestamps.\n'
+        '- **Instance normalisation** — each window is rescaled by its own mean and spread before the encoder, so the absolute level is removed.\n'
+        '- **Input manifest** — the record of what validation saw and changed (padding, truncation, missingness) before the model ran.\n'
+        '- **Isolated environment** — the separate Python 3.12.12 environment Section 1 builds from the hash lock; every later cell runs there.\n'
+        "- **Reconstruction residual** — the absolute difference between a value and the model's reconstruction of it; the raw anomaly score here.\n"
+        '- **Threshold** — a cut-off that turns scores into anomaly labels; none ships, because it needs representative calibration data and a cost model.\n'
+        '- **Top-k recall** — with k equal to the number of injected spikes, the share of them among the k highest scores.\n'
+        '- **`sample-sanity` / `not-measurable`** — the verdicts with labels (one falsifiable check) and without them.\n'
+        '- **BYOD** — bring your own data: your long-format CSV through the same cells.\n\n'
+        '## Conclusion (your notes)\n\nOptional — fill in from **your** run:\n\n'
+        '- Of the ___ injected spikes, ___ ranked among the top ___ scores (top-k recall ___).\n'
+        '- The highest-scoring point that was not a spike was at ___; I think it scored high because ___.\n'
+        '- Before using a threshold on my own data I would need ___.\n'
         '\n'
         '## References\n'
         '\n'

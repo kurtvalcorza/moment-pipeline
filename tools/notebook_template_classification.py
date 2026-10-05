@@ -22,8 +22,22 @@ TEMPLATE = {
     "notebook_name": "moment_classification_colab.ipynb",
     "profile": "E2E",
     "mode": "GUIDED",
+    "isolated_runtime": True,
+    "infrastructure_labels": True,
+    # The fleet's uv isolated-environment mechanism (generator /2.2): managed CPython, a
+    # size- and SHA-256-verified uv wheel, and a lock compiled from the pyproject pins with
+    # `uv pip compile pyproject.toml --python-version 3.12 --python-platform x86_64-manylinux_2_28 --generate-hashes
+    # --only-binary :all: -o tutorials/requirements-colab.lock.txt`.
+    "managed_python": "3.12.12",
+    "uv": {
+        "version": "0.12.15",
+        "url": "https://files.pythonhosted.org/packages/1e/fd/432451d732917c49152a291de3ef171aa6b0f1a22d39780fb2c1f085ca4c/uv-0.12.15-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "bytes": 20081404,
+        "sha256": "aee9802f46bae436bd91751bb33ddeb379ef1596b5c19df193219d545d244b60",
+    },
+    "lock": "tutorials/requirements-colab.lock.txt",
     "run_all": (
-        "Selecting **Run all** in a fresh supported runtime installs the pinned dependencies (including `momentfm` from "
+        "Selecting **Run all** in a fresh supported runtime builds an isolated hash-locked environment from the pinned dependencies, with nothing installed into the notebook kernel and no restart (including `momentfm` from "
         "its pinned source commit), stages and digest-verifies the pinned MOMENT-1-base snapshot (safetensors, 454 MB), "
         "fetches the 79.6 MB UCI HAPT archive (no credential), cuts 179 digest-pinned ten-second motion windows from it "
         "and draws 107 / 36 / 36 training, validation and test windows by a seeded split of whole volunteers, runs three "
@@ -118,6 +132,9 @@ TEMPLATE = {
         "gravity's direction. Nothing here is a quality claim about your series: it is one seeded split of one small "
         "corpus."
     ),
+    "guided": {"opening": [(
+        '**Who this notebook is for.** A learner who knows basic Python and pandas, has used Colab or Jupyter and has met time-series data, and wants to see how a pretrained time-series foundation model is used and adapted under an explicit frozen-vs-unfrozen policy — what goes in, what comes out, and what the output does and does not prove. The audience is students and practitioners preparing their own sensor or monitoring series; no prior experience with MOMENT is assumed — each term is explained where it first matters and again in the **Glossary**. CPU works (the unfreeze takes a few minutes); a T4 is faster.\n\n**Input → Model → Output.**\n\n| | |\n|---|---|\n| Input | 179 ten-second, six-channel motion windows (512 samples at 50 Hz) cut from the digest-pinned UCI HAPT archive, split 107 / 36 / 36 by whole volunteers — or your own labelled windows |\n| Model | the MOMENT-1-base encoder (`task="embedding"`); a linear head on its frozen pooled embeddings (the probe, the frozen policy), optionally with the last two encoder blocks unfrozen (the unfrozen policy), selected on validation log-loss |\n| Output | an activity label and softmax probabilities per window, held-out accuracy and macro-F1 beside a majority floor and a 5-NN vote, and a safetensors adapter that reloads with identical probabilities |\n\n**How to use this notebook.** Choose a runtime, then **Runtime → Run all**. Run all completes in one pass: Section 1 installs nothing into the notebook\'s own Python, so no restart is needed (the recorded hosted runs of the previous version needed one; this version removes it). Sections 1–3 are **infrastructure** — the isolated environment, the carried package and the verified snapshot — and their cells are collapsed; you may run them without studying them. The learning path starts in Section 4. Form fields (`# @param`) are the only values meant to be edited, and the defaults reproduce the default path. Before each principal result the notebook asks you to **Predict**; after it comes a collapsible **Check your reasoning** with a worked answer. The worked answers quote the recorded Kaggle T4 run of 19 September 2026 (a CPU run can differ slightly). **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end. Writing your predictions down is optional.\n\n**Roadmap:** 1–3 infrastructure → 4 the HAPT corpus, validation and a volunteer-level split *(evaluation practice: leakage)* → 5 the inference contract on real windows → 6 majority floor, 5-NN vote and the linear probe *(core concept: a frozen representation)* → 7 the bounded unfreeze, selected against the probe *(core concept: what is trained)* → 8 held-out evaluation *(evaluation practice)* → 9 before/after predictions, export and reload *(engineering)* → conclude.'
+    )]},
     "learning_objectives": (
         "install the pinned runtime; read what the carried package guarantees; stage and digest-verify the immutable "
         "model revision; fetch a digest-pinned real labelled corpus and validate and split it by volunteer without "
@@ -135,9 +152,11 @@ TEMPLATE = {
         "the trained head answers only for its six labels."
     ),
     "prerequisites": [
-        "- **Runtime:** a fresh supported runtime (Google Colab or Jupyter, Python 3.12). The default path runs on CPU and uses CUDA automatically when available; the public API accepts `float32` only. The build record measured about 0.06 s per six-channel window to embed on CPU (16 s for the 179-window k-NN pass) and about 0.85 s per window per training step on the last two encoder blocks, so a three-epoch unfreeze over 107 windows with four validation passes took about 150 s. The pinned `torch==2.14.0` install and the 454 MB checkpoint are the large downloads of the run, then the 79.6 MB archive.",
+        '- **Learner:** basic Python and NumPy familiarity; no prior experience with MOMENT or time-series foundation models. Windows, patches, padding, masks and the evaluation verdicts are explained where they are first used and again in the Glossary.',
+        '- **Runtime:** a fresh supported **Linux x86_64** runtime (Google Colab, Kaggle or Linux Jupyter). Section 1 builds its own Python 3.12.12 environment from a hash-locked list of manylinux wheels (plus `momentfm`, built from its pinned commit), so the Python version of the kernel itself does not matter and nothing is installed into it; a Windows or macOS kernel is not supported.',
+        "- **Compute:** the default path runs on CPU and uses CUDA automatically when available; the public API accepts `float32` only. The build record measured about 0.06 s per six-channel window to embed on CPU (16 s for the 179-window k-NN pass) and about 0.85 s per window per training step on the last two encoder blocks, so a three-epoch unfreeze over 107 windows with four validation passes took about 150 s. The pinned `torch==2.14.0` install and the 454 MB checkpoint are the large downloads of the run, then the 79.6 MB archive.",
         "- **Knowledge:** basic Python, NumPy and pandas; what a long-format time-series table is; what a linear probe is and why it is the cheapest honest test of a representation; what accuracy and macro-F1 measure; what validation-based selection between two policies means.",
-        "- **Data contract:** records are `{{id, x, label}}` — a float32 `(channels, 512)` array (or a path to a `.npy`) with 1..32 channels (an explicit `channels` list naming exactly that many unique channels, or the six HAPT names for six-channel windows and deterministic `channel_00`.. names otherwise — one ordered schema across the whole set), finite values of magnitude at most 1,000, a label of 1..64 plain characters, ids matching `[A-Za-z0-9_.:-]{{1,64}}` and unique; a training set needs 8..1,024 records and 2..100 classes with one channel count throughout; windows are de-duplicated by sample digest and split by `user` / `group` so one person's data never straddles splits. Every window then passes through the package's long-format validation (`series_id, timestamp, channel, value`) and canonical windowing exactly as inference input does. BYOD accepts a `.zip` (or a directory) holding `records.csv` and the `.npy` files.",
+        "- **Data contract:** records are `{id, x, label}` — a float32 `(channels, 512)` array (or a path to a `.npy`) with 1..32 channels (an explicit `channels` list naming exactly that many unique channels, or the six HAPT names for six-channel windows and deterministic `channel_00`.. names otherwise — one ordered schema across the whole set), finite values of magnitude at most 1,000, a label of 1..64 plain characters, ids matching `[A-Za-z0-9_.:-]{1,64}` and unique; a training set needs 8..1,024 records and 2..100 classes with one channel count throughout; windows are de-duplicated by sample digest and split by `user` / `group` so one person's data never straddles splits. Every window then passes through the package's long-format validation (`series_id, timestamp, channel, value`) and canonical windowing exactly as inference input does. BYOD accepts a `.zip` (or a directory) holding `records.csv` and the `.npy` files.",
         "- **Validation is structural, not semantic:** nothing checks that a label is right for its window — a mislabelled set is trained on without complaint; the sample rate is assumed to be 50 Hz only for the timestamps the canonical path requires, and the model never sees it.",
         "- **Privacy:** Do not upload confidential or restricted data to a hosted runtime unless you are authorized to process it there — wearable and motion recordings of identifiable people are exactly that. The default path uploads nothing.",
         "- **External access (data):** besides the Hub snapshot, the default path fetches one pinned object — the HAPT archive at `https://archive.ics.uci.edu/static/public/341/smartphone+based+recognition+of+human+activities+and+postural+transitions.zip`, 79,596,192 bytes, SHA-256 `4ac4ae06…` in the carried `samples.py` — over HTTPS, refused on any byte-size or SHA-256 mismatch before it is opened; the dataset is CC BY 4.0 per the UCI repository's licence notice and is credited to its authors in the References.",
@@ -159,6 +178,7 @@ TEMPLATE = {
                 "digests, and four refusal probes — a duplicate id, a window of the wrong length, a non-finite window and a "
                 "single-class dataset — each rejected before `torch` does anything. Success here means the corpus was "
                 "fetched, verified, cut and split with no leakage; about a minute on the first run for the download."
+                "\n\n**Predict before running:** why split by volunteer instead of by window? What would go wrong in the test score if one person's windows landed in both training and test?"
             ),
             "code": (
                 "import hashlib\n"
@@ -166,19 +186,37 @@ TEMPLATE = {
                 "import json\n"
                 "import time\n\n"
                 'USE_BYOD = False  # @param {{type:"boolean"}}\n'
+                'BYOD_PATH = ""  # @param {{type:"string"}}\n'
                 'SPLIT_SEED = 42  # @param {{type:"integer"}}\n\n'
                 "os.makedirs('outputs', exist_ok=True)\n"
                 "t0 = time.perf_counter()\n"
+                'def byod_file(path, kind, suffixes=()):\n'
+                '    """BYOD path first (works on Colab, Kaggle and Jupyter); on Colab an empty path opens the upload dialog."""\n'
+                '    if str(path).strip():\n'
+                '        source = Path(str(path).strip()).expanduser()\n'
+                '        if not source.is_file():\n'
+                "            raise FileNotFoundError(f'BYOD path {{str(source)!r}} does not exist or is not a file (relative paths start at {{os.getcwd()}}); give the path of one {{kind}}.')\n"
+                '    else:\n'
+                '        try:\n'
+                '            from google.colab import files\n'
+                '        except ImportError:\n'
+                "            raise RuntimeError(f'BYOD is on but its path field is empty, and the upload dialog exists only in Google Colab: copy the {{kind}} into this runtime (or attach it as a Kaggle dataset) and set the path field.') from None\n"
+                '        uploaded = files.upload()\n'
+                '        if len(uploaded) != 1:\n'
+                "            raise ValueError(f'Upload exactly one {{kind}} (received {{len(uploaded)}} files; a cancelled dialog sends none). Run this cell again.')\n"
+                '        name, payload = next(iter(uploaded.items()))\n'
+                "        source = Path('work') / Path(name).name\n"
+                '        source.parent.mkdir(parents=True, exist_ok=True)\n'
+                '        source.write_bytes(payload)\n'
+                '    if suffixes and not source.name.lower().endswith(tuple(suffixes)):\n'
+                '        raise ValueError(f\'{{source.name}}: expected a {{kind}} ending in {{" or ".join(suffixes)}}.\')\n'
+                '    return source\n\n\n'
+
                 "if USE_BYOD:\n"
-                "    from google.colab import files\n"
-                "    uploaded = files.upload()\n"
-                "    file_name, payload = next(iter(uploaded.items()))\n"
-                "    byod_path = Path('work') / file_name\n"
-                "    byod_path.parent.mkdir(parents=True, exist_ok=True)\n"
-                "    byod_path.write_bytes(payload)\n"
+                "    byod_path = byod_file(BYOD_PATH, 'labelled-window archive or file accepted by load_byod_dataset')\n"
                 "    records = load_byod_dataset(byod_path)\n"
                 "    splits = split_dataset(records, seed=SPLIT_SEED)\n"
-                "    data_source = 'BYOD (' + file_name + ')'\n"
+                "    data_source = 'BYOD (' + byod_path.name + ')'\n"
                 "    raw_count = {{'byod': len(records)}}\n"
                 "else:\n"
                 "    corpus = read_corpus(fetch_corpus(cache_dir='weights/hapt'))\n"
@@ -209,6 +247,11 @@ TEMPLATE = {
                 "        print({{'probe': name, 'verdict': 'accepted'}})\n"
                 "    except (TypeError, ValueError) as exc:\n"
                 "        print({{'probe': name, 'rejected': str(exc)[:110]}})"
+            ),
+        },
+        {
+            "md": (
+                '<details><summary>Check your reasoning</summary>Windows of one volunteer share a body, a phone and a way of moving, so a window-level split lets the model recognise the person instead of the activity and inflates the test score. The recorded run drew 18 / 6 / 6 volunteers (107 / 36 / 36 windows) and `check_split_disjoint` found no shared window or volunteer; all four refusal probes were rejected before the model ran.</details>'
             ),
         },
         {
@@ -278,11 +321,36 @@ TEMPLATE = {
                 "read the per-class recall: the three walking activities are separated almost perfectly and the three "
                 "static postures are confused with each other, because MOMENT instance-normalises every window and the "
                 "postures differ mainly in the constant gravity component that normalisation removes. Success here "
-                "means the probe beats the floor; about half a minute on CPU."
+                "means the frozen embeddings, k-NN and probe were scored and a verdict against the floor was printed (a probe that does not beat the floor "
+                "is reported, not asserted, so a BYOD run still exports). The cell first restores the frozen encoder, so a re-run after an "
+                "unfreeze scores the representation it is labelled with; about half a minute on CPU."
+                '\n\n**Predict before running:** write down the test accuracy you expect from the majority floor, the 5-NN vote and the linear probe. Which activities will the probe confuse?'
             ),
             "code": (
                 'PROBE_STEPS = 300  # @param {{type:"integer"}}\n'
                 'PROBE_LR = 0.01  # @param {{type:"number"}}\n\n'
+                '# SWP-F: the pinned encoder is snapshotted once, before any training, and restored here, so a re-run of this\n'
+                '# section (or of Section 7) after an unfreeze won scores the frozen representation it is labelled with.\n'
+                'import copy\n'
+                '\n'
+                '\n'
+                'def encoder_digest(state):\n'
+                '    digest = hashlib.sha256()\n'
+                '    for name in sorted(state):\n'
+                "        digest.update(name.encode('utf-8'))\n"
+                '        digest.update(state[name].detach().cpu().contiguous().numpy().tobytes())\n'
+                '    return digest.hexdigest()\n'
+                '\n'
+                '\n'
+                "if '_FROZEN_ENCODER' not in globals():\n"
+                '    _FROZEN_ENCODER = copy.deepcopy(pipe.pipeline.state_dict())\n'
+                '    _FROZEN_ENCODER_DIGEST = encoder_digest(_FROZEN_ENCODER)\n'
+                'pipe.pipeline.load_state_dict(_FROZEN_ENCODER, strict=True)\n'
+                'pipe.pipeline.eval()\n'
+                'if encoder_digest(pipe.pipeline.state_dict()) != _FROZEN_ENCODER_DIGEST:\n'
+                "    raise RuntimeError('restoring the frozen encoder did not reproduce its digest')\n"
+                "print({{'restarted_from_frozen_encoder': True, 'frozen_encoder_sha256': _FROZEN_ENCODER_DIGEST[:16] + '...'}})\n"
+                '\n'
                 "def brief(m):\n"
                 "    return {{'accuracy': round(m['accuracy'], 4), 'macro_f1': round(m['macro_f1'], 4), 'n': m['n']}}\n\n"
                 "floor = majority_baseline([r['label'] for r in train_records], [r['label'] for r in test_records], classes)\n"
@@ -296,7 +364,15 @@ TEMPLATE = {
                 "print({{'frozen_policy': probe_adapter.policy, 'probe_final_loss': round(probe_adapter.config['probe_final_loss'], 4), 'validation': probe_adapter.history[0]['val'], 'seconds': round(time.perf_counter() - t0, 1)}})\n"
                 "print({{'frozen_policy_test': brief(frozen_test), 'log_loss': round(frozen_test['log_loss'], 4), 'verdict': frozen_test['verdict'], 'per_class_recall': {{c: round(v['recall'], 2) for c, v in frozen_test['per_class'].items()}}}})\n"
                 "print({{'definitions': frozen_test['definitions']}})\n"
-                "assert frozen_test['accuracy'] > floor['accuracy'] and probe_adapter.policy == POLICY_FROZEN"
+                'if probe_adapter.policy != POLICY_FROZEN:\n'
+                "    raise RuntimeError(f'adapt with trainable_blocks=0 must return the frozen policy, got {{probe_adapter.policy!r}}')\n"
+                "frozen_verdict = 'above the majority floor' if frozen_test['accuracy'] > floor['accuracy'] else 'not above the majority floor'\n"
+                "print({{'frozen_policy_verdict': frozen_verdict}})"
+            ),
+        },
+        {
+            "md": (
+                '<details><summary>Check your reasoning</summary>In the recorded run the floor scored 16.7 % (one of six balanced classes), the 5-NN vote 72.2 % and the probe 72.2 % (macro-F1 0.708 and 0.715). The three walking activities were found perfectly and the static postures confused: laying and sitting recall 0.33. MOMENT instance-normalises every window, which removes the constant gravity component that mostly distinguishes the postures.</details>'
             ),
         },
         {
@@ -314,6 +390,7 @@ TEMPLATE = {
                 "Watch the validation log-loss: the build record's sweep on this sample — two blocks at 3e-4 for three epochs went 0.746 (probe) → 0.703 → 0.751 → 0.605 and was selected at epoch 3, for 77.8 % held-out accuracy against the probe's 72.2 % and the static postures partly recovered; at 1e-4 epoch 2 was selected for 75.0 %; at 3e-5 no epoch beat the probe's validation log-loss and the probe was kept. Success here means "
                 "the ladder ran to its last epoch and named a selected policy and a `best_epoch`; about three "
                 "minutes on CPU."
+                '\n\n**Predict before running:** the unfreeze trains 14 M parameters on 107 windows. Will the validation log-loss fall every epoch, and will the unfreeze necessarily be selected over the probe?'
             ),
             "code": (
                 'EPOCHS = 3  # @param {{type:"integer"}}\n'
@@ -327,11 +404,22 @@ TEMPLATE = {
                 "        row['val_accuracy'] = round(entry['val']['accuracy'], 4)\n"
                 "        row['val_macro_f1'] = round(entry['val']['macro_f1'], 4)\n"
                 "    print(row)\n\n"
+                '# SWP-F: start from the frozen encoder (snapshotted in Section 6), never from a previous unfreeze.\n'
+                'pipe.pipeline.load_state_dict(_FROZEN_ENCODER, strict=True)\n'
+                'pipe.pipeline.eval()\n'
+                'if encoder_digest(pipe.pipeline.state_dict()) != _FROZEN_ENCODER_DIGEST:\n'
+                "    raise RuntimeError('restoring the frozen encoder did not reproduce its digest')\n"
+                '\n'
                 "t0 = time.perf_counter()\n"
                 "adapter = adapt(pipe, train_records, val_records, probe_steps=PROBE_STEPS, probe_lr=PROBE_LR, trainable_blocks=TRAINABLE_BLOCKS, epochs=EPOCHS, lr=LEARNING_RATE, batch_size=BATCH_SIZE, progress=report_epoch)\n"
                 "adapt_seconds = round(time.perf_counter() - t0, 1)\n"
                 "report_epoch(adapter.history[0])\n"
                 "print({{'selected_policy': adapter.policy, 'best_epoch': adapter.config['best_epoch'], 'selection': adapter.config['selection'], 'trainable_head': adapter.config['n_trainable_head'], 'trainable_blocks': adapter.config['n_trainable_blocks'], 'total_parameters': adapter.config['n_total'], 'seconds': adapt_seconds}})"
+            ),
+        },
+        {
+            "md": (
+                '<details><summary>Check your reasoning</summary>Not necessarily on either count. With 107 training windows the validation log-loss can rise again after an epoch (it did in the recorded run, see Section 8), and the probe competes as epoch 0, so the unfreeze is kept only if one of its epochs beats the probe on validation log-loss; `selected_policy` and `best_epoch` say which won. The cell restored the frozen encoder first, so a re-run with another `TRAINABLE_BLOCKS` or `LEARNING_RATE` starts from the pinned model.</details>'
             ),
         },
         {
@@ -342,10 +430,11 @@ TEMPLATE = {
                 "and the four rows are put side by side: majority floor, k-NN vote, frozen policy, selected policy. Read "
                 "the policy first: if validation kept the probe, the last two rows are the same model; if it chose the "
                 "unfreeze, the delta is what the unfreeze bought on 36 windows — the build record: 77.8 % / macro-F1 0.776 against the probe's 72.2 % / 0.715, two windows, with laying and sitting recall rising from 0.33 to 0.50 while the three walking activities stayed at 1.0. The cell "
-                "asserts the selected model beats the majority floor; it does **not** assert a gain over the probe, "
+                "reports whether the selected model beats the majority floor (a verdict, not an assert, so a BYOD run still exports and reloads); it does **not** assert a gain over the probe, "
                 "because that is the question, not the answer. 36 windows from six volunteers of one seeded split give "
                 "no dispersion estimate — one window is about 2.8 points of accuracy. Success here means the comparison "
                 "and the evaluation report were written."
+                '\n\n**Predict before running:** if the unfreeze was selected, how many of the 36 test windows does a 3-point accuracy gain correspond to?'
             ),
             "code": (
                 "adapted_test = evaluate(pipe, adapter, test_records)\n"
@@ -377,11 +466,17 @@ TEMPLATE = {
                 "    'adaptation': adapter.summary(),\n"
                 "    'history': adapter.history,\n"
                 "    'adaptation_seconds': adapt_seconds,\n"
+                "    'verdicts': {{'frozen_policy_vs_floor': frozen_verdict, 'selected_policy_vs_floor': 'above the majority floor' if adapted_test['accuracy'] > floor['accuracy'] else 'not above the majority floor', 'selected_vs_frozen_accuracy_delta': comparison['delta_vs_frozen']['accuracy']}},\n"
                 "}}\n"
                 "with open('outputs/{stem}_evaluation_report.json', 'w', encoding='utf-8') as f:\n"
                 "    json.dump(evaluation_report_payload, f, indent=2, ensure_ascii=False)\n"
-                "assert adapted_test['accuracy'] > floor['accuracy']\n"
-                "print({{'report': 'outputs/{stem}_evaluation_report.json'}})"
+                "selected_verdict = 'above the majority floor' if adapted_test['accuracy'] > floor['accuracy'] else 'not above the majority floor'\n"
+                "print({{'selected_policy_verdict': selected_verdict, 'report': 'outputs/{stem}_evaluation_report.json'}})"
+            ),
+        },
+        {
+            "md": (
+                "<details><summary>Check your reasoning</summary>In the recorded run the validation log-loss went 0.746 (probe) → 0.703 → 0.751 → 0.605 — not monotone — and epoch 3 of the unfreeze was selected. On the test split it scored 75.0 % accuracy and macro-F1 0.741 against the probe's 72.2 % and 0.715: one window of 36 (each is about 2.8 points), with sitting recall rising from 0.33 to 0.50. That is within what one seeded split can show by chance; the verdict lines record the comparison instead of asserting it.</details>"
             ),
         },
         {
@@ -487,6 +582,34 @@ TEMPLATE = {
         "representation quality on any other task, a usable acceptance threshold, or production fitness.\n\n"
         "**Optional experiments (they do not affect the default path):** set `LEARNING_RATE = 3e-5` and watch the probe win on validation (the build record: no epoch beat it); set `LEARNING_RATE = 1e-4` (epoch 2 selected, 75.0 %); set `TRAINABLE_BLOCKS = 1` or `4`; set `EPOCHS = 6` and watch whether validation log-loss keeps falling or turns; drop the gyroscope channels in `read_corpus` and read what the accelerometer alone carries; or bring your own labelled "
         "windows through BYOD and read the k-NN baseline before either policy.\n\n"
+        '## Troubleshooting\n\n'
+        '- **Section 1 stops with "This notebook needs a Linux x86_64 runtime"** — use Google Colab, Kaggle or a Linux x86_64 Jupyter server.\n'
+        '- **The uv wheel fails its size/SHA-256 check, or a download in Section 1 times out** — run Section 1 again; a complete environment is reused and an incomplete one is finished. If it repeats, `files.pythonhosted.org` or `pypi.org` is blocked or altered.\n'
+        '- **Section 1 fails while building `momentfm`** — the one source dependency is built from its pinned upstream commit and needs `git` and access to its Git host; run Section 1 again, or use Colab or Kaggle (both ship `git`).\n'
+        '- **You re-ran Section 1 on its own** — nothing is lost: it keeps the running worker and every variable. After a session restart, run from the top.\n'
+        '- **"The isolated environment\'s Python process exited"** — usually out of memory; restart the session and choose **Run all**.\n'
+        '- **Section 3 reports a size or SHA-256 mismatch, or cannot reach the Hub** — the message names the file. Delete the folder Section 3 prints as `weights_dir` and run Section 3 again.\n'
+        '- **BYOD: "BYOD path … does not exist" / "the upload dialog exists only in Google Colab" / "Upload exactly one …"** — set `BYOD_PATH` to a file in the runtime (it works on Kaggle and Jupyter); on Colab an empty path opens the dialog, and a cancelled dialog stops with that message.\n'
+        '- **BYOD: a `validate_dataset` refusal** — it names the record and the rule (window length, channels, finite values, duplicate id, a single class); fix that record.\n'
+        '- **CUDA out of memory in Section 7** — set `BATCH_SIZE = 4` or `TRAINABLE_BLOCKS = 1` and run Sections 6–9 again (numbers will differ from the recorded run).\n\n'
+        '## Glossary\n\n'
+        '- **Long-format table** — one row per `(series_id, timestamp, channel, value)`; the package turns it into windows.\n'
+        '- **Window / patch** — the 512-step input MOMENT reads per series, cut into 64 non-overlapping 8-step patches.\n'
+        '- **Left padding / truncation** — a series shorter than 512 steps is padded at the start and the padding masked out; a longer one keeps its final 512 timestamps.\n'
+        '- **Instance normalisation** — each window is rescaled by its own mean and spread before the encoder, so the absolute level is removed.\n'
+        '- **Input manifest** — the record of what validation saw and changed (padding, truncation, missingness) before the model ran.\n'
+        '- **Isolated environment** — the separate Python 3.12.12 environment Section 1 builds from the hash lock; every later cell runs there.\n'
+        '- **Volunteer-level split** — every window of one person goes to one split, so the test score is about unseen people.\n'
+        '- **Majority floor / 5-NN vote** — always the most frequent training activity; the label of the five most similar training windows in embedding space.\n'
+        '- **Linear probe (frozen policy)** — a linear head trained on frozen embeddings; **unfrozen policy** — the last encoder blocks trained with the head.\n'
+        '- **Validation selection / log-loss** — the epoch with the lowest validation log-loss is kept, the probe (epoch 0) included.\n'
+        '- **Accuracy / macro-F1 / per-class recall** — share correct; unweighted mean of per-class F1; share of each activity found.\n'
+        '- **Adapter / reload parity** — the head and any trained blocks, overlaid on the pinned base; the reloaded model gives identical probabilities.\n'
+        '- **BYOD** — bring your own data: your labelled windows through the same cells.\n\n'
+        '## Conclusion (your notes)\n\nOptional — fill in from **your** run:\n\n'
+        '- Floor ___, 5-NN ___, probe ___, selected policy ___ (test accuracy); the selected policy was ___.\n'
+        '- The activities confused most were ___, because ___.\n'
+        '- One reason not to trust the gain over the probe yet: ___ (for example 36 test windows, one window ≈ 2.8 points).\n\n'
         "## References\n\n"
         "- Repository README: https://github.com/kurtvalcorza/moment-pipeline/blob/main/README.md\n"
         "- Repository model card: https://github.com/kurtvalcorza/moment-pipeline/blob/main/MODEL_CARD.md\n"
