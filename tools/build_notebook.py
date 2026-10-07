@@ -469,6 +469,8 @@ def template_contract() -> dict[str, str]:
         "lock": "OPTIONAL (required with isolated_runtime): repository-relative hash-locked requirements compiled from the pins",
         "infrastructure_labels": "OPTIONAL bool (default False): label the setup, carrier and snapshot sections Infrastructure and collapse their cells (NOTEBOOK_SPEC 2.2 GDL11)",
         "guided": "OPTIONAL {'opening': [markdown cells inserted after the header]} (NOTEBOOK_SPEC 2.2 GDL1-GDL4)",
+        "lock_download": "OPTIONAL {'bytes', 'measured'}: the measured total size of the locked wheels and how/when it was measured, stated in the External access bullet",
+        "model_section_note": "OPTIONAL markdown sentence appended to the Section 3 prose (e.g. an expected upstream warning and what it means)",
     }
 
 
@@ -798,23 +800,28 @@ _RUN_ALL_DEFAULT = {
     "TASK-INFERENCE": (
         "Selecting **Run all** in a fresh supported runtime installs the pinned dependencies, stages and digest-verifies the "
         "pinned snapshot, obtains the tutorial sample automatically, validates it into an input manifest before the model "
-        "runs, runs the task locally in this kernel, writes the evaluation report, and exports machine-readable outputs "
+        "runs, runs the task locally in this runtime, writes the evaluation report, and exports machine-readable outputs "
         "with provenance. The default path needs no repository clone, no DIMER worker or service, no credential, no upload "
-        "dialog and no configuration edit (NOTEBOOK_SPEC 2.0 §5)."
+        "dialog and no configuration edit (NOTEBOOK_SPEC 2.0 §5). Two environment variables exist for executors only: "
+        "`DIMER_NOTEBOOK_CI_PREINSTALLED=1` tells Section 1 that the kernel already holds exactly the pinned packages, so it "
+        "installs nothing and routes nothing; `DIMER_BYOD_PATH` points the sample cell at a CSV without touching a form field."
     ),
     "MULTI-CAPABILITY": (
         "Selecting **Run all** in a fresh supported runtime installs the pinned dependencies, stages and digest-verifies the "
         "pinned snapshot, obtains the tutorial sample automatically, validates it into an input manifest before the model "
-        "runs, runs every demonstrated capability locally in this kernel with its own input/output contract, writes the "
+        "runs, runs every demonstrated capability locally in this runtime with its own input/output contract, writes the "
         "evaluation report, and exports machine-readable outputs with provenance. The default path needs no repository "
         "clone, no DIMER worker or service, no credential, no upload dialog and no configuration edit (NOTEBOOK_SPEC 2.0 §5)."
     ),
 }
 _BYOD_DEFAULT = (
-    "After the sample workflow completes, set `USE_BYOD = True` in the sample cell and re-run from that cell to supply "
-    "your own input. It passes through the same notebook-local validation, task, evaluation-report and export cells as "
-    "the sample; the expected input format, the ceilings and the privacy guidance are stated in the Prerequisites and "
-    "in the sample cell, and the upload stays inside this runtime. BYOD is optional and never part of the default path."
+    "After the sample workflow completes, set `USE_BYOD = True` in the sample cell, put the path of a CSV already in "
+    "this runtime into the `BYOD_PATH` form field (this works on Colab, Kaggle and Jupyter; on Colab an empty field opens "
+    "an upload dialog instead, which exists only there), and re-run from that cell to supply your own input. "
+    "`DIMER_BYOD_PATH` is the equivalent environment variable for executors. It passes through the same notebook-local "
+    "validation, task, evaluation-report and export cells as the sample; the expected input format, the ceilings and "
+    "the privacy guidance are stated in the Prerequisites and in the sample cell, and the file stays inside this "
+    "runtime. BYOD is optional and never part of the default path."
 )
 
 
@@ -878,23 +885,33 @@ def render(repo: Path, template: dict[str, Any], revision: str | None = None) ->
         else ""
     )
     collapsed: dict[str, Any] = {"cellView": "form", "jupyter": {"source_hidden": True}} if labels else {}
+    git_pins = [p for p in ctx["pins"] if " @ git+" in p]
+    lock_download = template.get("lock_download") or {}
+    measured = (
+        f" Measured size of the locked wheels: ~{lock_download['bytes'] / 1e9:.1f} GB ({lock_download['measured']})."
+        if lock_download
+        else " The locked wheels are a multi-gigabyte download; no measured figure is recorded for this lock."
+    )
     isolated_access = (
-        f" The isolated environment also needs PyPI (`pypi.org`, `files.pythonhosted.org`) for the pinned `uv` wheel and the "
-        f"{len(lock_packages(ctx['lock_text']))} hash-locked packages, and the managed CPython {template['managed_python']} build "
-        "(python-build-standalone) that `uv` downloads."
-        + (
-            " The commit-pinned source dependency is fetched from its upstream Git host (the GitHub repository named in `PINS`), "
-            "which is the one exception to the no-GitHub statement above."
-            if any(" @ git+" in p for p in ctx["pins"])
-            else ""
-        )
+        f" PyPI (`pypi.org`, `files.pythonhosted.org`), for the pinned `uv` wheel and the "
+        f"{len(lock_packages(ctx['lock_text']))} hash-locked packages, and for the managed CPython {template['managed_python']} build "
+        "(python-build-standalone) that `uv` downloads." + measured
         if isolated
         else ""
     )
+    github_access = (
+        " GitHub (`github.com`), because the commit-pinned source dependency in `PINS` ("
+        + ", ".join(f"`{p.split(' @ ', 1)[0]}`" for p in git_pins)
+        + ") is cloned from its upstream repository at the pinned commit and built there; nothing is fetched from this repository."
+        if git_pins
+        else " No GitHub access is required; nothing is installed from this repository."
+    )
     prereq = list(template["prerequisites"]) + [
-        f"- **External access:** {ctx['host']['name']} only, to fetch the pinned `{ctx['MODEL_ID']}` snapshot (~{total_mb:.0f} MB in total) "
-        f"at revision `{ctx['MODEL_REVISION'][:12]}…`. No GitHub access and no credentials are required; nothing is installed from this repository."
+        f"- **External access:** {ctx['host']['name']}, to fetch the pinned `{ctx['MODEL_ID']}` snapshot (~{total_mb:.0f} MB in total) "
+        f"at revision `{ctx['MODEL_REVISION'][:12]}…`."
         + isolated_access
+        + github_access
+        + " No credentials are required."
     ]
     add(_md("## Prerequisites\n\n" + "\n".join(prereq)))
 
@@ -1025,7 +1042,8 @@ def render(repo: Path, template: dict[str, Any], revision: str | None = None) ->
             f"`stage_missing_files(..., allow_download=True)` fetches exactly the entries that are absent from {ctx['host']['name']} **at {ctx['host']['revision_label']} "
             f"`{ctx['MODEL_REVISION'][:12]}…`** (never `main`), `verify_snapshot` re-hashes every file and raises on the first size or digest mismatch, "
             f"and only then does `{load_expr}` load the verified files. There is no fallback to a different download and no remote model code is "
-            f"executed.{extra_note} The effective identity, device and weight source are printed before any inference."
+            f"executed.{extra_note} The effective identity, device, precision and weight source are printed before any inference."
+            + (" " + template["model_section_note"].strip() if template.get("model_section_note") else "")
         )
     )
     ie = ctx["ident_expr"]
@@ -1064,7 +1082,7 @@ def render(repo: Path, template: dict[str, Any], revision: str | None = None) ->
         )
     model_code += (
         f"pipe = {load_expr}\n"
-        "print({'device': getattr(pipe, 'device', None), 'source': getattr(pipe, 'source', 'local-snapshot')})"
+        "print({'effective_model': pipe.identity.name, 'revision': pipe.identity.revision, 'task': pipe.identity.task, 'device': pipe.identity.device, 'dtype': pipe.identity.dtype, 'weight_file': pipe.identity.weight_file_loaded, 'weights_dir': str(WEIGHTS_DIR), 'source': 'digest-verified local snapshot' + (' (fetched this run)' if fetched else ' (already staged)')})"
     )
     add(_code(model_code, dict(collapsed)))
 
