@@ -1,0 +1,229 @@
+[colab] Parsing notebook '/home/kurt/colab-runs/moment-pipeline-3b0cee5-82d8ed/moment_imputation_colab_3b0cee5_colab-cli-t4.ipynb'...
+[colab] Executing cell 1/19 - Infrastructure: build (or reuse) the isolated environment and route later cells to it...
+{'isolated_environment': '/content/dimer_isolated_env_65c7f05290ca', 'reused': False, 'isolated_python': '3.12.12', 'kernel_python': '3.13.15', 'locked_packages': 61, 'setup_seconds': 64}
+{'routed_to': '/content/dimer_isolated_env_65c7f05290ca/bin/python', 'worker_pid': 1165, 'worker_reused': False}
+[colab] Executing cell 2/19 - Infrastructure: record the runtime...
+{'notebook_source': {'repository': 'moment-pipeline', 'repository_revision': '39e80af416f03f298360239d691b08ea00301ce2', 'embedded_module': 'src/moment_pipeline/model.py', 'embedded_modules': ['src/moment_pipeline/config.py', 'src/moment_pipeline/model.py', 'src/moment_pipeline/validation.py', 'src/moment_pipeline/canonical.py', 'src/moment_pipeline/csvio.py', 'src/moment_pipeline/embedding.py', 'src/moment_pipeline/provenance.py', 'src/moment_pipeline/imputation.py', 'src/moment_pipeline/anomaly.py', 'src/moment_pipeline/roles.py'], 'module_sha256': 'd297e702f0b4970b1ab8f415ba21e524075bb0a42650e5df650431987ae789ec', 'generator': 'build_notebook.py/2.2', 'notebook_spec': '2.0'}, 'python': '3.12.12', 'executable': '/content/dimer_isolated_env_65c7f05290ca/bin/python', 'torch': '2.14.0+cu130', 'transformers': '5.16.1', 'pandas': '3.0.5', 'numpy': '2.5.3', 'cuda': True}
+[colab] Executing cell 3/19 - moment_imputation-08...
+[colab] Executing cell 4/19 - moment_imputation-10...
+[colab] Executing cell 5/19 - moment_imputation-12...
+[colab] Executing cell 6/19 - moment_imputation-14...
+[colab] Executing cell 7/19 - moment_imputation-16...
+[colab] Executing cell 8/19 - moment_imputation-18...
+[colab] Executing cell 9/19 - moment_imputation-20...
+[colab] Executing cell 10/19 - moment_imputation-22...
+[colab] Executing cell 11/19 - moment_imputation-24...
+[colab] Executing cell 12/19 - moment_imputation-26...
+[colab] Executing cell 13/19 - Infrastructure: stage and digest-verify the pinned snapshot, then load the model...
+{'model_id': 'AutonLab/MOMENT-1-base', 'revision': '9fea447e740eb968a9e8d80c7562ae122bdb5dde', 'license': 'MIT', 'files': 3, 'total_bytes': 453947418}
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+{'weights_dir': '/content/weights/moment-1-base', 'fetched': ['README.md', 'config.json', 'model.safetensors']}
+{'verified_files': 3, 'revision': '9fea447e740eb968a9e8d80c7562ae122bdb5dde'}
+Loading weights from local directory
+{'effective_model': 'AutonLab/MOMENT-1-base', 'revision': '9fea447e740eb968a9e8d80c7562ae122bdb5dde', 'task': 'reconstruction', 'device': 'cuda', 'dtype': 'float32', 'weight_file': 'model.safetensors', 'weights_dir': '/content/weights/moment-1-base', 'source': 'digest-verified local snapshot (fetched this run)'}
+[colab] Executing cell 14/19 - moment_imputation-30...
+{'sample_kind': 'synthetic', 'kind': 'synthetic', 'name': 'moment_clean.csv', 'sha256': '34fc475828d2f62108b340efd255501a898577be11286c034da2e0f766ee963c', 'rows': 512, 'columns': ['series_id', 'timestamp', 'channel', 'value']}
+  series_id            timestamp    channel     value
+0         A  2026-01-01T00:00:00  vibration  1.580000
+1         A  2026-01-01T00:15:00  vibration  1.642992
+2         A  2026-01-01T00:30:00  vibration  1.692108
+3         A  2026-01-01T00:45:00  vibration  1.727464
+4         A  2026-01-01T01:00:00  vibration  1.750687
+[colab] Executing cell 15/19 - moment_imputation-32...
+{'python': '3.12.12', 'torch': '2.14.0+cu130', 'device': 'cuda', 'dtype': 'float32'}
+{'ceilings': {'max_rows': 5000000, 'max_series': 1024, 'max_channels': 32, 'max_windows': 1024, 'sequence_length': 512, 'patch_length': 8}}
+{
+  "schema": {
+    "input": "long-format pandas DataFrame with columns series_id, timestamp, channel, value; one row per (series_id, channel, timestamp)",
+    "timestamps": "parseable and strictly increasing per (series_id, channel); irregular spacing is reported per series and refused when strict_frequency is set",
+    "values": "numeric; NaN marks a source-missing point. The NaN itself never reaches the model: the reconstruction paths (imputation, anomaly scoring) hide its whole patch from MOMENT, while the embedding path replaces it by prefill_value, which the encoder then sees as an observed value (embeddings are not missingness-aware)",
+    "sequence_length": 512,
+    "patch_length": 8,
+    "max_rows": 5000000,
+    "max_series": 1024,
+    "max_channels": 32,
+    "max_windows": 1024,
+    "canonicalisation": "one window per series: the final sequence_length timestamps are kept (longer series are truncated, shorter ones left-padded and the padding excluded by the input mask)"
+  },
+  "inputs": [
+    {
+      "id": "A::w0",
+      "series_id": "A",
+      "valid_positions": 256,
+      "padded": true,
+      "truncated": false
+    }
+  ],
+  "task": "reconstruction",
+  "n_rows": 512,
+  "n_series": 1,
+  "n_channels": 2,
+  "channels": [
+    "temperature",
+    "vibration"
+  ],
+  "irregular_series": [],
+  "window_shape": [
+    1,
+    2,
+    512
+  ],
+  "masked_point_fraction": 0.0,
+  "masked_patch_fraction": 0.0,
+  "verdict": "accepted",
+  "findings": [
+    {
+      "input": "empty-channel-probe",
+      "verdict": "rejected",
+      "code": "EMPTY_CHANNEL",
+      "message": "[EMPTY_CHANNEL] channel(s) ['vibration'] contain no observed values anywhere in the input"
+    }
+  ],
+  "model_id": "AutonLab/MOMENT-1-base",
+  "model_revision": "9fea447e740eb968a9e8d80c7562ae122bdb5dde"
+}
+window tensor: (1, 2, 512)
+padded windows: 1 / 1
+truncated windows: 0 / 1
+source missing fraction: 0.0
+NOTE: short input series were left-padded; padding is excluded by the input mask.
+artificial holdout window: A::w0 (only the first canonical window is held out and scored)
+candidate patch starts (complete, source-observed): [256, 264, 272, 280, 288, 296, 304, 312, 320, 328, 336, 344, 352, 360, 368, 376, 384, 392, 400, 408, 416, 424, 432, 440, 448, 456, 464, 472, 480, 488, 496, 504]
+interior candidates: [264, 272, 280, 288, 296, 304, 312, 320, 328, 336, 344, 352, 360, 368, 376, 384, 392, 400, 408, 416, 424, 432, 440, 448, 456, 464, 472, 480, 488, 496]
+deliberately hidden positions: 384 through 391 -> interior (source-observed points on both sides: a gap)
+source-observed points after the holdout: 120 | before it: 128
+held-out point count across channels: 16
+[colab] Executing cell 16/19 - moment_imputation-35...
+effective model: AutonLab/MOMENT-1-base
+effective revision: 9fea447e740eb968a9e8d80c7562ae122bdb5dde
+verified weight file: model.safetensors
+source masked_point_fraction: 0.0
+effective model_masked_point_fraction: 0.03125
+effective masked_patch_fraction: 0.03125
+[colab] Executing cell 17/19 - moment_imputation-38...
+tutorial masked-point MAE (pooled over channels): 0.6044750213623047
+tutorial masked-point RMSE (pooled over channels): 0.7803988456726074
+scored held-out cells: 16
+tutorial baseline (linear interpolation between the observed neighbours): {'mae': 0.052339069444444414, 'rmse': 0.06059228092221383}
+per-channel masked-point errors (model vs baseline; channel_std = spread of the channel):
+   temperature {"channel_std": 1.7762381554271525, "model": {"n": 8, "mae": 0.9538803100585938, "rmse": 1.0693073656722183}, "baseline": {"n": 8, "mae": 0.03226713888888888, "rmse": 0.038425031848224114}, "baseline_predictions_all_equal": false}
+   vibration {"channel_std": 0.25502597635191987, "model": {"n": 8, "mae": 0.2550697773694992, "rmse": 0.27317838821673324}, "baseline": {"n": 8, "mae": 0.07241099999999995, "rmse": 0.07659220549230789}, "baseline_predictions_all_equal": false}
+VERDICT: model WORSE than the baseline by 11.5x on this sample (pooled MAE 0.6045 vs baseline 0.0523)
+visible-point fidelity (reconstruction of points the model could see; Pearson near 1 = tracks the input):
+   temperature {"n": 248, "pearson": 0.08930038022208361, "mae_reconstruction": 1.6425441080524075, "mae_mean_predictor": 1.6434780013176702}
+   vibration {"n": 248, "pearson": 0.007626029924202593, "mae_reconstruction": 0.24971862089249394, "mae_mean_predictor": 0.226437173733385}
+{
+  "sample_kind": "synthetic",
+  "model_id": "AutonLab/MOMENT-1-base",
+  "model_revision": "9fea447e740eb968a9e8d80c7562ae122bdb5dde",
+  "task": "imputation",
+  "score_semantics": "reconstructed values at deliberately hidden, source-observed points; source-missing points have no truth",
+  "n_windows": 1,
+  "masked_point_fraction": 0.0,
+  "model_masked_point_fraction": 0.03125,
+  "masked_patch_fraction": 0.03125,
+  "n_scored": 16,
+  "metrics": [
+    {
+      "id": "masked_point_metrics",
+      "metric": "mae",
+      "value": 0.6044750213623047,
+      "estimation": "single deterministic artificial patch holdout on one sample; no dispersion"
+    },
+    {
+      "id": "masked_point_metrics",
+      "metric": "rmse",
+      "value": 0.7803988456726074,
+      "estimation": "single deterministic artificial patch holdout on one sample; no dispersion"
+    }
+  ],
+  "baselines": [
+    {
+      "id": "linear_interpolation",
+      "metrics": [
+        {
+          "id": "linear_interpolation",
+          "metric": "mae",
+          "value": 0.052339069444444414
+        },
+        {
+          "id": "linear_interpolation",
+          "metric": "rmse",
+          "value": 0.06059228092221383
+        }
+      ]
+    }
+  ],
+  "verdict": "sample-sanity",
+  "reason": "16 deliberately hidden points from one artificial holdout; not a benchmark",
+  "needs": "many artificial holdouts over held-out series of the deployment domain, compared against domain baselines, for any generalisable imputation claim",
+  "verdict_line": "model WORSE than the baseline by 11.5x on this sample",
+  "per_channel": {
+    "temperature": {
+      "channel_std": 1.7762381554271525,
+      "model": {
+        "n": 8,
+        "mae": 0.9538803100585938,
+        "rmse": 1.0693073656722183
+      },
+      "baseline": {
+        "n": 8,
+        "mae": 0.03226713888888888,
+        "rmse": 0.038425031848224114
+      },
+      "baseline_predictions_all_equal": false
+    },
+    "vibration": {
+      "channel_std": 0.25502597635191987,
+      "model": {
+        "n": 8,
+        "mae": 0.2550697773694992,
+        "rmse": 0.27317838821673324
+      },
+      "baseline": {
+        "n": 8,
+        "mae": 0.07241099999999995,
+        "rmse": 0.07659220549230789
+      },
+      "baseline_predictions_all_equal": false
+    }
+  },
+  "visible_point_fidelity": {
+    "temperature": {
+      "n": 248,
+      "pearson": 0.08930038022208361,
+      "mae_reconstruction": 1.6425441080524075,
+      "mae_mean_predictor": 1.6434780013176702
+    },
+    "vibration": {
+      "n": 248,
+      "pearson": 0.007626029924202593,
+      "mae_reconstruction": 0.24971862089249394,
+      "mae_mean_predictor": 0.226437173733385
+    }
+  }
+}
+[colab] Executing cell 18/19 - moment_imputation-41...
+SVGs written: ['outputs/moment_imputation_temperature.svg', 'outputs/moment_imputation_vibration.svg']
+    series_id           timestamp  ... reconstruction  model_hidden
+128         A 2026-01-02 08:00:00  ...      27.520466          True
+129         A 2026-01-02 08:15:00  ...      27.768532          True
+130         A 2026-01-02 08:30:00  ...      28.292137          True
+131         A 2026-01-02 08:45:00  ...      28.061331          True
+132         A 2026-01-02 09:00:00  ...      27.852053          True
+133         A 2026-01-02 09:15:00  ...      29.385286          True
+134         A 2026-01-02 09:30:00  ...      27.392271          True
+135         A 2026-01-02 09:45:00  ...      28.025679          True
+384         A 2026-01-02 08:00:00  ...       1.430274          True
+385         A 2026-01-02 08:15:00  ...       1.484875          True
+386         A 2026-01-02 08:30:00  ...       1.628229          True
+387         A 2026-01-02 08:45:00  ...       1.461549          True
+388         A 2026-01-02 09:00:00  ...       1.630659          True
+389         A 2026-01-02 09:15:00  ...       1.800623          True
+390         A 2026-01-02 09:30:00  ...       1.514437          True
+391         A 2026-01-02 09:45:00  ...       1.532198          True
+
+[16 rows x 7 columns]
+[colab] Executing cell 19/19 - moment_imputation-43...
+['moment_imputation_evaluation_report.json', 'moment_imputation_input_manifest.json', 'moment_imputation_metrics.json', 'moment_imputation_provenance.json', 'moment_imputation_result.json', 'moment_imputation_temperature.svg', 'moment_imputation_vibration.svg', 'moment_imputed_series.csv']
+[colab] Saving notebook with outputs to '/home/kurt/colab-runs/moment-pipeline-3b0cee5-82d8ed/moment_imputation_colab_3b0cee5_colab-cli-t4_output.ipynb'...

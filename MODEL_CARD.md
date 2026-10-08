@@ -36,7 +36,7 @@ This pipeline provides four ready-to-run interactive Google Colab notebooks — 
 
 - **Imputation Tutorial**:  
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_imputation_colab.ipynb) [`moment_imputation_colab.ipynb`](https://github.com/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_imputation_colab.ipynb)  
-  *Reconstruction-backed imputation: mask missing values, reconstruct them with the pretrained model, and score the reconstruction against ground truth.*
+  *Reconstruction-backed imputation contract: mask known values, reconstruct them with the pretrained model, and score the reconstruction against the withheld truth and a naive baseline. On the recorded runs of the synthetic sample the pinned base checkpoint scored worse than that baseline (a documented negative result the notebook prints as a verdict; see Public capability 2 below).*
 
 - **Anomaly Detection Tutorial**:  
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_anomaly_detection_colab.ipynb) [`moment_anomaly_detection_colab.ipynb`](https://github.com/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_anomaly_detection_colab.ipynb)  
@@ -253,6 +253,10 @@ This distinction prevents a tutorial imputation workflow from silently rewriting
 
 - source-missing cells, because no ground truth exists;
 - observed neighbour cells hidden only by patch expansion, because they were not deliberate evaluation targets.
+
+### Recorded result on the synthetic sample (a documented negative result)
+
+The imputation contract above is what this capability delivers; the *quality* of the imputed values on the repository's synthetic sample is not evidence in its favour. On every recorded run the pinned base checkpoint, called through `impute()`, scored worse than a naive same-support baseline on the deliberately hidden 8-step patch: the Kaggle CPU run of 2026-09-14 (trailing holdout) gave pooled MAE 1.121 against 0.171 for a last-value hold (temperature 2.047 vs 0.172, larger than that channel's standard deviation of 1.78; vibration 0.196 vs 0.170), and the notebook review of 2026-10-02 (local CPU, the same verified weights under `transformers 5.16.1` and under upstream's declared 4.33.3, identical to seven significant figures) rotated the holdout over all 32 patch positions of the sample and the model lost at every one (interior median MAE 0.99 vs 0.062). The reconstruction of points the model could see correlated with the truth at 0.087 (temperature) and 0.012 (vibration), no better than predicting the channel mean. The head tensors are proven live against the pinned file, so this is the behaviour of the pinned base checkpoint on this path, not a loading defect; whether it is a property of `MOMENT-1-base` itself or of the call convention used for the base model was not determined and remains an open repository question (a fidelity test on a fully visible sinusoid is the proposed check). The imputation tutorial therefore prints a model-vs-baseline verdict and a visible-point fidelity figure on every run, and its interpretation section reads the loss as such. No claim of working imputation on this sample, or on any other data, is made.
 
 ## Public capability 3 — anomaly scoring
 

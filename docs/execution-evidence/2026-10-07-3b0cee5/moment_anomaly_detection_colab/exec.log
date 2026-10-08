@@ -1,0 +1,194 @@
+[colab] Parsing notebook '/home/kurt/colab-runs/moment-pipeline-3b0cee5-bdc0ec/moment_anomaly_detection_colab_3b0cee5_colab-cli-t4.ipynb'...
+[colab] Executing cell 1/19 - Infrastructure: build (or reuse) the isolated environment and route later cells to it...
+{'isolated_environment': '/content/dimer_isolated_env_65c7f05290ca', 'reused': False, 'isolated_python': '3.12.12', 'kernel_python': '3.13.15', 'locked_packages': 61, 'setup_seconds': 68}
+{'routed_to': '/content/dimer_isolated_env_65c7f05290ca/bin/python', 'worker_pid': 959, 'worker_reused': False}
+[colab] Executing cell 2/19 - Infrastructure: record the runtime...
+{'notebook_source': {'repository': 'moment-pipeline', 'repository_revision': '39e80af416f03f298360239d691b08ea00301ce2', 'embedded_module': 'src/moment_pipeline/model.py', 'embedded_modules': ['src/moment_pipeline/config.py', 'src/moment_pipeline/model.py', 'src/moment_pipeline/validation.py', 'src/moment_pipeline/canonical.py', 'src/moment_pipeline/csvio.py', 'src/moment_pipeline/embedding.py', 'src/moment_pipeline/provenance.py', 'src/moment_pipeline/imputation.py', 'src/moment_pipeline/anomaly.py', 'src/moment_pipeline/roles.py'], 'module_sha256': 'd297e702f0b4970b1ab8f415ba21e524075bb0a42650e5df650431987ae789ec', 'generator': 'build_notebook.py/2.2', 'notebook_spec': '2.0'}, 'python': '3.12.12', 'executable': '/content/dimer_isolated_env_65c7f05290ca/bin/python', 'torch': '2.14.0+cu130', 'transformers': '5.16.1', 'pandas': '3.0.5', 'numpy': '2.5.3', 'cuda': True}
+[colab] Executing cell 3/19 - moment_anomaly_detection-08...
+[colab] Executing cell 4/19 - moment_anomaly_detection-10...
+[colab] Executing cell 5/19 - moment_anomaly_detection-12...
+[colab] Executing cell 6/19 - moment_anomaly_detection-14...
+[colab] Executing cell 7/19 - moment_anomaly_detection-16...
+[colab] Executing cell 8/19 - moment_anomaly_detection-18...
+[colab] Executing cell 9/19 - moment_anomaly_detection-20...
+[colab] Executing cell 10/19 - moment_anomaly_detection-22...
+[colab] Executing cell 11/19 - moment_anomaly_detection-24...
+[colab] Executing cell 12/19 - moment_anomaly_detection-26...
+[colab] Executing cell 13/19 - Infrastructure: stage and digest-verify the pinned snapshot, then load the model...
+{'model_id': 'AutonLab/MOMENT-1-base', 'revision': '9fea447e740eb968a9e8d80c7562ae122bdb5dde', 'license': 'MIT', 'files': 3, 'total_bytes': 453947418}
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+{'weights_dir': '/content/weights/moment-1-base', 'fetched': ['README.md', 'config.json', 'model.safetensors']}
+{'verified_files': 3, 'revision': '9fea447e740eb968a9e8d80c7562ae122bdb5dde'}
+Loading weights from local directory
+{'effective_model': 'AutonLab/MOMENT-1-base', 'revision': '9fea447e740eb968a9e8d80c7562ae122bdb5dde', 'task': 'reconstruction', 'device': 'cuda', 'dtype': 'float32', 'weight_file': 'model.safetensors', 'weights_dir': '/content/weights/moment-1-base', 'source': 'digest-verified local snapshot (fetched this run)'}
+[colab] Executing cell 14/19 - moment_anomaly_detection-30...
+{'sample_kind': 'synthetic', 'kind': 'synthetic', 'name': 'moment_anomaly.csv', 'sha256': '58855d8961c2b0547e27763ffc95976435180477c2d31f0e217f64bb6dd19c54', 'labels_name': 'moment_anomaly_labels.csv', 'labels_sha256': 'f35ec637441c72ee6a16d396c2e76b24de8a19c17ba62e415aefe1bfdc155f3e', 'rows': 512, 'columns': ['series_id', 'timestamp', 'channel', 'value']}
+  series_id            timestamp    channel     value
+0         A  2026-01-01T00:00:00  vibration  1.580000
+1         A  2026-01-01T00:15:00  vibration  1.642992
+2         A  2026-01-01T00:30:00  vibration  1.692108
+3         A  2026-01-01T00:45:00  vibration  1.727464
+4         A  2026-01-01T01:00:00  vibration  1.750687
+[colab] Executing cell 15/19 - moment_anomaly_detection-32...
+{'python': '3.12.12', 'torch': '2.14.0+cu130', 'device': 'cuda', 'dtype': 'float32'}
+{'ceilings': {'max_rows': 5000000, 'max_series': 1024, 'max_channels': 32, 'max_windows': 1024, 'sequence_length': 512, 'patch_length': 8}}
+{
+  "schema": {
+    "input": "long-format pandas DataFrame with columns series_id, timestamp, channel, value; one row per (series_id, channel, timestamp)",
+    "timestamps": "parseable and strictly increasing per (series_id, channel); irregular spacing is reported per series and refused when strict_frequency is set",
+    "values": "numeric; NaN marks a source-missing point. The NaN itself never reaches the model: the reconstruction paths (imputation, anomaly scoring) hide its whole patch from MOMENT, while the embedding path replaces it by prefill_value, which the encoder then sees as an observed value (embeddings are not missingness-aware)",
+    "sequence_length": 512,
+    "patch_length": 8,
+    "max_rows": 5000000,
+    "max_series": 1024,
+    "max_channels": 32,
+    "max_windows": 1024,
+    "canonicalisation": "one window per series: the final sequence_length timestamps are kept (longer series are truncated, shorter ones left-padded and the padding excluded by the input mask)"
+  },
+  "inputs": [
+    {
+      "id": "A::w0",
+      "series_id": "A",
+      "valid_positions": 256,
+      "padded": true,
+      "truncated": false
+    }
+  ],
+  "task": "reconstruction",
+  "n_rows": 512,
+  "n_series": 1,
+  "n_channels": 2,
+  "channels": [
+    "temperature",
+    "vibration"
+  ],
+  "irregular_series": [],
+  "window_shape": [
+    1,
+    2,
+    512
+  ],
+  "masked_point_fraction": 0.0,
+  "masked_patch_fraction": 0.0,
+  "verdict": "accepted",
+  "findings": [
+    {
+      "input": "empty-channel-probe",
+      "verdict": "rejected",
+      "code": "EMPTY_CHANNEL",
+      "message": "[EMPTY_CHANNEL] channel(s) ['vibration'] contain no observed values anywhere in the input"
+    }
+  ],
+  "model_id": "AutonLab/MOMENT-1-base",
+  "model_revision": "9fea447e740eb968a9e8d80c7562ae122bdb5dde"
+}
+window tensor: (1, 2, 512)
+padded windows: 1 / 1
+truncated windows: 0 / 1
+source missing fraction: 0.0
+NOTE: short input series were left-padded; padding is excluded by the input mask.
+[colab] Executing cell 16/19 - moment_anomaly_detection-34...
+effective model: AutonLab/MOMENT-1-base
+effective revision: 9fea447e740eb968a9e8d80c7562ae122bdb5dde
+verified weight file: model.safetensors
+score policy: unmasked self-reconstruction residual: the model reconstructs a window it can see in full and the residual is scored. NOT a forecast residual -- a drift the model reconstructs faithfully scores low by construction. Scores are raw and uncalibrated; this pipeline ships no binary threshold, and the residual scale depends on the series, so a threshold fitted on one series does not transfer to another
+threshold policy: none applied; raw scores only (RFC Task 3)
+scored fraction: 1.0
+  series_id window_id  ... anomaly_score scored
+0         A     A::w0  ...      2.066483   True
+1         A     A::w0  ...      1.489523   True
+2         A     A::w0  ...      1.061298   True
+3         A     A::w0  ...      1.623922   True
+4         A     A::w0  ...      1.616322   True
+
+[5 rows x 8 columns]
+per-channel residual scale (raw residuals are comparable only within one channel of one series):
+             scored_points  median_residual  max_residual
+channel                                                  
+temperature            256         1.623891      3.766319
+vibration              256         0.263892      4.005165
+[colab] Executing cell 17/19 - moment_anomaly_detection-37...
+ranked channel: vibration - the channel the label table names (vibration: the injected spikes are in it); an unlabelled user would not know this
+channels not ranked for the metric (their top residuals are listed below): ['temperature']
+    rank           timestamp  anomaly_score  is_injected_anomaly
+0      1 2026-01-03 10:15:00       4.005165                 True
+1      2 2026-01-03 02:15:00       2.879250                 True
+2      3 2026-01-02 22:00:00       2.632958                 True
+3      4 2026-01-03 00:45:00       0.813612                False
+4      5 2026-01-02 21:15:00       0.706542                False
+5      6 2026-01-01 05:15:00       0.675890                False
+6      7 2026-01-01 13:15:00       0.667168                False
+7      8 2026-01-01 21:15:00       0.667011                False
+8      9 2026-01-03 03:30:00       0.653751                False
+9     10 2026-01-03 10:45:00       0.607572                False
+10    11 2026-01-02 05:15:00       0.599567                False
+11    12 2026-01-01 15:15:00       0.596245                False
+injected ranks within vibration: [{'timestamp': Timestamp('2026-01-03 10:15:00'), 'rank': 1, 'anomaly_score': 4.005165100097656}, {'timestamp': Timestamp('2026-01-03 02:15:00'), 'rank': 2, 'anomaly_score': 2.8792498111724854}, {'timestamp': Timestamp('2026-01-02 22:00:00'), 'rank': 3, 'anomaly_score': 2.63295841217041}]
+tutorial top-3 recall (vibration): 1.0
+pooled all-channel ranking: injected points rank [1, 21, 45] of 512 scored positions; top-3 pooled recall: 0.3333333333333333
+pooled top 3 by channel: ['vibration', 'temperature', 'temperature']
+naive |z-score| baseline on vibration (same k = 3): top-k recall 1.0 injected ranks [1, 2, 3]
+VERDICT: model top-k recall 1.0 vs |z-score| baseline 1.0 - the model does not separate from a one-line statistic on this sample
+highest residuals of every channel (raw residuals are not comparable across channels):
+   temperature [('A', '2026-01-01 17:15:00', 3.7663), ('A', '2026-01-01 15:15:00', 3.6382), ('A', '2026-01-02 17:15:00', 3.5144)]
+   vibration [('A', '2026-01-03 10:15:00', 4.0052), ('A', '2026-01-03 02:15:00', 2.8792), ('A', '2026-01-02 22:00:00', 2.633)]
+{
+  "sample_kind": "synthetic",
+  "model_id": "AutonLab/MOMENT-1-base",
+  "model_revision": "9fea447e740eb968a9e8d80c7562ae122bdb5dde",
+  "task": "anomaly-scoring",
+  "score_semantics": "raw mae reconstruction residual per scored position; higher means more anomaly evidence; no threshold is shipped",
+  "n_windows": 1,
+  "scored_point_fraction": 1.0,
+  "threshold_policy": "none applied; raw scores only (RFC Task 3)",
+  "metrics": [
+    {
+      "id": "top_k_recall",
+      "k": 3,
+      "channel": "vibration",
+      "value": 1.0,
+      "estimation": "single labelled sample; no dispersion estimate"
+    }
+  ],
+  "baselines": [
+    {
+      "id": "abs_zscore",
+      "k": 3,
+      "channel": "vibration",
+      "metrics": [
+        {
+          "id": "abs_zscore",
+          "metric": "top_k_recall",
+          "value": 1.0
+        }
+      ]
+    }
+  ],
+  "verdict": "sample-sanity",
+  "reason": "3 labelled positions on one sample; not a benchmark",
+  "needs": "labelled anomalies from the deployment domain scored over many series, plus an operator-chosen threshold, for any generalisable detection claim",
+  "ranked_channel": {
+    "channel": "vibration",
+    "reason": "the channel the label table names (vibration: the injected spikes are in it); an unlabelled user would not know this",
+    "channels_not_ranked": [
+      "temperature"
+    ]
+  },
+  "per_channel_residuals": {
+    "temperature": {
+      "scored_points": 256,
+      "median_residual": 1.6238908767700195,
+      "max_residual": 3.7663192749023438
+    },
+    "vibration": {
+      "scored_points": 256,
+      "median_residual": 0.2638918161392212,
+      "max_residual": 4.005165100097656
+    }
+  }
+}
+[colab] Executing cell 18/19 - moment_anomaly_detection-40...
+SVGs written: ['outputs/moment_anomaly_scores_A.svg']
+[colab] Executing cell 19/19 - moment_anomaly_detection-42...
+['moment_anomaly_detection_evaluation_report.json', 'moment_anomaly_detection_input_manifest.json', 'moment_anomaly_detection_result.json', 'moment_anomaly_provenance.json', 'moment_anomaly_scores.csv', 'moment_anomaly_scores_A.svg']
+[colab] Saving notebook with outputs to '/home/kurt/colab-runs/moment-pipeline-3b0cee5-bdc0ec/moment_anomaly_detection_colab_3b0cee5_colab-cli-t4_output.ipynb'...

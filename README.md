@@ -67,7 +67,7 @@ See `tutorials/README.md` for the registry and `docs/release-verification.md` fo
 
 ## Release status
 
-**Release-grade** — all four standalone tutorials have a clean-runtime execution of their exact committed blob recorded in `docs/release-verification.md` and `STATUS.md`: the three `TASK-INFERENCE` notebooks on Kaggle CPU (2026-09-14) and the `E2E` classification notebook blob `7c5c3732` (committed at `ac2f9ef`) on a clean Kaggle Tesla T4 runtime on 2026-09-19 (20/20 ok (1 restart after install cell), 294.3 s). Static and unit checks — including the standalone generator parity checks — are necessary but were never the evidence; the hosted runs are. A later change to the carried modules or a notebook returns that notebook to Candidate until re-verified.
+**Candidate** — the four standalone tutorials were regenerated at `3b0cee5` (anomaly detection `fe88efc016c8`, classification `7b70813b2417`, embeddings `7bfc3151e54e`, imputation `50746e514d6b`); each new blob passed a Colab CLI 0.7.4 sequential execution on a fresh Colab Tesla T4 in one pass, no restart, 0 errors (2026-10-07/08, default path only), recorded in `docs/release-verification.md`. Static and unit checks — including the standalone generator parity checks — are necessary but were never the evidence; the hosted runs are. Promotion to Release-grade is a review decision against `docs/release-verification.md` for the exact release revision.
 
 ## Installation and tests
 

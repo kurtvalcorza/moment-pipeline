@@ -39,7 +39,12 @@ INPUT_SCHEMA: dict[str, Any] = {
         "parseable and strictly increasing per (series_id, channel); irregular spacing is "
         "reported per series and refused when strict_frequency is set"
     ),
-    "values": "numeric; NaN marks a source-missing point, which never reaches the model",
+    "values": (
+        "numeric; NaN marks a source-missing point. The NaN itself never reaches the model: "
+        "the reconstruction paths (imputation, anomaly scoring) hide its whole patch from "
+        "MOMENT, while the embedding path replaces it by prefill_value, which the encoder "
+        "then sees as an observed value (embeddings are not missingness-aware)"
+    ),
     "sequence_length": SEQUENCE_LENGTH,
     "patch_length": PATCH_LENGTH,
     "max_rows": _DEFAULT_LIMITS.max_rows,
@@ -133,6 +138,7 @@ def evaluation_report(
     sample_kind: str = "synthetic",
     channel: str | None = None,
     baseline: dict[str, float] | None = None,
+    baseline_id: str = "linear_interpolation",
 ) -> dict[str, Any]:
     """Evaluation stage: a machine-readable report even when nothing is measurable.
 
@@ -141,12 +147,15 @@ def evaluation_report(
     - `ReconstructionResult`: when the result carries a deliberate artificial mask,
       `masked_point_metrics` (MAE/RMSE on the deliberately hidden, source-observed points) is
       reported with the verdict `sample-sanity`; an optional tutorial `baseline`
-      (`{"mae": ..., "rmse": ...}`, e.g. linear interpolation) is carried under `baselines`.
+      (`{"mae": ..., "rmse": ...}`) is carried under `baselines` with the id `baseline_id`
+      (default `linear_interpolation`; a trailing holdout should name `last_value_hold`).
       Without a deliberate mask nothing has known withheld truth and the verdict is
       `not-measurable`.
     - `AnomalyResult`: with `labels` (`series_id`, `timestamp`, `is_injected_anomaly`) the
       `top_k_recall` of the raw-score ranking on `channel` is reported with the verdict
-      `sample-sanity`; without labels the verdict is `not-measurable`.
+      `sample-sanity`; an optional naive `baseline` (`{"top_k_recall": ...}`, e.g. a |z-score|
+      ranking on the same channel and k) is carried under `baselines` with the id
+      `baseline_id`. Without labels the verdict is `not-measurable`.
     Everything the metric helpers would raise is raised here unchanged.
     """
     base: dict[str, Any] = {"sample_kind": sample_kind, **_identity_block(model)}
@@ -193,9 +202,9 @@ def evaluation_report(
         if baseline is not None:
             baselines.append(
                 {
-                    "id": "linear_interpolation",
+                    "id": baseline_id,
                     "metrics": [
-                        {"id": "linear_interpolation", "metric": key, "value": float(value)}
+                        {"id": baseline_id, "metric": key, "value": float(value)}
                         for key, value in baseline.items()
                     ],
                 }
@@ -249,6 +258,19 @@ def evaluation_report(
                 "operator-calibrated threshold from the deployment domain",
             )
         recall = top_k_recall(result.to_frame(), labels, channel=channel)
+        anomaly_baselines = []
+        if baseline is not None:
+            anomaly_baselines.append(
+                {
+                    "id": baseline_id,
+                    "k": recall["k"],
+                    "channel": recall["channel"],
+                    "metrics": [
+                        {"id": baseline_id, "metric": key, "value": float(value)}
+                        for key, value in baseline.items()
+                    ],
+                }
+            )
         return {
             **report_base,
             "metrics": [
@@ -260,7 +282,7 @@ def evaluation_report(
                     "estimation": "single labelled sample; no dispersion estimate",
                 }
             ],
-            "baselines": [],
+            "baselines": anomaly_baselines,
             "verdict": "sample-sanity",
             "reason": f"{recall['k']} labelled positions on one sample; not a benchmark",
             "needs": (

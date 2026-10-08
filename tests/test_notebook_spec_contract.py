@@ -112,7 +112,8 @@ def test_embeddings_tutorial_carries_representation_semantics() -> None:
     lower = markdown.lower()
     assert "no intrinsic accuracy metric" in lower
     assert "embeddings are representations, not predictions" in lower
-    assert "missing" in lower and "visible to the encoder" in lower
+    # MEM-M2: the pre-filled value is data to the encoder
+    assert "missing" in lower and "seen by the encoder as data" in lower
     assert "embedding shape" in code
     assert "moment_embeddings.csv" in code
 
