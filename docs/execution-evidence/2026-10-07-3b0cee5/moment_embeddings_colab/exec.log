@@ -1,0 +1,137 @@
+[colab] Parsing notebook '/home/kurt/colab-runs/moment-pipeline-3b0cee5-cb4ec2/moment_embeddings_colab_3b0cee5_colab-cli-t4.ipynb'...
+[colab] Executing cell 1/19 - Infrastructure: build (or reuse) the isolated environment and route later cells to it...
+{'isolated_environment': '/content/dimer_isolated_env_65c7f05290ca', 'reused': False, 'isolated_python': '3.12.12', 'kernel_python': '3.13.15', 'locked_packages': 61, 'setup_seconds': 58}
+{'routed_to': '/content/dimer_isolated_env_65c7f05290ca/bin/python', 'worker_pid': 2021, 'worker_reused': False}
+[colab] Executing cell 2/19 - Infrastructure: record the runtime...
+{'notebook_source': {'repository': 'moment-pipeline', 'repository_revision': '39e80af416f03f298360239d691b08ea00301ce2', 'embedded_module': 'src/moment_pipeline/model.py', 'embedded_modules': ['src/moment_pipeline/config.py', 'src/moment_pipeline/model.py', 'src/moment_pipeline/validation.py', 'src/moment_pipeline/canonical.py', 'src/moment_pipeline/csvio.py', 'src/moment_pipeline/embedding.py', 'src/moment_pipeline/provenance.py', 'src/moment_pipeline/imputation.py', 'src/moment_pipeline/anomaly.py', 'src/moment_pipeline/roles.py'], 'module_sha256': 'd297e702f0b4970b1ab8f415ba21e524075bb0a42650e5df650431987ae789ec', 'generator': 'build_notebook.py/2.2', 'notebook_spec': '2.0'}, 'python': '3.12.12', 'executable': '/content/dimer_isolated_env_65c7f05290ca/bin/python', 'torch': '2.14.0+cu130', 'transformers': '5.16.1', 'pandas': '3.0.5', 'numpy': '2.5.3', 'cuda': True}
+[colab] Executing cell 3/19 - moment_embeddings-08...
+[colab] Executing cell 4/19 - moment_embeddings-10...
+[colab] Executing cell 5/19 - moment_embeddings-12...
+[colab] Executing cell 6/19 - moment_embeddings-14...
+[colab] Executing cell 7/19 - moment_embeddings-16...
+[colab] Executing cell 8/19 - moment_embeddings-18...
+[colab] Executing cell 9/19 - moment_embeddings-20...
+[colab] Executing cell 10/19 - moment_embeddings-22...
+[colab] Executing cell 11/19 - moment_embeddings-24...
+[colab] Executing cell 12/19 - moment_embeddings-26...
+[colab] Executing cell 13/19 - Infrastructure: stage and digest-verify the pinned snapshot, then load the model...
+{'model_id': 'AutonLab/MOMENT-1-base', 'revision': '9fea447e740eb968a9e8d80c7562ae122bdb5dde', 'license': 'MIT', 'files': 3, 'total_bytes': 453947418}
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+{'weights_dir': '/content/weights/moment-1-base', 'fetched': ['README.md', 'config.json', 'model.safetensors']}
+{'verified_files': 3, 'revision': '9fea447e740eb968a9e8d80c7562ae122bdb5dde'}
+Loading weights from local directory
+/content/dimer_isolated_env_65c7f05290ca/lib/python3.12/site-packages/momentfm/models/moment.py:174: UserWarning: Only reconstruction head is pre-trained. Classification and forecasting heads must be fine-tuned.
+  warnings.warn("Only reconstruction head is pre-trained. Classification and forecasting heads must be fine-tuned.")
+{'effective_model': 'AutonLab/MOMENT-1-base', 'revision': '9fea447e740eb968a9e8d80c7562ae122bdb5dde', 'task': 'embedding', 'device': 'cuda', 'dtype': 'float32', 'weight_file': 'model.safetensors', 'weights_dir': '/content/weights/moment-1-base', 'source': 'digest-verified local snapshot (fetched this run)'}
+[colab] Executing cell 14/19 - moment_embeddings-30...
+{'sample_kind': 'synthetic', 'kind': 'synthetic', 'name': 'moment_clean.csv', 'sha256': '34fc475828d2f62108b340efd255501a898577be11286c034da2e0f766ee963c', 'rows': 512, 'columns': ['series_id', 'timestamp', 'channel', 'value']}
+  series_id            timestamp    channel     value
+0         A  2026-01-01T00:00:00  vibration  1.580000
+1         A  2026-01-01T00:15:00  vibration  1.642992
+2         A  2026-01-01T00:30:00  vibration  1.692108
+3         A  2026-01-01T00:45:00  vibration  1.727464
+4         A  2026-01-01T01:00:00  vibration  1.750687
+[colab] Executing cell 15/19 - moment_embeddings-32...
+{'python': '3.12.12', 'torch': '2.14.0+cu130', 'device': 'cuda', 'dtype': 'float32'}
+{'ceilings': {'max_rows': 5000000, 'max_series': 1024, 'max_channels': 32, 'max_windows': 1024, 'sequence_length': 512, 'patch_length': 8}}
+{
+  "schema": {
+    "input": "long-format pandas DataFrame with columns series_id, timestamp, channel, value; one row per (series_id, channel, timestamp)",
+    "timestamps": "parseable and strictly increasing per (series_id, channel); irregular spacing is reported per series and refused when strict_frequency is set",
+    "values": "numeric; NaN marks a source-missing point. The NaN itself never reaches the model: the reconstruction paths (imputation, anomaly scoring) hide its whole patch from MOMENT, while the embedding path replaces it by prefill_value, which the encoder then sees as an observed value (embeddings are not missingness-aware)",
+    "sequence_length": 512,
+    "patch_length": 8,
+    "max_rows": 5000000,
+    "max_series": 1024,
+    "max_channels": 32,
+    "max_windows": 1024,
+    "canonicalisation": "one window per series: the final sequence_length timestamps are kept (longer series are truncated, shorter ones left-padded and the padding excluded by the input mask)"
+  },
+  "inputs": [
+    {
+      "id": "A::w0",
+      "series_id": "A",
+      "valid_positions": 256,
+      "padded": true,
+      "truncated": false
+    }
+  ],
+  "task": "embedding",
+  "n_rows": 512,
+  "n_series": 1,
+  "n_channels": 2,
+  "channels": [
+    "temperature",
+    "vibration"
+  ],
+  "irregular_series": [],
+  "window_shape": [
+    1,
+    2,
+    512
+  ],
+  "masked_point_fraction": 0.0,
+  "masked_patch_fraction": 0.0,
+  "verdict": "accepted",
+  "findings": [
+    {
+      "input": "empty-channel-probe",
+      "verdict": "rejected",
+      "code": "EMPTY_CHANNEL",
+      "message": "[EMPTY_CHANNEL] channel(s) ['vibration'] contain no observed values anywhere in the input"
+    }
+  ],
+  "model_id": "AutonLab/MOMENT-1-base",
+  "model_revision": "9fea447e740eb968a9e8d80c7562ae122bdb5dde"
+}
+window tensor: (1, 2, 512)
+padded windows: 1 / 1
+truncated windows: 0 / 1
+source missing fraction: 0.0
+NOTE: short input series were left-padded; padding is excluded by the input mask.
+[colab] Executing cell 16/19 - moment_embeddings-35...
+effective model: AutonLab/MOMENT-1-base
+effective revision: 9fea447e740eb968a9e8d80c7562ae122bdb5dde
+verified weight file: model.safetensors
+embedding shape: (1, 768)
+reduction: mean
+channel policy: channels are averaged inside momentfm before patch pooling (reduction='mean'); the result is one vector per window, not one per channel
+per-point missingness mask passed to model: False (pre-filled values ARE seen as data)
+missingness policy: NOT missingness-aware: upstream MOMENT.embed accepts no per-point observedness mask (input_mask is the padding mask), so pre-filled positions are seen by the encoder as observed values and enter RevIN and the patch embedding as data. An embedding of a window containing missing data equals the embedding of the same window with the prefill_value written into those positions. masked_point_fraction / masked_patch_fraction are the only record that any of it was fabricated
+source missing fraction of these windows: 0.0
+embedding L2 norm over all 1 window(s) (finiteness check only): min 7.2180963780512934 max 7.2180963780512934 all finite: True
+[colab] Executing cell 17/19 - moment_embeddings-38...
+missing_fraction_of_window: 0.125
+per_point_mask_passed_to_model: False
+cosine_clean_vs_missing: 0.9069126686144082
+l2_clean_vs_missing: 3.3092105794051654
+cosine_clean_vs_interpolated: 0.9999997886197838
+l2_clean_vs_interpolated: 0.004694394843481789
+max_abs_diff_missing_vs_zeros_written: 0.0
+closer to the clean vector: interpolated copy; zeros written into the gaps give the same vector as leaving them missing
+[colab] Executing cell 18/19 - moment_embeddings-41...
+{
+  "sample_kind": "synthetic",
+  "model_id": "AutonLab/MOMENT-1-base",
+  "model_revision": "9fea447e740eb968a9e8d80c7562ae122bdb5dde",
+  "task": "embedding",
+  "score_semantics": "768-dimensional mean-pooled window representations; not predictions, no correctness metric exists",
+  "n_windows": 1,
+  "embedding_shape": [
+    1,
+    768
+  ],
+  "metrics": [],
+  "baselines": [],
+  "verdict": "not-measurable",
+  "reason": "embeddings are representations, not predictions",
+  "needs": "a downstream labelled task (e.g. window classes or retrieval pairs) scored by a probe or nearest-neighbour evaluation on held-out labels"
+}
+Embeddings are representations, not predictions; no correctness metric is computed.
+[colab] Executing cell 19/19 - moment_embeddings-43...
+  series_id window_id  embedding_0  ...  embedding_3  embedding_4  embedding_5
+0         A     A::w0      0.00387  ...    -0.024666    -0.028271    -0.005095
+
+[1 rows x 8 columns]
+['moment_embeddings.csv', 'moment_embeddings_evaluation_report.json', 'moment_embeddings_input_manifest.json', 'moment_embeddings_provenance.json', 'moment_embeddings_result.json']
+[colab] Saving notebook with outputs to '/home/kurt/colab-runs/moment-pipeline-3b0cee5-cb4ec2/moment_embeddings_colab_3b0cee5_colab-cli-t4_output.ipynb'...
