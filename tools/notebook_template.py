@@ -406,6 +406,8 @@ TEMPLATE = {
         '\n'
         '**Next experiments:** change `MISSING_STRIDE` in Section 6b (4 = 25 % missing, 16 = 6.25 %) and watch the two distances; multiply the sample by 10 and add 5 before Section 5 and confirm the vector does not move (RevIN); compare downstream linear-probe or retrieval performance on clean versus missingness-bearing windows; evaluate task-specific representations on an independent labelled dataset; enable `USE_BYOD` with a multi-series CSV and inspect how padding and truncation are disclosed in the input manifest.\n'
         '\n'
+        '**Pretraining overlap (BYOD).** MOMENT was pretrained on the Time-series Pile, which includes public benchmark series such as ETT, Weather, Electricity, Traffic, the UCR/UEA archives and Monash; a zero-shot score on one of those, brought in as your own data, is therefore optimistic. The default sample is generated in code by this notebook and cannot be in the Pile.\n'
+        '\n'
         '## Troubleshooting\n\n'
         '- **Section 1 stops with "This notebook needs a Linux x86_64 runtime"** — use Google Colab, Kaggle or a Linux x86_64 Jupyter server.\n'
         '- **The uv wheel fails its size/SHA-256 check, or a download in Section 1 times out** — run Section 1 again; a complete environment is reused and an incomplete one is finished. If it repeats, `files.pythonhosted.org` or `pypi.org` is blocked or altered.\n'

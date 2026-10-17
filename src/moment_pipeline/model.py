@@ -2,7 +2,7 @@
 
 The standard path is deliberately narrow (RFC "Supply-chain invariants"):
 
-1. only `AutonLab/MOMENT-1-large` at revision `9fea447e…` is accepted — `main`, `latest`,
+1. only `AutonLab/MOMENT-1-large` at revision `ca58581b…` is accepted — `main`, `latest`,
    any other sha, a local directory and any `s3://` / URL source are refused *before*
    any network call;
 2. the resolved snapshot directory must be named after the pinned commit;

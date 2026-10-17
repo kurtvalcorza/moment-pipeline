@@ -125,8 +125,12 @@ def test_evaluation_report_imputation_sample_sanity_with_an_artificial_mask() ->
     assert report["n_scored"] == 8
     by_metric = {m["metric"]: m["value"] for m in report["metrics"]}
     assert set(m["id"] for m in report["metrics"]) == {"masked_point_metrics"}
-    assert by_metric["mae"] == pytest.approx(1.0)
-    assert by_metric["rmse"] == pytest.approx(1.0)
+    # The offset stub returns x_enc + 1; hidden positions now reach it as the pre-fill sentinel (review m3),
+    # so its "imputation" there is prefill + 1 and the metric is the error of that against the truth.
+    truth = windows.x_enc[0, :, 504:512].astype(float)
+    errors = (windows.prefill_value + 1.0) - truth
+    assert by_metric["mae"] == pytest.approx(float(np.abs(errors).mean()), rel=1e-5)
+    assert by_metric["rmse"] == pytest.approx(float(np.sqrt((errors**2).mean())), rel=1e-5)
     assert report["baselines"][0]["id"] == "linear_interpolation"
     assert {m["metric"]: m["value"] for m in report["baselines"][0]["metrics"]} == {"mae": 0.25, "rmse": 0.3}
 

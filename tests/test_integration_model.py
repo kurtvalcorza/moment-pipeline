@@ -468,3 +468,59 @@ def test_provenance_of_a_real_anomaly_run(reconstruction_model):
     frame = result.to_frame()
     assert len(frame) == 512
     assert set(frame["channel"]) == {"max"}
+
+
+def _sine_windows(prefill_holdout: bool = False):
+    import pandas as pd
+
+    from moment_pipeline.canonical import to_windows as _to_windows
+    from moment_pipeline.config import MomentConfig
+    from moment_pipeline.validation import validate_long_frame
+
+    t = np.arange(512, dtype=float)
+    values = np.sin(2 * np.pi * t / 32.0) + 0.002 * t
+    stamps = pd.date_range("2026-01-01", periods=512, freq="15min")
+    frame = pd.DataFrame({"series_id": "S", "timestamp": stamps, "channel": "c", "value": values})
+    config = MomentConfig(task="reconstruction")
+    report, normalized = validate_long_frame(frame, config)
+    return _to_windows(normalized, config, report=report, frame=normalized), values
+
+
+def test_reconstruction_head_reconstructs_a_clean_sine(reconstruction_model):
+    """Review M4: the failure RFC 0001 Amendment 1 fixed (the MOMENT-1-base head returned values
+    uncorrelated with
+    its input) must not come back with a re-pin or a library bump. Amendment 1 recorded sine
+    Pearson 0.986."""
+    windows, values = _sine_windows()
+    unmasked = reconstruct(windows, reconstruction_model, warmup=False).reconstruction[0, 0]
+    unmasked = unmasked.astype(float)
+    assert np.corrcoef(values, unmasked)[0, 1] > 0.95
+    visible = np.ones_like(windows.input_mask, dtype=np.float32)
+    visible[0, 384:392] = 0
+    masked = reconstruct(windows, reconstruction_model, mask=visible, warmup=False)
+    masked = masked.reconstruction[0, 0].astype(float)
+    hidden = slice(384, 392)
+    model_mae = np.abs(masked[hidden] - values[hidden]).mean()
+    visible_mean = np.delete(values, np.arange(384, 392)).mean()
+    mean_predictor_mae = np.abs(visible_mean - values[hidden]).mean()
+    assert model_mae < mean_predictor_mae
+
+
+def test_hidden_values_cannot_reach_the_reconstruction(reconstruction_model):
+    """Review m3: randomising the deliberately hidden values leaves the reconstruction unchanged
+    (atol 1e-6)."""
+    windows, _ = _sine_windows()
+    visible = np.ones_like(windows.input_mask, dtype=np.float32)
+    visible[0, 384:392] = 0
+    reference = reconstruct(windows, reconstruction_model, mask=visible, warmup=False)
+    hidden = np.broadcast_to((reference.model_mask == 0)[:, None, :], windows.x_enc.shape)
+    rng = np.random.default_rng(0)
+    for _ in range(3):
+        x = windows.x_enc.copy()
+        x[hidden] = rng.normal(0.0, 50.0, size=int(hidden.sum())).astype(np.float32)
+        perturbed = reconstruct(
+            dataclasses.replace(windows, x_enc=x), reconstruction_model, mask=visible, warmup=False
+        )
+        np.testing.assert_allclose(
+            perturbed.reconstruction, reference.reconstruction, atol=1e-6, rtol=0
+        )

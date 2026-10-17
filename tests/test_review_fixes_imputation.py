@@ -282,8 +282,10 @@ def test_mim_m6_opening_documents_both_executor_variables_and_byod_field(nb: dic
 def test_mim_b1_prose_reads_the_loss_and_the_registry_no_longer_claims_working_imputation(nb: dict) -> None:
     md = _markdown(nb)
     # RFC 0001 Amendment 1 / T57-M1: the loss is still read as such, and its MOMENT-1-base cause is determined
-    assert "What the numbers say, and why this notebook uses MOMENT-1-large" in md
-    assert "reconstruction head, which does not reconstruct" in md
+    assert "**What the numbers say.**" in md and "**Why MOMENT-1-large.**" in md
+    assert "strongly indicated not to reconstruct" in md and "diagnose_reconstruction_head.py" in md
+    assert "not a broken model" not in md and "is **not established**" in md
+    assert "about equal" in md and "scale-free" in md
     assert "open repository question" not in md and "4.33.3" not in md
     assert "that MOMENT beats the interpolation baseline reliably" not in md
     registry = (ROOT / "tutorials" / "README.md").read_text(encoding="utf-8")

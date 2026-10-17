@@ -271,7 +271,16 @@ def reconstruct(
         )
 
     device = model.identity.device
-    x_all = torch.from_numpy(windows.x_enc)
+    # Defence in depth (review m3): every position MOMENT is told to hide is overwritten with the
+    # finite pre-fill sentinel before the tensor reaches the model. Upstream already swaps masked
+    # patches for its mask embedding and excludes them from RevIN statistics, so no output changes;
+    # this makes "the model cannot see the held-out truth" true by construction here as well.
+    model_input = np.where(
+        np.broadcast_to(model_mask[:, None, :] == 0, windows.x_enc.shape),
+        np.float32(windows.prefill_value),
+        windows.x_enc,
+    ).astype(np.float32)
+    x_all = torch.from_numpy(model_input)
     input_all = torch.from_numpy(windows.input_mask)
     mask_all = torch.from_numpy(model_mask)
 

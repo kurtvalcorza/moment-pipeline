@@ -682,8 +682,9 @@ the deferred items do not change.
 
 The base *encoder* is informative: a ridge readout fitted on its frozen states reconstructs held-out patches with
 R² 0.904. The pipeline's call equals upstream's documented `forward` (max |diff| 1.9e-6), and `transformers` 4.54.1
-(upstream's declared minimum at the pinned `momentfm` commit) and 5.16.1 agree to 6 d.p. So the failure belongs to
-the checkpoint, not to this repository. `AutonLab/MOMENT-1-large` passes the same checks through identical code (sine
+(upstream's declared minimum at the pinned `momentfm` commit) and 5.16.1 agree to 6 d.p. The evidence therefore strongly indicates
+that the failure belongs to the checkpoint, not to this repository; it has not been confirmed upstream (an issue
+text is drafted, not posted), and a checkpoint/config mismatch inside `momentfm` for base has not been ruled out by name. `AutonLab/MOMENT-1-large` passes the same checks through identical code (sine
 Pearson 0.986).
 
 Imputation and anomaly scoring are the reconstruction capabilities, and the fleet keeps one pinned model per pipeline
@@ -710,3 +711,25 @@ repository. The owner therefore moved the whole repository to the large checkpoi
 - Every number recorded for the base checkpoint (tutorial worked answers, release evidence) belongs to that
   checkpoint. It is kept as history and labelled with its revision, never presented as large's result.
 - New hosted evidence is required for all four notebooks before any release status is claimed.
+
+**Forensic detail and reproduction (added 2026-10-17, round 3).** `scripts/diagnose_reconstruction_head.py`
+reproduces the clean-sine diagnostic. It defaults to the pinned checkpoint; `--hub-model`/`--hub-revision` compare
+another checkpoint. The tutorial-triage review's CPU evidence for MOMENT-1-base @ `9fea447e` was:
+
+- visible-point Pearson -0.005 on a clean, unpadded 512-step sine with nothing masked;
+- median -0.019 on upstream's ETTh1 tutorial windows (4 windows × 7 channels, 25 % masked; masked MAE 0.629 against
+  0.505 for linear interpolation);
+- the same failure for MOMENT-1-small @ `411e2882`;
+- a ridge readout fitted on frozen base encoder states reaching held-out R² 0.904, against -0.232 for the shipped head;
+- this pipeline's call matching upstream `forward` to 1.9e-6;
+- the loaded head equal to the head in the file, with `head.linear.weight` Frobenius norm 3.9881.
+
+**Decision basis.** The switch was decided on this clean-sine diagnostic, which is independent of the tutorials'
+synthetic samples. Tutorial scores were not compared to choose a checkpoint.
+
+**Review round 3 (2026-10-17).**
+- The imputation verdict is now scale-free: per-channel MAE is divided by the channel's spread, the verdict is printed
+  per channel, and a pooled verdict is computed on the scaled values. Raw pooled MAE is secondary.
+- Hidden positions reach the model as the pre-fill sentinel.
+- A real-weights integration test asserts that the head reconstructs a clean sine, and another asserts that
+  randomised hidden values leave the reconstruction unchanged (atol 1e-6).
