@@ -65,14 +65,14 @@ def verify(root: Path, **overrides):
 
 
 def test_pinned_constants_match_the_rfc():
-    assert PINNED_MODEL_ID == "AutonLab/MOMENT-1-base"
-    assert PINNED_REVISION == "9fea447e740eb968a9e8d80c7562ae122bdb5dde"
+    assert PINNED_MODEL_ID == "AutonLab/MOMENT-1-large"
+    assert PINNED_REVISION == "ca58581bc7bea2ebed4e80dc0a3e4b8b609c6ecc"
     assert PINNED_WEIGHTS_SHA256 == (
-        "1a436826ffe618273ec62b9656dc4cab8edc470364f104e90542a4ebc14fb825"
+        "a56928052ac6f5d09b97c3834bea6ce3aef9f02b513b5fac98954e7377801572"
     )
-    assert PINNED_WEIGHTS_BYTES == 453_940_120
+    assert PINNED_WEIGHTS_BYTES == 1_385_501_256
     assert PINNED_CONFIG_SHA256 == (
-        "f1c66c2bb845229c0ed27a1600dbcc956b85ab21f9e5fd8a1663e6641bed7755"
+        "b0111650e8718e31d7e89575666aa3e140747d35279ec1a7c9f6ed7616c29433"
     )
 
 
@@ -96,8 +96,8 @@ def test_pinned_source_accepted():
         (PINNED_MODEL_ID, "v1"),
         (PINNED_MODEL_ID, "0000000000000000000000000000000000000000"),
         (PINNED_MODEL_ID, PINNED_REVISION.upper()),
-        ("AutonLab/MOMENT-1-large", PINNED_REVISION),
-        ("autonlab/moment-1-base", PINNED_REVISION),
+        ("AutonLab/MOMENT-1-base", PINNED_REVISION),
+        ("autonlab/moment-1-large", PINNED_REVISION),
         ("s3://my-bucket/moment", PINNED_REVISION),
         ("https://huggingface.co/AutonLab/MOMENT-1-base", PINNED_REVISION),
         ("./local-copy", PINNED_REVISION),
@@ -314,7 +314,7 @@ def test_load_moment_refuses_an_unsupported_device_before_any_download(monkeypat
 @pytest.mark.parametrize("dtype", ["int8", "float64", "fp16", ""])
 def test_load_moment_refuses_an_unsupported_dtype_before_any_download(monkeypatch, dtype):
     """Pre-fix this surfaced as a bare `KeyError` from the dtype dict literal, and only
-    after the 454 MB snapshot had been fetched and the model constructed."""
+    after the 1.39 GB snapshot had been fetched and the model constructed."""
 
     def explode(**kwargs):  # pragma: no cover - must never run
         raise AssertionError("no download for an invalid configuration")

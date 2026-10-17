@@ -104,8 +104,8 @@ class _StandIn(torch.nn.Module):
 
 def _model(d_model: int = 16, task: str = "embedding") -> LoadedMoment:
     identity = ModelIdentity(
-        name="AutonLab/MOMENT-1-base",
-        revision="9fea447e740eb968a9e8d80c7562ae122bdb5dde",
+        name="AutonLab/MOMENT-1-large",
+        revision="ca58581bc7bea2ebed4e80dc0a3e4b8b609c6ecc",
         config_sha256="c" * 64,
         weights_sha256="w" * 64,
         weights_bytes=1,

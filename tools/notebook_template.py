@@ -37,7 +37,7 @@ TEMPLATE = {
     # MEM-m3: the upstream warning printed while loading is expected and refers to task heads, not the encoder.
     "model_section_note": "The loader prints upstream's warning *\"Only reconstruction head is pre-trained. Classification and forecasting heads must be fine-tuned.\"* — expected, and not a problem for this notebook: the `task=\"embedding\"` instance replaces the head by an identity (`nn.Identity`), so the vectors come from the pretrained encoder alone and nothing untrained is involved.",
     'pipeline_class': 'LoadedMoment',
-    'weights_key': 'moment-1-base',
+    'weights_key': 'moment-1-large',
     'modules': ['anomaly.py', 'canonical.py', 'config.py', 'csvio.py', 'embedding.py', 'imputation.py', 'model.py', 'provenance.py', 'roles.py', 'validation.py'],
     'entry_module': 'model.py',
     'model_load': 'load_moment(task="embedding", weights_dir=WEIGHTS_DIR)',
@@ -56,8 +56,8 @@ TEMPLATE = {
         ),
         (
             'Hugging Face',
-            'https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-AutonLab%2FMOMENT--1--base-ffcc4d?style=flat',
-            'https://huggingface.co/AutonLab/MOMENT-1-base',
+            'https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-AutonLab%2FMOMENT--1--large-ffcc4d?style=flat',
+            'https://huggingface.co/AutonLab/MOMENT-1-large',
         ),
         (
             'Upstream',
@@ -71,13 +71,13 @@ TEMPLATE = {
         ),
     ],
     'capability': (
-        'pretrained time-series representation extraction (pooled window embeddings) with the pinned `AutonLab/MOMENT-1-base` encoder'
+        'pretrained time-series representation extraction (pooled window embeddings) with the pinned `AutonLab/MOMENT-1-large` encoder'
     ),
     'intro': (
         "This notebook extracts pooled representations from the pretrained MOMENT encoder through the repository's public `moment_pipeline` API, carried in this notebook. **No gradient training, fine-tuning, in-context conditioning, or fitted preprocessing occurs** — **no adaptation occurs:** input validation/canonicalization is deterministic preprocessing only. **Upstream vs. this repository.** Upstream MOMENT supplies the pretrained encoder and embedding operation. This repository supplies the immutable model pin, safetensors integrity checks, long-format input validation/canonicalization, missingness disclosures, output schema, and provenance export. Embeddings are representations, not predictions: there is no intrinsic accuracy metric, and the evaluation report says so."
     ),
     "guided": {"opening": [(
-        '**Who this notebook is for.** A learner who knows basic Python and pandas, has used Colab or Jupyter and has met time-series data, and wants to see how a pretrained time-series foundation model is used without any training — what goes in, what comes out, and what the output does and does not prove. The audience is students and practitioners preparing their own sensor or monitoring series; no prior experience with MOMENT is assumed — each term is explained where it first matters and again in the **Glossary**. CPU is enough.\n\n**Input → Model → Output.**\n\n| | |\n|---|---|\n| Input | a long-format CSV (`series_id, timestamp, channel, value`): the synthetic two-channel series `A` (256 steps at 15 minutes) or your own |\n| Model | the MOMENT-1-base encoder loaded with `task="embedding"` (its head is an identity); each channel is embedded independently |\n| Output | one mean-pooled vector per 512-step window, written with its `series_id` and `window_id`; a bounded missingness experiment (how far the vector moves when 12.5 % of the points are missing, and when they are interpolated instead); and an evaluation report that is always `not-measurable` |\n\n**How to use this notebook.** Choose a runtime, then **Runtime → Run all**. Run all completes in one pass: Section 1 installs nothing into the notebook\'s own Python, so no restart is needed (the recorded hosted runs of the previous version needed one; this version removes it). Sections 1–3 are **infrastructure** — the isolated environment, the carried package and the verified snapshot — and their cells are collapsed; you may run them without studying them. The learning path starts in Section 4. Form fields (`# @param`) are the only values meant to be edited, and the defaults reproduce the default path. Before each principal result the notebook asks you to **Predict**; after it comes a collapsible **Check your reasoning** with a worked answer. No per-cell outputs of the hosted runs are recorded in this repository (only their pass/fail), so the worked answers state what the code and the sample guarantee rather than quoting numbers; compare them with what your run prints. **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end. Writing your predictions down is optional.\n\n**Roadmap:** 1–3 infrastructure → 4 the synthetic sample (or your CSV) → 5 validation and canonicalization with a deliberate refusal *(core concept: windows, padding, masks)* → 6 embeddings *(core concept: representation, not prediction; what the vector does and does not see)* → 6b the missingness experiment *(Predict → change one thing → run → explain)* → 7 the `not-measurable` report *(evaluation practice)* → 8 → export and provenance *(engineering)* → conclude.'
+        '**Who this notebook is for.** A learner who knows basic Python and pandas, has used Colab or Jupyter and has met time-series data, and wants to see how a pretrained time-series foundation model is used without any training — what goes in, what comes out, and what the output does and does not prove. The audience is students and practitioners preparing their own sensor or monitoring series; no prior experience with MOMENT is assumed — each term is explained where it first matters and again in the **Glossary**. CPU is enough.\n\n**Input → Model → Output.**\n\n| | |\n|---|---|\n| Input | a long-format CSV (`series_id, timestamp, channel, value`): the synthetic two-channel series `A` (256 steps at 15 minutes) or your own |\n| Model | the MOMENT-1-large encoder loaded with `task="embedding"` (its head is an identity); each channel is embedded independently |\n| Output | one mean-pooled vector per 512-step window, written with its `series_id` and `window_id`; a bounded missingness experiment (how far the vector moves when 12.5 % of the points are missing, and when they are interpolated instead); and an evaluation report that is always `not-measurable` |\n\n**How to use this notebook.** Choose a runtime, then **Runtime → Run all**. Run all completes in one pass: Section 1 installs nothing into the notebook\'s own Python, so no restart is needed (the recorded hosted runs of the previous version needed one; this version removes it). Sections 1–3 are **infrastructure** — the isolated environment, the carried package and the verified snapshot — and their cells are collapsed; you may run them without studying them. The learning path starts in Section 4. Form fields (`# @param`) are the only values meant to be edited, and the defaults reproduce the default path. Before each principal result the notebook asks you to **Predict**; after it comes a collapsible **Check your reasoning** with a worked answer. No per-cell outputs of the hosted runs are recorded in this repository (only their pass/fail), so the worked answers state what the code and the sample guarantee rather than quoting numbers; compare them with what your run prints. **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end. Writing your predictions down is optional.\n\n**Roadmap:** 1–3 infrastructure → 4 the synthetic sample (or your CSV) → 5 validation and canonicalization with a deliberate refusal *(core concept: windows, padding, masks)* → 6 embeddings *(core concept: representation, not prediction; what the vector does and does not see)* → 6b the missingness experiment *(Predict → change one thing → run → explain)* → 7 the `not-measurable` report *(evaluation practice)* → 8 → export and provenance *(engineering)* → conclude.'
     )]},
     'learning_objectives': (
         'install the pinned runtime; read what the carried package guarantees; resolve and digest-verify the immutable model revision; generate the deterministic synthetic sample or bring your own long-format CSV; validate and canonicalize the input into an input manifest; extract pooled MOMENT embeddings through the production-facing API; interpret embedding shape, pooling, channel, level/scale invariance and missingness semantics, and measure on the sample what missing data does to a vector; produce an evaluation report that is always `not-measurable` for representations; and export identifier-preserving embeddings and provenance. By the end of this notebook you will be able to do each of these without the repository being reachable.'
@@ -88,7 +88,7 @@ TEMPLATE = {
     'prerequisites': [
         '- **Learner:** basic Python and pandas familiarity; no prior experience with MOMENT or time-series foundation models. Windows, patches, padding, masks and the evaluation verdicts are explained where they are first used and again in the Glossary.',
         '- **Runtime:** a fresh supported **Linux x86_64** runtime (Google Colab, Kaggle or Linux Jupyter). Section 1 builds its own Python 3.12.12 environment from a hash-locked list of manylinux wheels (plus `momentfm`, built from its pinned commit), so the Python version of the kernel itself does not matter and nothing is installed into it; a Windows or macOS kernel is not supported.',
-        '- **Compute:** CPU is the default path and no GPU is required; CUDA is used automatically when available. The public v1 API accepts `float32` only. The locked `torch==2.14.0` wheel (the CUDA build, ~555 MB) and its NVIDIA libraries are the largest downloads of the run — see the measured total under External access — followed by the ~454 MB `model.safetensors`.',
+        '- **Compute:** CPU is the default path and no GPU is required; CUDA is used automatically when available. The public v1 API accepts `float32` only. The locked `torch==2.14.0` wheel (the CUDA build, ~555 MB) and its NVIDIA libraries are the largest downloads of the run — see the measured total under External access — followed by the ~1.39 GB `model.safetensors`.',
         '- **Knowledge:** basic Python and pandas; what a long-format time-series table is.',
         "- **Data:** the default sample is the repository's deterministic two-channel synthetic series regenerated in code, so nothing is downloaded and no private data is needed. Optional BYOD upload is gated off by default so the sample path can run top-to-bottom without interaction. Expected BYOD input: one UTF-8 CSV with columns `series_id`, `timestamp`, `channel`, `value`; `value` numeric or missing; identifiers and timestamps valid. Duplicate or ambiguous column names are rejected from the raw CSV header before dataframe parsing, and duplicate `(series_id, channel, timestamp)` rows are rejected by production validation. Operational ceilings: at most 5,000,000 rows, 1,024 series, 32 channels, and 1,024 canonical windows; MOMENT uses 512-step windows and 8-step non-overlapping patches; short series are left-padded, long series keep the final 512 timestamps, irregular spacing is surfaced rather than silently interpolated. BYOD is read locally in the notebook runtime and is not sent to an external inference service. Do not upload confidential or restricted data (personal or otherwise sensitive data included) to a hosted notebook environment unless you are authorized to do so.",
     ],
@@ -139,11 +139,47 @@ TEMPLATE = {
                 '    return frame.to_csv(index=False, date_format="%Y-%m-%dT%H:%M:%S", float_format="%.6f", lineterminator="\\n").encode("utf-8")\n'
                 '\n'
                 '\n'
+                'class BYODRefusal(Exception):\n'
+                '    """A refused BYOD input (NOTEBOOK_SPEC DAT20): shown as one message, with no traceback."""\n'
+                '\n'
+                '    dimer_refusal = True  # the isolated-environment router prints the message alone\n'
+                '\n'
+                '    def _render_traceback_(self):  # the same when the cell runs in the kernel itself\n'
+                '        return [str(self)]\n'
+                '\n'
+                '\n'
+                'RUN_STALE_MARKER = Path("outputs") / "RUN_INVALIDATED.txt"\n'
+                "STALE_RESULTS = ('frame', 'labels', 'sample_identity', 'sample_kind', 'payload', 'windows', 'normalized', 'report', 'input_manifest', 'result', 'scores', 'metrics', 'provenance', 'payload_out', 'ranked', 'pooled', 'channel_summary', 'embeddings', 'imputed', 'records', 'splits', 'train_records', 'val_records', 'test_records', 'dataset_manifests', 'classes', 'data_source', 'raw_count', 'evaluation_report_payload')\n"
+                '\n'
+                '\n'
+                'def refuse_byod(source, rule):\n'
+                '    """Invalidate the active run and return one actionable refusal (DAT20).\n'
+                '\n'
+                "    Files an earlier run wrote to outputs/ are kept but marked stale by RUN_INVALIDATED.txt, and the previous run's\n"
+                '    inputs and results are forgotten, so no later cell can present them as results for the refused input.\n'
+                '    """\n'
+                '    for stale in STALE_RESULTS:\n'
+                '        globals().pop(stale, None)\n'
+                '    Path("outputs").mkdir(exist_ok=True)\n'
+                '    RUN_STALE_MARKER.write_text(f"Active run invalidated by a refused BYOD input ({{source}}): {{rule}}\\nFiles in outputs/ come from an earlier run; they are NOT results for this input.\\n", encoding="utf-8")\n'
+                '    return BYODRefusal(f"BYOD input refused - {{source}}: {{rule}} Earlier files in outputs/ were kept but marked stale (outputs/RUN_INVALIDATED.txt), and the previous results were cleared from memory. Fix the CSV or BYOD_PATH and run this cell again, or untick USE_BYOD to return to the sample.")\n'
+                '\n'
+                '\n'
+                'def read_byod_csv(name, payload):\n'
+                '    """Parse and validate a BYOD CSV; a broken input contract is a refusal, not a traceback."""\n'
+                '    try:\n'
+                '        parsed = read_long_csv_bytes(payload)\n'
+                '        validate_long_frame(parsed, MomentConfig(task="embedding"))\n'
+                '    except ValidationError as exc:\n'
+                '        raise refuse_byod(name, f"{{exc}}.") from None\n'
+                '    return parsed\n'
+                '\n'
+                '\n'
                 'if BYOD_PATH:\n'
                 '    if not Path(BYOD_PATH).expanduser().is_file():\n'
-                '        raise FileNotFoundError(f"BYOD_PATH {{BYOD_PATH!r}} does not exist or is not a file (relative paths start at {{os.getcwd()}}); give the path of one long-format CSV.")\n'
+                '        raise refuse_byod(repr(BYOD_PATH), f"the path does not exist or is not a file (relative paths start at {{os.getcwd()}}); give the path of one long-format CSV with columns series_id,timestamp,channel,value.")\n'
                 '    payload = Path(BYOD_PATH).expanduser().read_bytes()\n'
-                '    frame = read_long_csv_bytes(payload)\n'
+                '    frame = read_byod_csv(Path(BYOD_PATH).name, payload)\n'
                 '    labels = None\n'
                 '    sample_identity = {{"kind": "byod", "name": Path(BYOD_PATH).name, "sha256": hashlib.sha256(payload).hexdigest()}}\n'
                 '    sample_kind = "BYOD"\n'
@@ -151,12 +187,12 @@ TEMPLATE = {
                 '    try:\n'
                 '        from google.colab import files\n'
                 '    except ImportError:\n'
-                '        raise RuntimeError("USE_BYOD is on but BYOD_PATH is empty, and the upload dialog exists only in Google Colab: copy the CSV into this runtime (or attach it as a Kaggle dataset) and set BYOD_PATH.") from None\n'
+                '        raise refuse_byod("upload dialog", "USE_BYOD is on but BYOD_PATH is empty, and the upload dialog exists only in Google Colab: copy the CSV into this runtime (or attach it as a Kaggle dataset) and set BYOD_PATH.") from None\n'
                 '    uploaded = files.upload()\n'
                 '    if len(uploaded) != 1:\n'
-                '        raise ValueError(f"Upload exactly one CSV with columns series_id,timestamp,channel,value (received {{len(uploaded)}} files; a cancelled dialog sends none). Run this cell again.")\n'
+                '        raise refuse_byod("upload dialog", f"upload exactly one CSV with columns series_id,timestamp,channel,value (received {{len(uploaded)}} files; a cancelled dialog sends none).")\n'
                 '    name, payload = next(iter(uploaded.items()))\n'
-                '    frame = read_long_csv_bytes(payload)\n'
+                '    frame = read_byod_csv(name, payload)\n'
                 '    labels = None\n'
                 '    sample_identity = {{"kind": "byod", "name": name, "sha256": hashlib.sha256(payload).hexdigest()}}\n'
                 '    sample_kind = "BYOD"\n'
@@ -170,6 +206,7 @@ TEMPLATE = {
                 '    sample_identity = {{"kind": "synthetic", "name": "moment_clean.csv", "sha256": observed}}\n'
                 '    sample_kind = "synthetic"\n'
                 '\n'
+                'RUN_STALE_MARKER.unlink(missing_ok=True)  # a valid input starts a new run\n'
                 'print({{"sample_kind": sample_kind, **sample_identity, "rows": len(frame), "columns": list(frame.columns)}})\n'
                 'print(frame.head())'
             ),
@@ -310,7 +347,7 @@ TEMPLATE = {
         },
         {
             "md": (
-                '<details><summary>What to notice</summary>The interpolated copy should land much closer to the clean vector than the missing copy, and the missing copy should be identical (to float precision) to the copy with zeros written in: the encoder never knew anything was missing — it embedded a window with a 12.5 % comb of zeros in it. In the review of 2 October 2026 (local CPU, same weights) this experiment gave cosine 0.80 / L2 5.1 for the missing copy against cosine 0.9996 / L2 0.20 for the interpolated one, and a maximum difference of 0.0 between the missing copy and the zero-written one. The lesson for your own data: gappy windows are not embedded safely by default; either embed only clean windows, or impute explicitly first and record that you did.</details>'
+                '<details><summary>What to notice</summary>The interpolated copy should land much closer to the clean vector than the missing copy, and the missing copy should be identical (to float precision) to the copy with zeros written in: the encoder never knew anything was missing — it embedded a window with a 12.5 % comb of zeros in it. In the CPU build record of 17 October 2026 (MOMENT-1-large @ `ca58581b`, this notebook\'s code on a local CPU; not a hosted run) this experiment gave cosine 0.754 / L2 2.28 for the missing copy against cosine 0.99999 / L2 0.011 for the interpolated one (1024-d vectors, `ca58581b`), and a maximum difference of 0.0 between the missing copy and the zero-written one; with the previously pinned MOMENT-1-base (768-d, `9fea447e`) the same CPU build gave cosine 0.907 / L2 3.31 and 0.9999998 / L2 0.0047. The lesson for your own data: gappy windows are not embedded safely by default; either embed only clean windows, or impute explicitly first and record that you did.</details>'
             ),
         },
         {
@@ -401,11 +438,11 @@ TEMPLATE = {
         '\n'
         '## References\n'
         '\n'
-        '- Repository README: https://github.com/kurtvalcorza/moment-pipeline/blob/main/README.md\n'
-        '- Repository model card: https://github.com/kurtvalcorza/moment-pipeline/blob/main/MODEL_CARD.md\n'
-        '- Sample dataset card: https://github.com/kurtvalcorza/moment-pipeline/blob/main/examples/sample-data/DATASET_CARD.md\n'
-        '- Upstream model: https://huggingface.co/{MODEL_ID}\n'
-        '- Upstream library: https://github.com/moment-timeseries-foundation-model/moment\n'
-        '- MOMENT: A Family of Open Time-series Foundation Models: https://arxiv.org/abs/2402.03885'
+        '[1] M. Goswami, K. Szafer, A. Choudhry, Y. Cai, S. Li, and A. Dubrawski, "MOMENT: A family of open time-series foundation models," in *Proc. 41st Int. Conf. Mach. Learn. (ICML)*, 2024. [Online]. Available: https://arxiv.org/abs/2402.03885\n\n'
+        '[2] Auton Lab, Carnegie Mellon University, "{MODEL_ID}," model card, Hugging Face, rev. `{MODEL_REVISION}`, licence MIT. [Online]. Available: https://huggingface.co/{MODEL_ID}\n\n'
+        '[3] Auton Lab, Carnegie Mellon University, "moment," source code, GitHub, commit `38f7310ad594100747ca2a8357e9c7ca7d323e0e`. [Online]. Available: https://github.com/moment-timeseries-foundation-model/moment\n\n'
+        '[4] K. Valcorza, "moment-pipeline README," GitHub. [Online]. Available: https://github.com/kurtvalcorza/moment-pipeline/blob/main/README.md\n\n'
+        '[5] K. Valcorza, "moment-pipeline model card," GitHub. [Online]. Available: https://github.com/kurtvalcorza/moment-pipeline/blob/main/MODEL_CARD.md\n\n'
+        '[6] K. Valcorza, "moment-pipeline synthetic sample dataset card," GitHub. [Online]. Available: https://github.com/kurtvalcorza/moment-pipeline/blob/main/examples/sample-data/DATASET_CARD.md'
     ),
 }

@@ -39,7 +39,7 @@ class OffsetPipeline:
     """`reconstruct` returns `x_enc + offset[channel]` — a residual with a known value.
 
     Counting forward passes as well, so a test can prove a refusal happened *before* the
-    model ran rather than after a 454 MB round trip.
+    model ran rather than after a 1.39 GB round trip.
     """
 
     def __init__(self, offsets: tuple[float, ...] = (1.0,)) -> None:

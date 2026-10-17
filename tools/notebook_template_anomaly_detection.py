@@ -35,7 +35,7 @@ TEMPLATE = {
     # release metadata, read on 2026-10-07; the lock's torch 2.14.0 is the CUDA build and carries the NVIDIA libraries).
     "lock_download": {"bytes": 3078108227, "measured": "sum of the locked manylinux x86_64 wheel sizes from PyPI release metadata, 2026-10-07; the lock's `torch==2.14.0` is the CUDA build, so the CPU path downloads its NVIDIA libraries too"},
     'pipeline_class': 'LoadedMoment',
-    'weights_key': 'moment-1-base',
+    'weights_key': 'moment-1-large',
     'modules': ['anomaly.py', 'canonical.py', 'config.py', 'csvio.py', 'embedding.py', 'imputation.py', 'model.py', 'provenance.py', 'roles.py', 'validation.py'],
     'entry_module': 'model.py',
     'model_load': 'load_moment(task="reconstruction", weights_dir=WEIGHTS_DIR)',
@@ -54,8 +54,8 @@ TEMPLATE = {
         ),
         (
             'Hugging Face',
-            'https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-AutonLab%2FMOMENT--1--base-ffcc4d?style=flat',
-            'https://huggingface.co/AutonLab/MOMENT-1-base',
+            'https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-AutonLab%2FMOMENT--1--large-ffcc4d?style=flat',
+            'https://huggingface.co/AutonLab/MOMENT-1-large',
         ),
         (
             'Upstream',
@@ -69,13 +69,13 @@ TEMPLATE = {
         ),
     ],
     'capability': (
-        'raw reconstruction-residual anomaly ranking (no threshold, no binary detector) with the pinned `AutonLab/MOMENT-1-base` checkpoint'
+        'raw reconstruction-residual anomaly ranking (no threshold, no binary detector) with the pinned `AutonLab/MOMENT-1-large` checkpoint'
     ),
     'intro': (
         "This notebook demonstrates **raw reconstruction-residual scoring**, not a binary detector, through the repository's public `moment_pipeline` API carried in this notebook. MOMENT sees each scored point and the repository reports its self-reconstruction residual. Under the default MAE rule, **higher residual scores mean stronger anomaly evidence according to this score**. There is **no universal/default threshold in v1** and this tutorial never converts scores into binary anomaly labels. **No gradient training, fine-tuning, in-context conditioning, or fitted preprocessing occurs** — **no adaptation occurs.** **Upstream vs. this repository.** Upstream MOMENT supplies the pretrained reconstruction model. This repository supplies immutable pinning/integrity verification, long-format validation and canonicalization, explicit residual/aggregation policies, scored-domain accounting, threshold non-policy, the `top_k_recall` ranking check, and machine-readable provenance."
     ),
     "guided": {"opening": [(
-        '**Who this notebook is for.** A learner who knows basic Python and pandas, has used Colab or Jupyter and has met time-series data, and wants to see how a pretrained time-series foundation model is used without any training to rank unusual points — what goes in, what comes out, and what the output does and does not prove. The audience is students and practitioners preparing their own sensor or monitoring series; no prior experience with MOMENT is assumed — each term is explained where it first matters and again in the **Glossary**. CPU is enough.\n\n**Input → Model → Output.**\n\n| | |\n|---|---|\n| Input | a long-format CSV: the synthetic series `A` with three injected `vibration` spikes (and their labels) or your own unlabelled CSV |\n| Model | the MOMENT-1-base reconstruction head (`task="reconstruction"`); each point is scored by how badly the model reconstructs it |\n| Output | a raw, uncalibrated residual score per series, channel and timestamp (higher = stronger anomaly evidence **within one channel of one series**; raw residuals are not comparable across channels), per-channel residual statistics, a top-k recall check on the labelled sample beside a naive |z-score| baseline and the pooled all-channel ranking, and no threshold |\n\n**How to use this notebook.** Choose a runtime, then **Runtime → Run all**. Run all completes in one pass: Section 1 installs nothing into the notebook\'s own Python, so no restart is needed (the recorded hosted runs of the previous version needed one; this version removes it). Sections 1–3 are **infrastructure** — the isolated environment, the carried package and the verified snapshot — and their cells are collapsed; you may run them without studying them. The learning path starts in Section 4. Form fields (`# @param`) are the only values meant to be edited, and the defaults reproduce the default path. Before each principal result the notebook asks you to **Predict**; after it comes a collapsible **Check your reasoning** with a worked answer. No per-cell outputs of the hosted runs are recorded in this repository (only their pass/fail), so the worked answers state what the code and the sample guarantee rather than quoting numbers; compare them with what your run prints. **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end. Writing your predictions down is optional.\n\n**Roadmap:** 1–3 infrastructure → 4 the synthetic sample with injected spikes (or your CSV) → 5 validation and canonicalization *(core concept: windows, padding, masks)* → 6 raw residual scores and their per-channel scale *(core concept: a score is not a decision, and is comparable only within a channel)* → 7 ranking, top-k recall, a naive baseline and the pooled ranking *(evaluation practice)* → 8 the plot over time, per series *(the spikes marked)* → 9 → export and provenance *(engineering)* → conclude.'
+        '**Who this notebook is for.** A learner who knows basic Python and pandas, has used Colab or Jupyter and has met time-series data, and wants to see how a pretrained time-series foundation model is used without any training to rank unusual points — what goes in, what comes out, and what the output does and does not prove. The audience is students and practitioners preparing their own sensor or monitoring series; no prior experience with MOMENT is assumed — each term is explained where it first matters and again in the **Glossary**. CPU is enough.\n\n**Input → Model → Output.**\n\n| | |\n|---|---|\n| Input | a long-format CSV: the synthetic series `A` with three injected `vibration` spikes (and their labels) or your own unlabelled CSV |\n| Model | the MOMENT-1-large reconstruction head (`task="reconstruction"`); each point is scored by how badly the model reconstructs it |\n| Output | a raw, uncalibrated residual score per series, channel and timestamp (higher = stronger anomaly evidence **within one channel of one series**; raw residuals are not comparable across channels), per-channel residual statistics, a top-k recall check on the labelled sample beside a naive |z-score| baseline and the pooled all-channel ranking, and no threshold |\n\n**How to use this notebook.** Choose a runtime, then **Runtime → Run all**. Run all completes in one pass: Section 1 installs nothing into the notebook\'s own Python, so no restart is needed (the recorded hosted runs of the previous version needed one; this version removes it). Sections 1–3 are **infrastructure** — the isolated environment, the carried package and the verified snapshot — and their cells are collapsed; you may run them without studying them. The learning path starts in Section 4. Form fields (`# @param`) are the only values meant to be edited, and the defaults reproduce the default path. Before each principal result the notebook asks you to **Predict**; after it comes a collapsible **Check your reasoning** with a worked answer. No per-cell outputs of the hosted runs are recorded in this repository (only their pass/fail), so the worked answers state what the code and the sample guarantee rather than quoting numbers; compare them with what your run prints. **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end. Writing your predictions down is optional.\n\n**Roadmap:** 1–3 infrastructure → 4 the synthetic sample with injected spikes (or your CSV) → 5 validation and canonicalization *(core concept: windows, padding, masks)* → 6 raw residual scores and their per-channel scale *(core concept: a score is not a decision, and is comparable only within a channel)* → 7 ranking, top-k recall, a naive baseline and the pooled ranking *(evaluation practice)* → 8 the plot over time, per series *(the spikes marked)* → 9 → export and provenance *(engineering)* → conclude.'
     )]},
     'learning_objectives': (
         'install the pinned runtime; read what the carried package guarantees; resolve and digest-verify the immutable model revision; generate the deterministic labelled synthetic sample or bring your own long-format CSV; validate and canonicalize the input into an input manifest; compute raw anomaly scores through the production-facing API; interpret score direction and threshold semantics; check the injected-spike ranking quantitatively through an evaluation report that is `sample-sanity` only when labels exist; and export raw scores with provenance. By the end of this notebook you will be able to do each of these without the repository being reachable.'
@@ -86,7 +86,7 @@ TEMPLATE = {
     'prerequisites': [
         '- **Learner:** basic Python and pandas familiarity; no prior experience with MOMENT or time-series foundation models. Windows, patches, padding, masks and the evaluation verdicts are explained where they are first used and again in the Glossary.',
         '- **Runtime:** a fresh supported **Linux x86_64** runtime (Google Colab, Kaggle or Linux Jupyter). Section 1 builds its own Python 3.12.12 environment from a hash-locked list of manylinux wheels (plus `momentfm`, built from its pinned commit), so the Python version of the kernel itself does not matter and nothing is installed into it; a Windows or macOS kernel is not supported.',
-        '- **Compute:** CPU is the default path and no GPU is required; CUDA is used automatically when available. The public v1 API accepts `float32` only. The locked `torch==2.14.0` wheel (the CUDA build, ~555 MB) and its NVIDIA libraries are the largest downloads of the run — see the measured total under External access — followed by the ~454 MB `model.safetensors`.',
+        '- **Compute:** CPU is the default path and no GPU is required; CUDA is used automatically when available. The public v1 API accepts `float32` only. The locked `torch==2.14.0` wheel (the CUDA build, ~555 MB) and its NVIDIA libraries are the largest downloads of the run — see the measured total under External access — followed by the ~1.39 GB `model.safetensors`.',
         '- **Knowledge:** basic Python and pandas; what a long-format time-series table is.',
         "- **Data:** the default sample is the repository's deterministic two-channel synthetic series with three documented injected spikes in the `vibration` channel, regenerated in code together with its label table, so nothing is downloaded and no private data is needed. Labels make ranking behaviour falsifiable; they are not calibration data or benchmark evidence. Optional BYOD upload is gated off by default so the sample path can run top-to-bottom without interaction. Expected BYOD input: one UTF-8 CSV with columns `series_id`, `timestamp`, `channel`, `value`; `value` numeric or missing; identifiers and timestamps valid. Duplicate or ambiguous column names are rejected from the raw CSV header before dataframe parsing, and duplicate `(series_id, channel, timestamp)` rows are rejected by production validation. BYOD does not require anomaly labels; without labels the notebook ranks residuals but cannot measure detector quality. Operational ceilings: at most 5,000,000 rows, 1,024 series, 32 channels, and 1,024 canonical windows; MOMENT uses 512-step windows and 8-step non-overlapping patches; short series are left-padded, long series keep the final 512 timestamps, irregular spacing is surfaced rather than silently interpolated. BYOD is read locally in the notebook runtime and is not sent to an external inference service. Do not upload confidential or restricted data (personal or otherwise sensitive data included) to a hosted notebook environment unless you are authorized to do so.",
     ],
@@ -137,11 +137,47 @@ TEMPLATE = {
                 '    return frame.to_csv(index=False, date_format="%Y-%m-%dT%H:%M:%S", float_format="%.6f", lineterminator="\\n").encode("utf-8")\n'
                 '\n'
                 '\n'
+                'class BYODRefusal(Exception):\n'
+                '    """A refused BYOD input (NOTEBOOK_SPEC DAT20): shown as one message, with no traceback."""\n'
+                '\n'
+                '    dimer_refusal = True  # the isolated-environment router prints the message alone\n'
+                '\n'
+                '    def _render_traceback_(self):  # the same when the cell runs in the kernel itself\n'
+                '        return [str(self)]\n'
+                '\n'
+                '\n'
+                'RUN_STALE_MARKER = Path("outputs") / "RUN_INVALIDATED.txt"\n'
+                "STALE_RESULTS = ('frame', 'labels', 'sample_identity', 'sample_kind', 'payload', 'windows', 'normalized', 'report', 'input_manifest', 'result', 'scores', 'metrics', 'provenance', 'payload_out', 'ranked', 'pooled', 'channel_summary', 'embeddings', 'imputed', 'records', 'splits', 'train_records', 'val_records', 'test_records', 'dataset_manifests', 'classes', 'data_source', 'raw_count', 'evaluation_report_payload')\n"
+                '\n'
+                '\n'
+                'def refuse_byod(source, rule):\n'
+                '    """Invalidate the active run and return one actionable refusal (DAT20).\n'
+                '\n'
+                "    Files an earlier run wrote to outputs/ are kept but marked stale by RUN_INVALIDATED.txt, and the previous run's\n"
+                '    inputs and results are forgotten, so no later cell can present them as results for the refused input.\n'
+                '    """\n'
+                '    for stale in STALE_RESULTS:\n'
+                '        globals().pop(stale, None)\n'
+                '    Path("outputs").mkdir(exist_ok=True)\n'
+                '    RUN_STALE_MARKER.write_text(f"Active run invalidated by a refused BYOD input ({{source}}): {{rule}}\\nFiles in outputs/ come from an earlier run; they are NOT results for this input.\\n", encoding="utf-8")\n'
+                '    return BYODRefusal(f"BYOD input refused - {{source}}: {{rule}} Earlier files in outputs/ were kept but marked stale (outputs/RUN_INVALIDATED.txt), and the previous results were cleared from memory. Fix the CSV or BYOD_PATH and run this cell again, or untick USE_BYOD to return to the sample.")\n'
+                '\n'
+                '\n'
+                'def read_byod_csv(name, payload):\n'
+                '    """Parse and validate a BYOD CSV; a broken input contract is a refusal, not a traceback."""\n'
+                '    try:\n'
+                '        parsed = read_long_csv_bytes(payload)\n'
+                '        validate_long_frame(parsed, MomentConfig(task="reconstruction"))\n'
+                '    except ValidationError as exc:\n'
+                '        raise refuse_byod(name, f"{{exc}}.") from None\n'
+                '    return parsed\n'
+                '\n'
+                '\n'
                 'if BYOD_PATH:\n'
                 '    if not Path(BYOD_PATH).expanduser().is_file():\n'
-                '        raise FileNotFoundError(f"BYOD_PATH {{BYOD_PATH!r}} does not exist or is not a file (relative paths start at {{os.getcwd()}}); give the path of one long-format CSV.")\n'
+                '        raise refuse_byod(repr(BYOD_PATH), f"the path does not exist or is not a file (relative paths start at {{os.getcwd()}}); give the path of one long-format CSV with columns series_id,timestamp,channel,value.")\n'
                 '    payload = Path(BYOD_PATH).expanduser().read_bytes()\n'
-                '    frame = read_long_csv_bytes(payload)\n'
+                '    frame = read_byod_csv(Path(BYOD_PATH).name, payload)\n'
                 '    labels = None  # BYOD carries no anomaly labels; the ranking is shown without a correctness metric\n'
                 '    sample_identity = {{"kind": "byod", "name": Path(BYOD_PATH).name, "sha256": hashlib.sha256(payload).hexdigest()}}\n'
                 '    sample_kind = "BYOD"\n'
@@ -149,12 +185,12 @@ TEMPLATE = {
                 '    try:\n'
                 '        from google.colab import files\n'
                 '    except ImportError:\n'
-                '        raise RuntimeError("USE_BYOD is on but BYOD_PATH is empty, and the upload dialog exists only in Google Colab: copy the CSV into this runtime (or attach it as a Kaggle dataset) and set BYOD_PATH.") from None\n'
+                '        raise refuse_byod("upload dialog", "USE_BYOD is on but BYOD_PATH is empty, and the upload dialog exists only in Google Colab: copy the CSV into this runtime (or attach it as a Kaggle dataset) and set BYOD_PATH.") from None\n'
                 '    uploaded = files.upload()\n'
                 '    if len(uploaded) != 1:\n'
-                '        raise ValueError(f"Upload exactly one CSV with columns series_id,timestamp,channel,value (received {{len(uploaded)}} files; a cancelled dialog sends none). Run this cell again.")\n'
+                '        raise refuse_byod("upload dialog", f"upload exactly one CSV with columns series_id,timestamp,channel,value (received {{len(uploaded)}} files; a cancelled dialog sends none).")\n'
                 '    name, payload = next(iter(uploaded.items()))\n'
-                '    frame = read_long_csv_bytes(payload)\n'
+                '    frame = read_byod_csv(name, payload)\n'
                 '    labels = None  # BYOD carries no anomaly labels; the ranking is shown without a correctness metric\n'
                 '    sample_identity = {{"kind": "byod", "name": name, "sha256": hashlib.sha256(payload).hexdigest()}}\n'
                 '    sample_kind = "BYOD"\n'
@@ -176,6 +212,7 @@ TEMPLATE = {
                 '    sample_identity["labels_sha256"] = label_digest\n'
                 '    sample_kind = "synthetic"\n'
                 '\n'
+                'RUN_STALE_MARKER.unlink(missing_ok=True)  # a valid input starts a new run\n'
                 'print({{"sample_kind": sample_kind, **sample_identity, "rows": len(frame), "columns": list(frame.columns)}})\n'
                 'print(frame.head())'
             ),
@@ -253,7 +290,7 @@ TEMPLATE = {
         },
         {
             "md": (
-                '<details><summary>Check your reasoning</summary>No list of anomalies: the output is a raw residual per point and the pipeline ships no threshold. A high score means the model reconstructs that point badly — anomaly *evidence* under this score. A low score does not mean normal: smooth drift or any anomaly the model reproduces well scores low. Unscored positions (padding, pre-filled gaps, patch neighbours) are reported, not silently dropped. On the recorded Kaggle CPU run of 14 September 2026 (confirmed by the review of 2 October 2026 on local CPU) the **clean `temperature` channel** had the larger residuals — mean 1.62, maximum 3.77 — against a mean of 0.30 for `vibration`, whose three injected spikes scored 4.0 / 2.9 / 2.6: 42 clean temperature points scored above the lowest spike. Temperature has a larger amplitude (±2.5 against ±0.35) and a longer period, and the model reconstructs it poorly, so its residuals are large in absolute terms without any anomaly. That is the reason a raw residual is read only against the other residuals of the same channel.</details>'
+                '<details><summary>Check your reasoning</summary>No list of anomalies: the output is a raw residual per point and the pipeline ships no threshold. A high score means the model reconstructs that point badly — anomaly *evidence* under this score. A low score does not mean normal: smooth drift or any anomaly the model reproduces well scores low. Unscored positions (padding, pre-filled gaps, patch neighbours) are reported, not silently dropped. In the CPU build record of 17 October 2026 (MOMENT-1-large @ `ca58581b`, this notebook\'s code on a local CPU; not a hosted run) the clean `temperature` channel had a median residual of 0.30 and a maximum of 0.88, against a median of 0.12 for `vibration`, whose three injected spikes scored 3.63 / 3.21 / 2.65 (`ca58581b`), so no clean point outranks a spike. The scales still differ by channel: temperature has a larger amplitude (±2.5 against ±0.35) and a longer period, so its residuals are larger in absolute terms without any anomaly. With the previously pinned MOMENT-1-base (`9fea447e`, recorded Kaggle CPU run of 14 September 2026 and later runs) this effect was extreme — clean temperature residuals up to 3.77 and 42 clean temperature points above the lowest spike — because that checkpoint\'s reconstruction head does not reconstruct (see Interpretation and limits). That is the reason a raw residual is read only against the other residuals of the same channel.</details>'
             ),
         },
         {
@@ -343,7 +380,7 @@ TEMPLATE = {
         },
         {
             "md": (
-                '<details><summary>Check your reasoning</summary>The verdict is `sample-sanity` whatever the count: the spikes are large, isolated jumps added to a smooth synthetic series, which is the easiest case a reconstruction model can face. On the recorded runs (Kaggle CPU 14 September 2026; the review of 2 October 2026) the three spikes were the top 3 of `vibration` (recall 1.0) — but a plain |z-score| on the same channel also got all three, so recall 1.0 does not separate MOMENT from a one-line statistic here, and in the **pooled** ranking the spikes sat at 1st, 21st and 45th, behind 42 clean temperature points. Even 3 of 3 is one falsifiable check on one series, not a calibrated detector metric; your own data needs labelled true anomalies *and* hard normal events.</details>\n\n**Change one thing (optional):** the channel aggregation. Re-run Section 6 with `channel_aggregation="mean"` and then `"max"` in `score_anomalies(...)`, then Sections 7–8 (with `SCORE_CHANNEL` left empty the ranked "channel" becomes the aggregate). Predict first: with the clean channel\'s large residuals mixed in, will all three spikes still rank in the top 3? In the review of 2 October 2026 the recall fell to 0.667 under `mean` and 0.333 under `max`. (Switching `loss="mse"` instead cannot change the ranking while channels are *not* aggregated: under `channel_aggregation="none"` the MSE residual is the square of the MAE residual, a monotone transform — it rescales the scores and leaves the order.)'
+                '<details><summary>Check your reasoning</summary>The verdict is `sample-sanity` whatever the count: the spikes are large, isolated jumps added to a smooth synthetic series, which is the easiest case a reconstruction model can face. In the CPU build record of 17 October 2026 (MOMENT-1-large @ `ca58581b`, this notebook\'s code on a local CPU; not a hosted run) the three spikes were the top 3 of `vibration` (recall 1.0, `ca58581b`), but a plain |z-score| on the same channel also got all three, so recall 1.0 does not separate MOMENT from a one-line statistic here; in the **pooled** ranking the spikes were 1st, 2nd and 3rd (`ca58581b`). With the previously pinned MOMENT-1-base (`9fea447e`) the pooled ranks were 1st, 21st and 45th, behind clean temperature points. Even 3 of 3 is one falsifiable check on one series, not a calibrated detector metric; your own data needs labelled true anomalies *and* hard normal events.</details>\n\n**Change one thing (optional):** the channel aggregation. Re-run Section 6 with `channel_aggregation="mean"` and then `"max"` in `score_anomalies(...)`, then Sections 7–8 (with `SCORE_CHANNEL` left empty the ranked "channel" becomes the aggregate). Predict first: with the clean channel\'s large residuals mixed in, will all three spikes still rank in the top 3? In the CPU build record of 17 October 2026 (MOMENT-1-large @ `ca58581b`, this notebook\'s code on a local CPU; not a hosted run) the recall stayed 1.0 under both `mean` and `max` (`ca58581b`); with the previously pinned MOMENT-1-base it fell to 0.667 under `mean` and 0.333 under `max` (review of 2 October 2026, `9fea447e`). (Switching `loss="mse"` instead cannot change the ranking while channels are *not* aggregated: under `channel_aggregation="none"` the MSE residual is the square of the MAE residual, a monotone transform — it rescales the scores and leaves the order.)'
             ),
         },
         {
@@ -459,6 +496,8 @@ TEMPLATE = {
         '\n'
         'It **does not prove** that high residuals are real-world anomalies, that low residuals are normal, that the bundled top-k result generalizes, or that any numerical threshold is calibrated; the evaluation report says `sample-sanity` on the labelled sample and `not-measurable` without labels for that reason. It does **not** establish benchmark superiority, deployment calibration, safety for high-consequence decisions, or production fitness on an unseen domain. Deployment thresholds, if needed, belong to the downstream application and require representative calibration/validation data and an explicit false-positive/false-negative cost model.\n'
         '\n'
+        "**Why this notebook uses MOMENT-1-large.** Until 17 October 2026 this repository pinned `AutonLab/MOMENT-1-base` (`9fea447e`). Reviewer CPU evidence from the tutorial-triage review of 15 October 2026 showed that the base checkpoint's released reconstruction head does not reconstruct its input (visible-point Pearson -0.005 on a clean 512-step sine under upstream's documented call), although its encoder is informative; a residual score from that head is mostly the distance from the window mean, which is why clean temperature points outranked two of the spikes in the pooled ranking. MOMENT-1-large (`ca58581b`) reconstructs through identical code, so the repository moved to it (RFC 0001, Amendment 1). The residual figures quoted in the worked answers are from the CPU build record of 17 October 2026, labelled as such; no hosted run of this revision is recorded yet.\n"
+        '\n'
         '**Next experiments:** re-run Section 6 with `channel_aggregation="mean"` and then `"max"`, then Sections 7–8, and compare the recall and the ranks with the per-channel run (predict first; see the activity after Section 7); set `SCORE_CHANNEL = "temperature"` and read what the top-3 of a channel with no anomaly in it looks like; build a domain-specific labelled validation set containing both true anomalies and difficult normal events, then evaluate ranking and calibration separately; enable `USE_BYOD` with an unlabelled series and read the `not-measurable` report and every channel\'s top residuals. (`loss="mse"` only rescales the per-channel scores while channels are not aggregated, so it changes no ranking there.)\n'
         '\n'
         '## Troubleshooting\n\n'
@@ -494,11 +533,11 @@ TEMPLATE = {
         '\n'
         '## References\n'
         '\n'
-        '- Repository README: https://github.com/kurtvalcorza/moment-pipeline/blob/main/README.md\n'
-        '- Repository model card: https://github.com/kurtvalcorza/moment-pipeline/blob/main/MODEL_CARD.md\n'
-        '- Sample dataset card: https://github.com/kurtvalcorza/moment-pipeline/blob/main/examples/sample-data/DATASET_CARD.md\n'
-        '- Upstream model: https://huggingface.co/{MODEL_ID}\n'
-        '- Upstream library: https://github.com/moment-timeseries-foundation-model/moment\n'
-        '- MOMENT: A Family of Open Time-series Foundation Models: https://arxiv.org/abs/2402.03885'
+        '[1] M. Goswami, K. Szafer, A. Choudhry, Y. Cai, S. Li, and A. Dubrawski, "MOMENT: A family of open time-series foundation models," in *Proc. 41st Int. Conf. Mach. Learn. (ICML)*, 2024. [Online]. Available: https://arxiv.org/abs/2402.03885\n\n'
+        '[2] Auton Lab, Carnegie Mellon University, "{MODEL_ID}," model card, Hugging Face, rev. `{MODEL_REVISION}`, licence MIT. [Online]. Available: https://huggingface.co/{MODEL_ID}\n\n'
+        '[3] Auton Lab, Carnegie Mellon University, "moment," source code, GitHub, commit `38f7310ad594100747ca2a8357e9c7ca7d323e0e`. [Online]. Available: https://github.com/moment-timeseries-foundation-model/moment\n\n'
+        '[4] K. Valcorza, "moment-pipeline README," GitHub. [Online]. Available: https://github.com/kurtvalcorza/moment-pipeline/blob/main/README.md\n\n'
+        '[5] K. Valcorza, "moment-pipeline model card," GitHub. [Online]. Available: https://github.com/kurtvalcorza/moment-pipeline/blob/main/MODEL_CARD.md\n\n'
+        '[6] K. Valcorza, "moment-pipeline synthetic sample dataset card," GitHub. [Online]. Available: https://github.com/kurtvalcorza/moment-pipeline/blob/main/examples/sample-data/DATASET_CARD.md'
     ),
 }

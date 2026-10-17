@@ -1,4 +1,4 @@
-"""Configuration for the pinned MOMENT-1-base pipeline.
+"""Configuration for the pinned MOMENT-1-large pipeline.
 
 Every value here is a DIMER-facing contract knob. The three structural constants
 (`SEQUENCE_LENGTH`, `PATCH_LENGTH`, `PATCH_STRIDE`) mirror the pinned checkpoint's
@@ -15,7 +15,7 @@ from typing import Literal
 #: ``classification``: those heads are freshly initialized, not pretrained (RFC M-1/M-4).
 Task = Literal["embedding", "reconstruction"]
 
-#: Structural constants of ``AutonLab/MOMENT-1-base`` at the pinned revision.
+#: Structural constants of ``AutonLab/MOMENT-1-large`` at the pinned revision.
 SEQUENCE_LENGTH = 512
 PATCH_LENGTH = 8
 PATCH_STRIDE = 8

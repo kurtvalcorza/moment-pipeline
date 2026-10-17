@@ -35,7 +35,7 @@ TEMPLATE = {
     # release metadata, read on 2026-10-07; the lock's torch 2.14.0 is the CUDA build and carries the NVIDIA libraries).
     "lock_download": {"bytes": 3078108227, "measured": "sum of the locked manylinux x86_64 wheel sizes from PyPI release metadata, 2026-10-07; the lock's `torch==2.14.0` is the CUDA build, so the CPU path downloads its NVIDIA libraries too"},
     'pipeline_class': 'LoadedMoment',
-    'weights_key': 'moment-1-base',
+    'weights_key': 'moment-1-large',
     'modules': ['anomaly.py', 'canonical.py', 'config.py', 'csvio.py', 'embedding.py', 'imputation.py', 'model.py', 'provenance.py', 'roles.py', 'validation.py'],
     'entry_module': 'model.py',
     'model_load': 'load_moment(task="reconstruction", weights_dir=WEIGHTS_DIR)',
@@ -54,8 +54,8 @@ TEMPLATE = {
         ),
         (
             'Hugging Face',
-            'https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-AutonLab%2FMOMENT--1--base-ffcc4d?style=flat',
-            'https://huggingface.co/AutonLab/MOMENT-1-base',
+            'https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-AutonLab%2FMOMENT--1--large-ffcc4d?style=flat',
+            'https://huggingface.co/AutonLab/MOMENT-1-large',
         ),
         (
             'Upstream',
@@ -69,13 +69,13 @@ TEMPLATE = {
         ),
     ],
     'capability': (
-        'pretrained reconstruction-backed time-series imputation (patch-granular artificial masking) with the pinned `AutonLab/MOMENT-1-base` checkpoint'
+        'pretrained reconstruction-backed time-series imputation (patch-granular artificial masking) with the pinned `AutonLab/MOMENT-1-large` checkpoint'
     ),
     'intro': (
         "This notebook uses MOMENT's pretrained reconstruction path for patch-granular artificial masking through the repository's public `moment_pipeline` API, carried in this notebook. It withholds known source values, evaluates only deliberately hidden truth, preserves observed values in the exported imputed series, and writes machine-readable metrics and provenance. **No gradient training, fine-tuning, in-context conditioning, or fitted preprocessing occurs** — **no adaptation occurs.** **Upstream vs. this repository.** Upstream MOMENT supplies the pretrained reconstruction model. This repository supplies immutable pinning/integrity verification, long-format validation and canonicalization, patch-quantized masking semantics, masked-point evaluation, an observed-value-preserving imputed product, and provenance/export contracts. The displayed MAE/RMSE values are sample/tutorial evidence only."
     ),
     "guided": {"opening": [(
-        '**Who this notebook is for.** A learner who knows basic Python and pandas, has used Colab or Jupyter and has met time-series data, and wants to see how a pretrained time-series foundation model is used without any training to fill hidden values — what goes in, what comes out, and what the output does and does not prove. The audience is students and practitioners preparing their own sensor or monitoring series; no prior experience with MOMENT is assumed — each term is explained where it first matters and again in the **Glossary**. CPU is enough.\n\n**Input → Model → Output.**\n\n| | |\n|---|---|\n| Input | a long-format CSV: the synthetic two-channel series `A` (256 steps) or your own, plus an explicit visibility mask that hides one stretch of known values |\n| Model | the MOMENT-1-base reconstruction head (`task="reconstruction"`), with masking applied per 8-step patch |\n| Output | an imputed series in which only missing or deliberately hidden cells are replaced; MAE and RMSE on the hidden cells, per channel and pooled, beside a same-support baseline (linear interpolation across an interior gap, a last-value hold for a trailing one); a printed **model-vs-baseline verdict** and a visible-point fidelity check; and a `sample-sanity` report |\n\n**How to use this notebook.** Choose a runtime, then **Runtime → Run all**. Run all completes in one pass: Section 1 installs nothing into the notebook\'s own Python, so no restart is needed (the recorded hosted runs of the previous version needed one; this version removes it). Sections 1–3 are **infrastructure** — the isolated environment, the carried package and the verified snapshot — and their cells are collapsed; you may run them without studying them. The learning path starts in Section 4. Form fields (`# @param`) are the only values meant to be edited, and the defaults reproduce the default path. Before each principal result the notebook asks you to **Predict**; after it comes a collapsible **Check your reasoning** with a worked answer. The worked answers quote only numbers from recorded runs (the Kaggle CPU run of 14 September 2026 and the review of 2 October 2026, both named where used) and otherwise state what the code and the sample guarantee; compare them with what your run prints. One warning up front, so that the printed metrics are read correctly: **on every recorded run of this sample the pinned MOMENT-1-base checkpoint reconstructed the hidden patch worse than the naive baseline** — Section 7 prints that comparison as a verdict, and the Interpretation section explains what it does and does not mean. **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end. Writing your predictions down is optional.\n\n**Roadmap:** 1–3 infrastructure → 4 the synthetic sample (or your CSV) → 5 validation, canonicalization and the evaluation mask, with a `HOLDOUT_START` field *(core concept: windows, padding, masks)* → 6 impute *(core concept: patch-quantized masking)* → 7 masked-point metrics, a same-support baseline and the verdict *(evaluation practice)* → 8 the plot around the hidden patch → 9 → export and provenance *(engineering)* → conclude.'
+        '**Who this notebook is for.** A learner who knows basic Python and pandas, has used Colab or Jupyter and has met time-series data, and wants to see how a pretrained time-series foundation model is used without any training to fill hidden values — what goes in, what comes out, and what the output does and does not prove. The audience is students and practitioners preparing their own sensor or monitoring series; no prior experience with MOMENT is assumed — each term is explained where it first matters and again in the **Glossary**. CPU is enough.\n\n**Input → Model → Output.**\n\n| | |\n|---|---|\n| Input | a long-format CSV: the synthetic two-channel series `A` (256 steps) or your own, plus an explicit visibility mask that hides one stretch of known values |\n| Model | the MOMENT-1-large reconstruction head (`task="reconstruction"`), with masking applied per 8-step patch |\n| Output | an imputed series in which only missing or deliberately hidden cells are replaced; MAE and RMSE on the hidden cells, per channel and pooled, beside a same-support baseline (linear interpolation across an interior gap, a last-value hold for a trailing one); a printed **model-vs-baseline verdict** and a visible-point fidelity check; and a `sample-sanity` report |\n\n**How to use this notebook.** Choose a runtime, then **Runtime → Run all**. Run all completes in one pass: Section 1 installs nothing into the notebook\'s own Python, so no restart is needed (the recorded hosted runs of the previous version needed one; this version removes it). Sections 1–3 are **infrastructure** — the isolated environment, the carried package and the verified snapshot — and their cells are collapsed; you may run them without studying them. The learning path starts in Section 4. Form fields (`# @param`) are the only values meant to be edited, and the defaults reproduce the default path. Before each principal result the notebook asks you to **Predict**; after it comes a collapsible **Check your reasoning** with a worked answer. Every number in the worked answers is labelled with the model revision that produced it: the CPU build record of 17 October 2026 (MOMENT-1-large @ `ca58581b`, this notebook\'s code on a local CPU; not a hosted run) for this notebook, and the earlier MOMENT-1-base runs (`9fea447e`) where the text explains why the notebook moved to MOMENT-1-large; no hosted run of this revision is recorded yet, so compare them with what your run prints. One warning up front, so that the printed metrics are read correctly: **on the default sample the pinned MOMENT-1-large checkpoint fills the hidden patch about 2× worse than linear interpolation pooled over the two channels, although it tracks the series closely and beats interpolation on `vibration`** — Section 7 prints that comparison as a verdict, and the Interpretation section explains what it does and does not mean. **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end. Writing your predictions down is optional.\n\n**Roadmap:** 1–3 infrastructure → 4 the synthetic sample (or your CSV) → 5 validation, canonicalization and the evaluation mask, with a `HOLDOUT_START` field *(core concept: windows, padding, masks)* → 6 impute *(core concept: patch-quantized masking)* → 7 masked-point metrics, a same-support baseline and the verdict *(evaluation practice)* → 8 the plot around the hidden patch → 9 → export and provenance *(engineering)* → conclude.'
     )]},
     'learning_objectives': (
         'install the pinned runtime; read what the carried package guarantees; resolve and digest-verify the immutable model revision; generate the deterministic synthetic sample or bring your own long-format CSV; validate and canonicalize the input into an input manifest; hide one complete 8-step patch with known truth, choosing where it goes; impute and evaluate only withheld truth through an evaluation report; compare a same-support naive baseline and read the printed verdict, including when the model loses; and export the imputed series, metrics, and provenance. By the end of this notebook you will be able to do each of these without the repository being reachable.'
@@ -86,7 +86,7 @@ TEMPLATE = {
     'prerequisites': [
         '- **Learner:** basic Python and pandas familiarity; no prior experience with MOMENT or time-series foundation models. Windows, patches, padding, masks and the evaluation verdicts are explained where they are first used and again in the Glossary.',
         '- **Runtime:** a fresh supported **Linux x86_64** runtime (Google Colab, Kaggle or Linux Jupyter). Section 1 builds its own Python 3.12.12 environment from a hash-locked list of manylinux wheels (plus `momentfm`, built from its pinned commit), so the Python version of the kernel itself does not matter and nothing is installed into it; a Windows or macOS kernel is not supported.',
-        '- **Compute:** CPU is the default path and no GPU is required; CUDA is used automatically when available. The public v1 API accepts `float32` only. The locked `torch==2.14.0` wheel (the CUDA build, ~555 MB) and its NVIDIA libraries are the largest downloads of the run — see the measured total under External access — followed by the ~454 MB `model.safetensors`.',
+        '- **Compute:** CPU is the default path and no GPU is required; CUDA is used automatically when available. The public v1 API accepts `float32` only. The locked `torch==2.14.0` wheel (the CUDA build, ~555 MB) and its NVIDIA libraries are the largest downloads of the run — see the measured total under External access — followed by the ~1.39 GB `model.safetensors`.',
         '- **Knowledge:** basic Python and pandas; what a long-format time-series table is.',
         "- **Data:** the default sample is the repository's deterministic clean two-channel synthetic series regenerated in code, so nothing is downloaded and no private data is needed. The artificial evaluation mask is deterministic, so no random seed is required. Optional BYOD upload is gated off by default so the sample path can run top-to-bottom without interaction. Expected BYOD input: one UTF-8 CSV with columns `series_id`, `timestamp`, `channel`, `value`; `value` numeric or missing; identifiers and timestamps valid. Duplicate or ambiguous column names are rejected from the raw CSV header before dataframe parsing, and duplicate `(series_id, channel, timestamp)` rows are rejected by production validation. Operational ceilings: at most 5,000,000 rows, 1,024 series, 32 channels, and 1,024 canonical windows; MOMENT uses 512-step windows and 8-step non-overlapping patches; short series are left-padded, long series keep the final 512 timestamps, irregular spacing is surfaced rather than silently interpolated. BYOD is read locally in the notebook runtime and is not sent to an external inference service. Do not upload confidential or restricted data (personal or otherwise sensitive data included) to a hosted notebook environment unless you are authorized to do so.",
     ],
@@ -136,11 +136,47 @@ TEMPLATE = {
                 '    return frame.to_csv(index=False, date_format="%Y-%m-%dT%H:%M:%S", float_format="%.6f", lineterminator="\\n").encode("utf-8")\n'
                 '\n'
                 '\n'
+                'class BYODRefusal(Exception):\n'
+                '    """A refused BYOD input (NOTEBOOK_SPEC DAT20): shown as one message, with no traceback."""\n'
+                '\n'
+                '    dimer_refusal = True  # the isolated-environment router prints the message alone\n'
+                '\n'
+                '    def _render_traceback_(self):  # the same when the cell runs in the kernel itself\n'
+                '        return [str(self)]\n'
+                '\n'
+                '\n'
+                'RUN_STALE_MARKER = Path("outputs") / "RUN_INVALIDATED.txt"\n'
+                "STALE_RESULTS = ('frame', 'labels', 'sample_identity', 'sample_kind', 'payload', 'windows', 'normalized', 'report', 'input_manifest', 'result', 'scores', 'metrics', 'provenance', 'payload_out', 'ranked', 'pooled', 'channel_summary', 'embeddings', 'imputed', 'records', 'splits', 'train_records', 'val_records', 'test_records', 'dataset_manifests', 'classes', 'data_source', 'raw_count', 'evaluation_report_payload')\n"
+                '\n'
+                '\n'
+                'def refuse_byod(source, rule):\n'
+                '    """Invalidate the active run and return one actionable refusal (DAT20).\n'
+                '\n'
+                "    Files an earlier run wrote to outputs/ are kept but marked stale by RUN_INVALIDATED.txt, and the previous run's\n"
+                '    inputs and results are forgotten, so no later cell can present them as results for the refused input.\n'
+                '    """\n'
+                '    for stale in STALE_RESULTS:\n'
+                '        globals().pop(stale, None)\n'
+                '    Path("outputs").mkdir(exist_ok=True)\n'
+                '    RUN_STALE_MARKER.write_text(f"Active run invalidated by a refused BYOD input ({{source}}): {{rule}}\\nFiles in outputs/ come from an earlier run; they are NOT results for this input.\\n", encoding="utf-8")\n'
+                '    return BYODRefusal(f"BYOD input refused - {{source}}: {{rule}} Earlier files in outputs/ were kept but marked stale (outputs/RUN_INVALIDATED.txt), and the previous results were cleared from memory. Fix the CSV or BYOD_PATH and run this cell again, or untick USE_BYOD to return to the sample.")\n'
+                '\n'
+                '\n'
+                'def read_byod_csv(name, payload):\n'
+                '    """Parse and validate a BYOD CSV; a broken input contract is a refusal, not a traceback."""\n'
+                '    try:\n'
+                '        parsed = read_long_csv_bytes(payload)\n'
+                '        validate_long_frame(parsed, MomentConfig(task="reconstruction"))\n'
+                '    except ValidationError as exc:\n'
+                '        raise refuse_byod(name, f"{{exc}}.") from None\n'
+                '    return parsed\n'
+                '\n'
+                '\n'
                 'if BYOD_PATH:\n'
                 '    if not Path(BYOD_PATH).expanduser().is_file():\n'
-                '        raise FileNotFoundError(f"BYOD_PATH {{BYOD_PATH!r}} does not exist or is not a file (relative paths start at {{os.getcwd()}}); give the path of one long-format CSV.")\n'
+                '        raise refuse_byod(repr(BYOD_PATH), f"the path does not exist or is not a file (relative paths start at {{os.getcwd()}}); give the path of one long-format CSV with columns series_id,timestamp,channel,value.")\n'
                 '    payload = Path(BYOD_PATH).expanduser().read_bytes()\n'
-                '    frame = read_long_csv_bytes(payload)\n'
+                '    frame = read_byod_csv(Path(BYOD_PATH).name, payload)\n'
                 '    labels = None\n'
                 '    sample_identity = {{"kind": "byod", "name": Path(BYOD_PATH).name, "sha256": hashlib.sha256(payload).hexdigest()}}\n'
                 '    sample_kind = "BYOD"\n'
@@ -148,12 +184,12 @@ TEMPLATE = {
                 '    try:\n'
                 '        from google.colab import files\n'
                 '    except ImportError:\n'
-                '        raise RuntimeError("USE_BYOD is on but BYOD_PATH is empty, and the upload dialog exists only in Google Colab: copy the CSV into this runtime (or attach it as a Kaggle dataset) and set BYOD_PATH.") from None\n'
+                '        raise refuse_byod("upload dialog", "USE_BYOD is on but BYOD_PATH is empty, and the upload dialog exists only in Google Colab: copy the CSV into this runtime (or attach it as a Kaggle dataset) and set BYOD_PATH.") from None\n'
                 '    uploaded = files.upload()\n'
                 '    if len(uploaded) != 1:\n'
-                '        raise ValueError(f"Upload exactly one CSV with columns series_id,timestamp,channel,value (received {{len(uploaded)}} files; a cancelled dialog sends none). Run this cell again.")\n'
+                '        raise refuse_byod("upload dialog", f"upload exactly one CSV with columns series_id,timestamp,channel,value (received {{len(uploaded)}} files; a cancelled dialog sends none).")\n'
                 '    name, payload = next(iter(uploaded.items()))\n'
-                '    frame = read_long_csv_bytes(payload)\n'
+                '    frame = read_byod_csv(name, payload)\n'
                 '    labels = None\n'
                 '    sample_identity = {{"kind": "byod", "name": name, "sha256": hashlib.sha256(payload).hexdigest()}}\n'
                 '    sample_kind = "BYOD"\n'
@@ -167,6 +203,7 @@ TEMPLATE = {
                 '    sample_identity = {{"kind": "synthetic", "name": "moment_clean.csv", "sha256": observed}}\n'
                 '    sample_kind = "synthetic"\n'
                 '\n'
+                'RUN_STALE_MARKER.unlink(missing_ok=True)  # a valid input starts a new run\n'
                 'print({{"sample_kind": sample_kind, **sample_identity, "rows": len(frame), "columns": list(frame.columns)}})\n'
                 'print(frame.head())'
             ),
@@ -369,14 +406,14 @@ TEMPLATE = {
         },
         {
             "md": (
-                '<details><summary>Check your reasoning</summary>On the recorded runs it did not. The Kaggle CPU run of 14 September 2026 (previous version, trailing holdout) printed pooled MAE 1.121 for the model against 0.171 for the baseline (a last-value hold) — 6.6× worse, temperature 2.047 vs 0.172 and vibration 0.196 vs 0.170 per channel — and the review of 2 October 2026 moved the 8-step holdout to every one of the 32 patch positions of this sample: the model lost to the baseline at all 32 (interior median MAE 0.99 vs 0.062). Its visible-point correlation was 0.087 (temperature) and 0.012 (vibration), so the reconstruction does not track the series either. Over 8 steps a smooth trend plus sinusoids is close to linear, so interpolation is a strong baseline here, but a correlation near zero on visible points is not explained by that: it means the pinned base checkpoint, called through this path, returns values near the series mean. Compare your `VERDICT` line and `fidelity` with these numbers. The verdict `sample-sanity` still applies: one holdout cannot rank the methods in general, and nothing here says what MOMENT does on other data.</details>\n\n**Change one thing (optional):** pick another interior candidate printed in Section 5, set `HOLDOUT_START` to it, and re-run Sections 5–9. Predict first: will the verdict flip, and will the baseline predictions still vary within a channel? Explain what you see from the per-channel table and the plot in Section 8.'
+                '<details><summary>Check your reasoning</summary>Pooled, no; on one channel, yes. In the CPU build record of 17 October 2026 (MOMENT-1-large @ `ca58581b`, this notebook\'s code on a local CPU; not a hosted run) the default interior holdout gave pooled MAE 0.1080 for the model against 0.0523 for linear interpolation (`VERDICT` 2.1× worse, `ca58581b`); per channel, `temperature` 0.159 vs 0.032 and `vibration` 0.057 vs 0.072, where the model wins (`ca58581b`). Its visible-point correlation was 0.987 (temperature) and 0.959 (vibration), so the reconstruction tracks the series (`ca58581b`). Rotating the 8-step holdout over all 32 patch positions of this sample, the model beat the baseline at 7 of 32 and the interior median MAE was 0.126 against 0.062 (`ca58581b`, same CPU build record). Over 8 steps a smooth trend plus sinusoids is close to linear, so interpolation is a strong baseline on this sample; that, not a broken model, is why the pooled ratio stays above 1. For contrast, the previously pinned MOMENT-1-base checkpoint (`9fea447e`) printed pooled MAE 0.6045 against 0.0523 (11.5× worse) with visible-point correlations of 0.089 and 0.008 on the recorded Colab T4 run of 8 October 2026 of blob `50746e51`, i.e. a reconstruction near the series mean: the reason this notebook moved to MOMENT-1-large (see Interpretation and limits). The verdict `sample-sanity` still applies: one holdout on one synthetic series cannot rank the methods in general, and nothing here says what MOMENT does on other data.</details>\n\n**Change one thing (optional):** pick another interior candidate printed in Section 5, set `HOLDOUT_START` to it, and re-run Sections 5–9. Predict first: will the verdict flip, and will the baseline predictions still vary within a channel? Explain what you see from the per-channel table and the plot in Section 8.'
             ),
         },
         {
             "md": (
                 '## 8. Visualize the held-out patch: truth, model and baseline\n'
                 '\n'
-                'One diagnostic plot per channel of the **scored window** (the series Section 5 held out, whichever series the CSV lists last), centred on the hidden patch: the source truth, the model reconstruction across the whole span (on the shaded held-out positions it is the imputed value; elsewhere it shows how closely the reconstruction tracks points the model could see), and the baseline on the held-out positions only. `imputed_value` replaces only source-missing or deliberately hidden cells; observed neighbours hidden from the model only because they share the patch are not overwritten. Successful output makes the verdict of Section 7 visually inspectable; it does not replace the machine-readable export.'
+                'One diagnostic plot per channel of the **scored window** (the **first canonical window** Section 5 held out: the series whose `series_id` sorts first), centred on the hidden patch: the source truth, the model reconstruction across the whole span (on the shaded held-out positions it is the imputed value; elsewhere it shows how closely the reconstruction tracks points the model could see), and the baseline on the held-out positions only. `imputed_value` replaces only source-missing or deliberately hidden cells; observed neighbours hidden from the model only because they share the patch are not overwritten. Successful output makes the verdict of Section 7 visually inspectable; it does not replace the machine-readable export.'
             ),
             "code": (
                 'def write_line_svg(path, layers, *, title, width=760, height=280, shade=None, x_labels=("", "")):\n'
@@ -487,7 +524,7 @@ TEMPLATE = {
         '\n'
         "A successful run proves that the carried package can validate this input, reconstruct with the pinned MOMENT checkpoint, keep source missingness separate from artificial evaluation masking, score only known withheld truth, preserve observed values in the imputed product, and export results and provenance. Successful execution proves that the recorded repository revision's package, carried in this notebook, can do exactly that — without the repository being reachable — and no more.\n"
         '\n'
-        '**The recorded result is a negative one, and the notebook says so.** On the synthetic sample the pinned MOMENT-1-base checkpoint, called through this path, **did not beat the naive baseline on any recorded run**: the Kaggle CPU run of 14 September 2026 (previous version, trailing holdout) scored pooled MAE 1.121 against 0.171 for a last-value hold; the review of 2 October 2026 (local CPU, same weights, transformers 5.16.1 and upstream\'s own 4.33.3 giving the same numbers to seven significant figures) rotated the holdout over all 32 patch positions and the model lost at every one (interior median 0.99 vs 0.062), and its reconstruction of points it could see correlated with the truth at 0.087 and 0.012 — no better than predicting the series mean. The head tensors are proven live against the pinned file, so this is what the pinned base checkpoint returns here, not a loading error; the cause (checkpoint behaviour, or the upstream call convention for the base model) was not determined and is listed as an open repository question. Read your own `VERDICT` line and `fidelity` figures the same way: if the ratio is above 1, the imputed values on this sample are **not** better than the interpolation between neighbours, and the exported imputed product should be read as a demonstration of the contract (masking, scoring, preservation, provenance), not as a usable imputation of this series.\n'
+        '**What the numbers say, and why this notebook uses MOMENT-1-large.** On the default sample the pinned MOMENT-1-large checkpoint reconstructs the series closely (visible-point correlation 0.987 / 0.959) but fills the hidden 8-step patch about 2× worse than linear interpolation pooled over the channels (MAE 0.1080 vs 0.0523), while beating it on `vibration` (0.057 vs 0.072); all three figures are from the CPU build record of 17 October 2026 (MOMENT-1-large @ `ca58581b`, this notebook\'s code on a local CPU; not a hosted run). On a smooth synthetic series an 8-step gap is close to a straight line, so interpolation is hard to beat, and the notebook prints the comparison as a verdict instead of hiding it.\n\nUntil 17 October 2026 this repository pinned `AutonLab/MOMENT-1-base` (`9fea447e`), and every run of this notebook then lost badly (pooled MAE 0.6045 vs 0.0523, visible-point correlation 0.089 / 0.008 on the recorded Colab T4 run of blob `50746e51`). The cause is **determined, and it is the base checkpoint\'s released reconstruction head, which does not reconstruct**: reviewer CPU evidence from the tutorial-triage review of 15 October 2026 shows the shipped base head returning values uncorrelated with the input even on a clean, unpadded 512-step sine under upstream\'s own documented call (Pearson -0.005, `9fea447e`), and MOMENT-1-small fails the same way, while the base *encoder* is informative (a ridge readout fitted on its frozen states reconstructs held-out patches with R² 0.90, `9fea447e`). The pipeline\'s call matches upstream\'s `forward` to 1.9e-6, and upstream at the pinned `momentfm` commit declares `transformers>=4.54.1`; 4.54.1 and 5.16.1 give identical numbers. MOMENT-1-large, run through identical code, reconstructs the same sine with Pearson 0.986 (`ca58581b`), so the repository moved to it (RFC 0001, Amendment 1). Read your own `VERDICT` line and `fidelity` figures the same way: a ratio above 1 means the imputed values on this sample are **not** better than interpolation between neighbours, and the exported imputed product is a demonstration of the contract (masking, scoring, preservation, provenance), not evidence that MOMENT imputes better than interpolation.\n'
         '\n'
         'It **does not prove** that the displayed MAE/RMSE generalize to other series or domains, that MOMENT loses (or wins) against interpolation in general, or that the model supplies calibrated per-prediction uncertainty; the evaluation report says `sample-sanity` for that reason. It does **not** establish benchmark superiority, deployment calibration, safety for high-consequence decisions, or production fitness on an unseen domain. This path returns point reconstructions only; no uncertainty interval is provided.\n'
         '\n'
@@ -530,11 +567,11 @@ TEMPLATE = {
         '\n'
         '## References\n'
         '\n'
-        '- Repository README: https://github.com/kurtvalcorza/moment-pipeline/blob/main/README.md\n'
-        '- Repository model card: https://github.com/kurtvalcorza/moment-pipeline/blob/main/MODEL_CARD.md\n'
-        '- Sample dataset card: https://github.com/kurtvalcorza/moment-pipeline/blob/main/examples/sample-data/DATASET_CARD.md\n'
-        '- Upstream model: https://huggingface.co/{MODEL_ID}\n'
-        '- Upstream library: https://github.com/moment-timeseries-foundation-model/moment\n'
-        '- MOMENT: A Family of Open Time-series Foundation Models: https://arxiv.org/abs/2402.03885'
+        '[1] M. Goswami, K. Szafer, A. Choudhry, Y. Cai, S. Li, and A. Dubrawski, "MOMENT: A family of open time-series foundation models," in *Proc. 41st Int. Conf. Mach. Learn. (ICML)*, 2024. [Online]. Available: https://arxiv.org/abs/2402.03885\n\n'
+        '[2] Auton Lab, Carnegie Mellon University, "{MODEL_ID}," model card, Hugging Face, rev. `{MODEL_REVISION}`, licence MIT. [Online]. Available: https://huggingface.co/{MODEL_ID}\n\n'
+        '[3] Auton Lab, Carnegie Mellon University, "moment," source code, GitHub, commit `38f7310ad594100747ca2a8357e9c7ca7d323e0e`. [Online]. Available: https://github.com/moment-timeseries-foundation-model/moment\n\n'
+        '[4] K. Valcorza, "moment-pipeline README," GitHub. [Online]. Available: https://github.com/kurtvalcorza/moment-pipeline/blob/main/README.md\n\n'
+        '[5] K. Valcorza, "moment-pipeline model card," GitHub. [Online]. Available: https://github.com/kurtvalcorza/moment-pipeline/blob/main/MODEL_CARD.md\n\n'
+        '[6] K. Valcorza, "moment-pipeline synthetic sample dataset card," GitHub. [Online]. Available: https://github.com/kurtvalcorza/moment-pipeline/blob/main/examples/sample-data/DATASET_CARD.md'
     ),
 }

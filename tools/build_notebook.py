@@ -41,7 +41,18 @@ from pathlib import Path
 from typing import Any
 
 GENERATOR_VERSION = "build_notebook.py/2.2"
-NOTEBOOK_SPEC = "2.0"
+NOTEBOOK_SPEC = "2.5"
+#: DIMER NOTEBOOK_SPEC 2.5 DOC17-DOC21 canonical use notice (with the BYOD clause: every notebook here has a BYOD path).
+USE_NOTICE = (
+    '> **⚠️ Notice.** For research, training and evaluation only. Not validated for production,\n'
+    '> clinical, diagnostic or safety-critical use. Running this notebook downloads third-party\n'
+    '> model weights and datasets under their own licenses (see the model card) and uses compute\n'
+    '> on your own Colab or Kaggle account. Data you bring stays in your runtime, and you are\n'
+    '> responsible for having the right to use it. Results here are tutorial evidence, not\n'
+    '> benchmarks. Everything is provided "as is", without warranty of any kind. To the maximum\n'
+    '> extent permitted by law, the maintainers and the DIMER platform accept no liability for\n'
+    '> its use.'
+)
 
 # ST2: default rewrite rule; a template may replace it with its own `rewrites` list. Every rule must
 # match exactly once across the embedded modules, so a silent no-op is impossible.
@@ -321,6 +332,10 @@ while True:
         _send.send(("done",))
     except BaseException as exc:
         signal.signal(signal.SIGINT, signal.SIG_IGN)
+        if getattr(exc, "dimer_refusal", False):
+            # A refused user input (DAT20): one actionable message, no traceback; genuine failures keep theirs.
+            _send.send(("refusal", str(exc)))
+            continue
         frames = exc.__traceback__.tb_next if exc.__traceback__ is not None else None
         _send.send(("error", "".join(traceback.format_exception(type(exc), exc, frames)), f"{type(exc).__name__}: {exc}"))
 """
@@ -328,6 +343,13 @@ while True:
 
 class IsolatedCellError(RuntimeError):
     """A routed cell raised inside the isolated environment; its traceback is printed above."""
+
+
+class IsolatedCellRefusal(Exception):
+    """A routed cell refused a user input (for example a BYOD upload); shown as its message alone, with no traceback."""
+
+    def _render_traceback_(self):
+        return [str(self)]
 
 
 class IsolatedRuntime:
@@ -384,6 +406,8 @@ class IsolatedRuntime:
                 self._display(message[1], raw=True)
             elif kind == "upload":
                 self._send.send(("upload", self._colab_upload()))
+            elif kind == "refusal":
+                raise IsolatedCellRefusal(message[1]) from None
             elif kind == "error":
                 sys.stderr.write(message[1])
                 raise IsolatedCellError(message[2]) from None
@@ -805,15 +829,25 @@ def _code(source: str, metadata: dict[str, Any] | None = None) -> dict[str, Any]
 # NOTEBOOK_SPEC 2.0 §3.4/§28 declarations. A template MAY override `mode`, `run_all` and `byod`;
 # E2E and ARTIFACT-INFERENCE templates MUST state `run_all` themselves (their default paths differ).
 MODES = ("REFERENCE", "GUIDED", "WORKSHOP")
+#: Executor-only environment variables of the isolated Section 1 (NOTEBOOK_SPEC 2.5 STA-ENV: every variable a
+#: notebook reads is documented). Appended to a template's own `run_all` when it does not already say this.
+_EXECUTOR_ENV_NOTE = (
+    "Two environment variables exist for executors only: `DIMER_NOTEBOOK_CI_PREINSTALLED=1` tells Section 1 that the "
+    "kernel already holds exactly the pinned packages, so it installs nothing and routes nothing; `DIMER_ISOLATED_ENV` "
+    "names the directory Section 1 builds (or reuses) the isolated environment in (default `dimer_isolated_env_` plus "
+    "the first 12 hex digits of the lock digest, in the working directory)."
+)
 _RUN_ALL_DEFAULT = {
     "TASK-INFERENCE": (
         "Selecting **Run all** in a fresh supported runtime installs the pinned dependencies, stages and digest-verifies the "
         "pinned snapshot, obtains the tutorial sample automatically, validates it into an input manifest before the model "
         "runs, runs the task locally in this runtime, writes the evaluation report, and exports machine-readable outputs "
         "with provenance. The default path needs no repository clone, no DIMER worker or service, no credential, no upload "
-        "dialog and no configuration edit (NOTEBOOK_SPEC 2.0 §5). Two environment variables exist for executors only: "
+        "dialog and no configuration edit (NOTEBOOK_SPEC 2.0 §5). Three environment variables exist for executors only: "
         "`DIMER_NOTEBOOK_CI_PREINSTALLED=1` tells Section 1 that the kernel already holds exactly the pinned packages, so it "
-        "installs nothing and routes nothing; `DIMER_BYOD_PATH` points the sample cell at a CSV without touching a form field."
+        "installs nothing and routes nothing; `DIMER_ISOLATED_ENV` names the directory Section 1 builds (or reuses) the isolated "
+        "environment in (default `dimer_isolated_env_` plus the first 12 hex digits of the lock digest, in the working directory); "
+        "`DIMER_BYOD_PATH` points the sample cell at a CSV without touching a form field."
     ),
     "MULTI-CAPABILITY": (
         "Selecting **Run all** in a fresh supported runtime installs the pinned dependencies, stages and digest-verifies the "
@@ -847,6 +881,8 @@ def _declarations(template: dict[str, Any]) -> tuple[str, str, str]:
 def render(repo: Path, template: dict[str, Any], revision: str | None = None) -> dict[str, Any]:
     ctx = load_context(repo, template, revision)
     mode, run_all, byod = _declarations(template)
+    if template.get("isolated_runtime") and "DIMER_ISOLATED_ENV" not in run_all:
+        run_all = f"{run_all} {_EXECUTOR_ENV_NOTE}"
     stem = template["stem"]
     fmt = {"stem": stem, **{k: ctx[k] for k in ("MODEL_ID", "MODEL_REVISION", "MODEL_LICENSE", "MODEL_KEY")}}
     cells: list[dict[str, Any]] = []
@@ -881,6 +917,7 @@ def render(repo: Path, template: dict[str, Any], revision: str | None = None) ->
         f"**This notebook does not demonstrate:** {template['exclusions'].strip()}"
     )
     add(_md(header))
+    add(_md(USE_NOTICE))
     for opening in (template.get("guided") or {}).get("opening", []):
         add(_md(opening.format(**fmt)))
 
@@ -1107,6 +1144,7 @@ def render(repo: Path, template: dict[str, Any], revision: str | None = None) ->
             "dimer": {
                 "notebook_profile": template["profile"],
                 "notebook_mode": mode,
+                "notebook_kind": template.get("kind", "TUTORIAL"),
                 "notebook_spec": NOTEBOOK_SPEC,
                 "standalone": True,
                 **({"environment": "isolated hash-locked uv environment; nothing installed into the kernel"} if isolated else {}),

@@ -278,7 +278,7 @@ def score_from_reconstruction(
     """Derive scores from a reconstruction that has already been computed.
 
     Split out from `score_anomalies` so the scoring arithmetic — the scored domain, the
-    residual, the aggregation — is testable against a `WindowSet` without 454 MB of
+    residual, the aggregation — is testable against a `WindowSet` without 1.39 GB of
     weights, and so a caller who already holds a `ReconstructionResult` does not pay for a
     second forward pass.
     """

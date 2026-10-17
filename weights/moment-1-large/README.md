@@ -19,7 +19,7 @@ tags:
 - time-series
 pipeline_tag: time-series-forecasting
 ---
-# MOMENT-base
+# MOMENT-Large
 
 MOMENT is a family of foundation models for general-purpose time-series analysis. The models in this family (1) serve as a building block for diverse **time-series analysis tasks** (e.g., forecasting, classification, anomaly detection, and imputation, etc.), (2) are effective **out-of-the-box**, i.e., with no (or few) task-specific exemplars (enabling e.g., zero-shot forecasting, few-shot classification, etc.), and (3) are **tunable** using in-distribution and task-specific data to improve performance. 
 
@@ -45,10 +45,10 @@ To load the pre-trained model for one of the tasks, use one of the following cod
 
 **Forecasting**
 ```python
-from moment import MOMENTPipeline
+from momentfm import MOMENTPipeline
 
 model = MOMENTPipeline.from_pretrained(
-    "AutonLab/MOMENT-1-base", 
+    "AutonLab/MOMENT-1-large", 
     model_kwargs={
         'task_name': 'forecasting',
         'forecast_horizon': 96
@@ -59,10 +59,10 @@ model.init()
 
 **Classification**
 ```python
-from moment import MOMENTPipeline
+from momentfm import MOMENTPipeline
 
 model = MOMENTPipeline.from_pretrained(
-    "AutonLab/MOMENT-1-base", 
+    "AutonLab/MOMENT-1-large", 
     model_kwargs={
         'task_name': 'classification',
         'n_channels': 1,
@@ -74,10 +74,10 @@ model.init()
 
 **Anomaly Detection, Imputation, and Pre-training**
 ```python
-from moment import MOMENTPipeline
+from momentfm import MOMENTPipeline
 
 model = MOMENTPipeline.from_pretrained(
-    "AutonLab/MOMENT-1-base", 
+    "AutonLab/MOMENT-1-large", 
     model_kwargs={"task_name": "reconstruction"},
 )
 mode.init()
@@ -85,10 +85,10 @@ mode.init()
 
 **Representation Learning**
 ```python
-from moment import MOMENTPipeline
+from momentfm import MOMENTPipeline
 
 model = MOMENTPipeline.from_pretrained(
-    "AutonLab/MOMENT-1-base", 
+    "AutonLab/MOMENT-1-large", 
     model_kwargs={'task_name': 'embedding'},
 )
 ```
@@ -106,7 +106,7 @@ Here is the list of tutorials and reproducibile experiments to get started with 
 
 ### Model Description
 
-- **Developed by:** [Auton Lab](https://autonlab.org/), [Carnegie Mellon University](https://www.cmu.edu/) and [University of Pennsylvania](https://www.upenn.edu/)
+- **Developed by:** [Auton Lab](https://autonlab.org/), [Carnegie Mellon University](https://www.cmu.edu/)
 - **Model type:** Time-series Foundation Model
 - **License:** MIT License
 
@@ -128,7 +128,7 @@ We train multiple models over many days resulting in significant energy usage an
 We use the Total Graphics Power (TGP) to calculate the total power consumed for training MOMENT models, although the total power consumed by the GPU will likely vary a little based on the GPU utilization while training our model. Our calculations do not account for power demands from other sources of our compute. We use 336.566 Kg C02/MWH as the standard value of CO2 emission per megawatt hour of energy consumed for [Pittsburgh](https://emissionsindex.org/).
 
 - **Hardware Type:** NVIDIA RTX A6000 GPU
-- **GPU Hours:** 89
+- **GPU Hours:** 404
 - **Compute Region:** Pittsburgh, USA
 - **Carbon Emission (tCO2eq):** 
 

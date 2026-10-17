@@ -1,8 +1,8 @@
 """Bounded supervised adaptation of the MOMENT encoder to a labelled-window classification task — the
 first task-head contract of this repository — under an explicit frozen-vs-unfrozen policy.
 
-MOMENT-1-base ships no classification head (its upstream `classification` task head is *not* pretrained,
-RFC M-1/M-4), so the head trained here is the caller's own, on top of the pooled 768-d window embeddings
+MOMENT-1-large ships no classification head (its upstream `classification` task head is *not* pretrained,
+RFC M-1/M-4), so the head trained here is the caller's own, on top of the pooled 1024-d window embeddings
 of the `embedding` task instance. The **frozen policy** trains only that linear head on frozen embeddings
 (a linear probe); the **unfrozen policy** continues by training the last `trainable_blocks` T5 encoder
 blocks with the head end to end; the epoch with the lowest validation log-loss — which may be the probe
@@ -41,7 +41,7 @@ DEFAULT_TRAINABLE_BLOCKS = (
     2  # the unfrozen policy trains the last two encoder blocks (14,158,848 parameters)
 )
 MIN_SCORED_RECORDS = 50  # below this a scored dataset is labelled a small sample
-ARTIFACT_FORMAT = "org.valcorza.moment-1-base.classifier-adapter.v1"
+ARTIFACT_FORMAT = "org.valcorza.moment-1-large.classifier-adapter.v1"
 ARTIFACT_FORMAT_VERSION = "1.0"
 ARTIFACT_WEIGHTS_NAME = "adapter.safetensors"
 ARTIFACT_MANIFEST_NAME = "manifest.json"
@@ -155,7 +155,7 @@ def windows_for(
 def features(
     records: Sequence[Mapping[str, Any]], model: LoadedMoment, *, batch_size: int = 8
 ) -> tuple[np.ndarray, list[dict[str, Any]]]:
-    """Frozen-policy features: one L2-normalised 768-d pooled embedding per validated window, through
+    """Frozen-policy features: one L2-normalised 1024-d pooled embedding per validated window, through
     `embed` (eval mode, no gradient), plus the records in window order."""
     windows, ordered = windows_for(records)
     result = embed(windows, model, batch_size=batch_size, warmup=False)
@@ -307,7 +307,7 @@ def adapt(
 ) -> ClassifierAdapter:
     """Two-stage bounded adaptation, selected on validation.
 
-    Stage A (the **frozen policy**): a `Linear(768, classes)` head trained full-batch on the frozen
+    Stage A (the **frozen policy**): a `Linear(1024, classes)` head trained full-batch on the frozen
     L2-normalised embeddings with AdamW (`probe_lr`, weight decay 1e-4) for `probe_steps` steps — the linear
     probe — recorded as epoch 0. Stage B (the **unfrozen policy**, when `trainable_blocks` > 0 and `epochs` > 0):
     the last `trainable_blocks` T5 encoder blocks and the head trained end to end on the windows for `epochs`

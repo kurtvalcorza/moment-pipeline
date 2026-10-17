@@ -4,6 +4,8 @@
 
 ## Status
 
+> **Amended 2026-10-17:** the pinned checkpoint is now `AutonLab/MOMENT-1-large` @ `ca58581bc7bea2ebed4e80dc0a3e4b8b609c6ecc`; see **Amendment 1** at the end. The body below is the verbatim RFC as approved for MOMENT-1-base.
+
 **RFC v2 / Integrator-amended implementation proposal** — revised after Agent Relay review. This version is the builder contract pending one final reviewer pass.
 
 ## Summary
@@ -663,3 +665,48 @@ Adapted classification/forecasting require separate follow-on RFCs.
 ## Integrator disposition
 
 **Base-model architecture approved. MOMENT v1 is intentionally narrowed to embeddings, imputation, and reconstruction-based anomaly scoring. Builder may start only after the final reviewer confirms this amended RFC contract.**
+
+## Amendment 1 — 2026-10-17: the pinned checkpoint moves to MOMENT-1-large
+
+**Status:** owner decision (Kurt Valcorza, 2026-10-17), implemented on branch
+`fix/moment-reconstruction-large-2026-10-17`. This section amends the verbatim RFC above; where the two disagree, this
+section wins. Every requirement above that names `AutonLab/MOMENT-1-base` or revision `9fea447e…` now reads as the
+checkpoint pinned below. The capability set, the supply-chain invariants 1–8, the masking/padding/RevIN policy and
+the deferred items do not change.
+
+**Why.** The tutorial-triage review of 2026-10-15 (row 57) found, on CPU, that the reconstruction head shipped with
+`AutonLab/MOMENT-1-base` @ `9fea447e740eb968a9e8d80c7562ae122bdb5dde` does not reconstruct its input:
+- on a clean, unpadded 512-step sine with nothing masked, the visible-point Pearson correlation is -0.005;
+- on upstream's own ETTh1 tutorial windows, the median correlation is -0.019;
+- `MOMENT-1-small` shows the same failure.
+
+The base *encoder* is informative: a ridge readout fitted on its frozen states reconstructs held-out patches with
+R² 0.904. The pipeline's call equals upstream's documented `forward` (max |diff| 1.9e-6), and `transformers` 4.54.1
+(upstream's declared minimum at the pinned `momentfm` commit) and 5.16.1 agree to 6 d.p. So the failure belongs to
+the checkpoint, not to this repository. `AutonLab/MOMENT-1-large` passes the same checks through identical code (sine
+Pearson 0.986).
+
+Imputation and anomaly scoring are the reconstruction capabilities, and the fleet keeps one pinned model per pipeline
+repository. The owner therefore moved the whole repository to the large checkpoint instead of carrying two pins.
+
+**New pin (verified 2026-10-17).**
+
+| Field | Value |
+|---|---|
+| Model | `AutonLab/MOMENT-1-large` |
+| Hugging Face revision | `ca58581bc7bea2ebed4e80dc0a3e4b8b609c6ecc` (Hub `main` on 2026-10-17; last modified 2025-03-26) |
+| `model.safetensors` | 1,385,501,256 bytes, SHA-256 `a56928052ac6f5d09b97c3834bea6ce3aef9f02b513b5fac98954e7377801572` |
+| `config.json` | 951 bytes, SHA-256 `b0111650e8718e31d7e89575666aa3e140747d35279ec1a7c9f6ed7616c29433` |
+| Forbidden `pytorch_model.bin` (present upstream, never fetched) | 1,385,575,757 bytes, SHA-256 `52f5ee65c80790c7f6dab8736243368e193fcc04d2d642d9f69c89dd644bd199` |
+| Licence | MIT, declared in the model-card metadata (`license: mit`) and README; no LICENSE file at this revision |
+| Structure | seq_len 512, patch_len 8, stride 8 (unchanged); `d_model` 1024 (was 768); 341,248,520 parameters in the reconstruction-task module (was 109,641,608) |
+
+**Consequences.**
+- Embeddings are 1024-d instead of 768-d.
+- A classifier adapter trained on base embeddings cannot be loaded: the adapter format id is now
+  `org.valcorza.moment-1-large.classifier-adapter.v1`.
+- The download is ~1.39 GB instead of ~454 MB. Peak CPU memory per notebook is recorded in
+  `docs/release-verification.md`.
+- Every number recorded for the base checkpoint (tutorial worked answers, release evidence) belongs to that
+  checkpoint. It is kept as history and labelled with its revision, never presented as large's result.
+- New hosted evidence is required for all four notebooks before any release status is claimed.

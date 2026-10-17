@@ -150,9 +150,19 @@ first attempt lost the Colab connection before cell 1 (0 cells run, infrastructu
 | 2026-10-07 | `moment_embeddings_colab.ipynb` (`TASK-INFERENCE`) | `3b0cee5` / `7bfc3151e54e` | Colab CLI 0.7.4 sequential execution, fresh Colab Tesla T4 (session `suite-moment-3b0cee5-cb4e`) | default synthetic sample, `USE_BYOD = False`; isolated env (61 locked packages, Python 3.12.12) | 104.9 s | **one pass, no restart, 0 errors** — 19/19 code cells in order per `exec.log`; embedding shape (1, 768), finite; padded 1/1, truncated 0/1; Section 6b cosine to the clean vector 0.907 (missing) vs 0.9999998 (interpolated), missing vs zeros-written max difference 0.0; verdict `not-measurable`; evidence `docs/execution-evidence/2026-10-07-3b0cee5/moment_embeddings_colab/` (SHA-256: executed notebook `e85935e0849d8911f5345ebb74b3bb2cdf08931d8c672cd2439a06836ddd7502`, `run_summary.json` `d37a27b9d6f79a4dd0e5b8f2997ddfcb993da8e3811bfc61f5e061bceeac554b`, `exec.log` `b8a981509350c3f9f10ac1ec8f13233ff260b358bbfb149fa3146b8cf8ec774c`) |
 | 2026-10-08 | `moment_imputation_colab.ipynb` (`TASK-INFERENCE`) | `3b0cee5` / `50746e514d6b` | Colab CLI 0.7.4 sequential execution, fresh Colab Tesla T4 (session `suite-moment-3b0cee5-82d8`) | default synthetic sample, `USE_BYOD = False`, interior holdout (positions 384-391); isolated env (61 locked packages, Python 3.12.12) | 110.5 s | **one pass, no restart, 0 errors** — 19/19 code cells in order per `exec.log`; pooled masked-point MAE 0.6045 vs 0.0523 for linear interpolation (model worse by 11.5x, as the notebook warns); 16 held-out points; verdict `sample-sanity`; evidence `docs/execution-evidence/2026-10-07-3b0cee5/moment_imputation_colab/` (SHA-256: executed notebook `14b022ccc2a3763ac324a88f02271353198f3c8ccfaa9d17283c2d295ed1cf54`, `run_summary.json` `134b87a1d8ecbd0776c41955498370b51080c32a14ec8ebf255920c4963d4170`, `exec.log` `1e69fee2c2dd8fecd01a191fdb035638e5bb160d381032635f9b7f818318f831`) |
 
+### MOMENT-1-large CPU build records (2026-10-17; not hosted evidence)
+
+RFC 0001 Amendment 1 moved the pin to `AutonLab/MOMENT-1-large` @ `ca58581bc7bea2ebed4e80dc0a3e4b8b609c6ecc`. All four
+notebook blobs therefore changed, and every run recorded above is evidence for MOMENT-1-base blobs only. On branch
+`fix/moment-reconstruction-large-2026-10-17`, each regenerated notebook's code cells were executed top to bottom in one
+process on a local Windows CPU. The environment was the `uv sync --locked` stack (`torch 2.14.0+cpu`) with
+`DIMER_NOTEBOOK_CI_PREINSTALLED=1`; the checkpoint was staged and digest-verified by the notebook itself. The run
+covered the default path only, and all four notebooks passed. This is a build record, not a hosted run, and it does not
+identify a notebook blob for release. The old-versus-new figures are in `MODEL_CARD.md` under "Checkpoint change".
+
 ## Current status
 
-**Candidate.** The four notebook blobs at `3b0cee5` (generator /2.2: fleet-sweep and notebook-review fixes, the
+**Candidate.** **The pinned checkpoint changed on 2026-10-17 (MOMENT-1-base → MOMENT-1-large); none of the hosted runs listed above identifies a current notebook blob, and new hosted runs of all four notebooks are required.** The rest of this paragraph describes the MOMENT-1-base revision `3b0cee5`. The four notebook blobs at `3b0cee5` (generator /2.2: fleet-sweep and notebook-review fixes, the
 isolated `uv` environment, worker `google.colab` stubs with module specs) are new, so the earlier Kaggle evidence above
 no longer identifies the shipped notebooks, and those runs also needed one restart after the install cell. Each new blob
 passed a Colab CLI 0.7.4 sequential execution on a fresh Colab Tesla T4 in one pass, with no restart and 0 errors

@@ -26,11 +26,11 @@ from moment_pipeline.provenance import build_provenance
 from moment_pipeline.validation import ValidationError
 
 IDENTITY = ModelIdentity(
-    name="AutonLab/MOMENT-1-base",
-    revision="9fea447e740eb968a9e8d80c7562ae122bdb5dde",
+    name="AutonLab/MOMENT-1-large",
+    revision="ca58581bc7bea2ebed4e80dc0a3e4b8b609c6ecc",
     config_sha256="f" * 64,
     weights_sha256="1" * 64,
-    weights_bytes=453_940_120,
+    weights_bytes=1_385_501_256,
     license="MIT",
     license_basis="model card metadata",
     weight_file_loaded="model.safetensors",

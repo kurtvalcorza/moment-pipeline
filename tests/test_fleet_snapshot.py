@@ -93,7 +93,7 @@ def pinned_to_stand_in(monkeypatch, tmp_path):
 def test_fleet_identity_names_alias_the_package_pins():
     assert (MODEL_ID, MODEL_REVISION) == (PINNED_MODEL_ID, PINNED_REVISION)
     assert MODEL_LICENSE == "MIT"
-    assert MODEL_KEY == "moment-1-base"
+    assert MODEL_KEY == "moment-1-large"
     assert model_mod.DEFAULT_WEIGHTS_DIR == ROOT / "weights" / MODEL_KEY
 
 

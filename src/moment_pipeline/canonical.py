@@ -1,6 +1,6 @@
 """Long-format -> canonical MOMENT tensor conversion.
 
-Documented policy for the pinned `AutonLab/MOMENT-1-base` checkpoint (seq_len 512,
+Documented policy for the pinned `AutonLab/MOMENT-1-large` checkpoint (seq_len 512,
 patch_len 8, stride 8):
 
 * **Channel ordering** — the sorted unique channel names of the *whole* input. Every

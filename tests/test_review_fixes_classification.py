@@ -57,14 +57,19 @@ def _defs(source: str, names: set[str]) -> str:
 
 def test_mcl_m3_no_build_record_result_in_the_prose(nb: dict) -> None:
     md = _markdown(nb)
-    assert "build record" not in md
-    assert "77.8" not in md and "0.776" not in md, "the pre-flight accuracy/macro-F1 of another blob is gone"
+    # RFC 0001 Amendment 1: the current numbers are the labelled MOMENT-1-large CPU build record (REL13)
+    assert "0.776" not in md, "the MOMENT-1-base pre-flight macro-F1 of another blob is gone"
+    for cell in (c for c in nb["cells"] if c["cell_type"] == "markdown"):
+        text = _src(cell)
+        if "91.7 %" in text:
+            assert "CPU build record of 17 October 2026" in text, f"unlabelled build-record number: {text[:120]!r}"
     assert "partly recovering the static postures" not in md and "static postures partly recovered" not in md
     assert "epoch 2 selected, 75.0 %" not in md
     for cell in (c for c in nb["cells"] if c["cell_type"] == "markdown"):
         text = _src(cell)
         if "75.0 %" in text or "72.2 %" in text:
             assert "Kaggle T4" in text or "Kaggle Tesla T4" in text, f"a quoted number must name its run: {text[:120]!r}"
+            assert "9fea447e" in text, f"a MOMENT-1-base number must name its revision: {text[:120]!r}"
 
 
 def test_mcl_m3_delta_is_converted_to_windows_in_code(nb: dict) -> None:
@@ -124,7 +129,7 @@ def test_mcl_m7_class_cosine_table_reads_the_gap(nb: dict) -> None:
     for row in table.values():
         assert row["n"] == 6 and row["within"] > row["between"] and row["gap"] == round(row["within"] - row["between"], 4)
     md = _markdown(nb)
-    assert "a single pair is an anecdote" in md and "(0.984 vs 0.997)" in md
+    assert "a single pair is an anecdote" in md and "(0.947 vs 0.991)" in md
 
 
 # --- MCL-m3: timing figures name their environment ----------------------------------------------------------------
@@ -133,10 +138,10 @@ def test_mcl_m7_class_cosine_table_reads_the_gap(nb: dict) -> None:
 def test_mcl_m3_timing_figures_name_their_environment(nb: dict) -> None:
     md = _markdown(nb)
     assert "about 150 s" not in md and "about three minutes on CPU" not in md and "about half a minute on CPU" not in md
-    assert "307.5 s on the local CPU pre-flight of 2026-09-19" in md
-    assert "294 s on the recorded Kaggle Tesla T4 run of 2026-09-19" in md
+    assert "1,061 s in the CPU build record of 17 October 2026" in md
+    assert "no hosted run of the MOMENT-1-large revision is recorded yet" in md
     registry = (ROOT / "tutorials" / "README.md").read_text(encoding="utf-8")
-    assert "seven min of model time" not in registry and "430 s of cell time on the local CPU pre-flight of 2026-09-19" in registry
+    assert "seven min of model time" not in registry and "MOMENT-1-large CPU build record of 2026-10-17" in registry
 
 
 # --- MCL-m4 / MCL-m5 / MCL-m6 ---------------------------------------------------------------------------------------

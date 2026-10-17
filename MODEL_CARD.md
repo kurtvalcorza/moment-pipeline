@@ -9,14 +9,14 @@ tags:
   - representation-learning
   - imputation
   - anomaly-detection
-base_model: AutonLab/MOMENT-1-base
-date_published: "2024-10-12"
-date_published_source: "Hugging Face Hub repository creation date of the exact hosted checkpoint (`createdAt`, https://huggingface.co/api/models/AutonLab/MOMENT-1-base)"
+base_model: AutonLab/MOMENT-1-large
+date_published: "2024-05-09"
+date_published_source: "Hugging Face Hub repository creation date of the exact hosted checkpoint (`createdAt`, https://huggingface.co/api/models/AutonLab/MOMENT-1-large)"
 ---
 
-# MOMENT-1-base — Time-Series Foundation Model (Embeddings, Imputation & Anomaly Detection)
+# MOMENT-1-large — Time-Series Foundation Model (Embeddings, Imputation & Anomaly Detection)
 
-[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-AutonLab%2FMOMENT--1--base-ffcc4d?style=flat)](https://huggingface.co/AutonLab/MOMENT-1-base)
+[![Hugging Face](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-AutonLab%2FMOMENT--1--large-ffcc4d?style=flat)](https://huggingface.co/AutonLab/MOMENT-1-large)
 [![Upstream GitHub](https://img.shields.io/badge/Upstream%20GitHub-moment--timeseries--foundation--model%2Fmoment-181717?style=flat&logo=github&logoColor=white)](https://github.com/moment-timeseries-foundation-model/moment)
 [![arXiv Paper](https://img.shields.io/badge/arXiv-2402.03885-b31b1b.svg)](https://arxiv.org/abs/2402.03885)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -26,9 +26,47 @@ date_published_source: "Hugging Face Hub repository creation date of the exact h
 
 ---
 
+## Checkpoint change (2026-10-17)
+
+This repository pinned `AutonLab/MOMENT-1-base` @ `9fea447e740eb968a9e8d80c7562ae122bdb5dde` until 2026-10-17. It now
+pins `AutonLab/MOMENT-1-large` @ `ca58581bc7bea2ebed4e80dc0a3e4b8b609c6ecc` (RFC 0001, Amendment 1). The reason is the
+base checkpoint's released reconstruction head, which does not reconstruct its input (reviewer CPU evidence: Pearson
+-0.005 on a clean 512-step sine). Its encoder is informative, and MOMENT-1-large reconstructs through identical code.
+Numbers elsewhere in this card that are labelled *MOMENT-1-base history* belong to the old checkpoint.
+
+The table compares the two checkpoints on the four tutorials' default paths. Both columns come from a CPU build record
+of 2026-10-17: the notebooks' own code run top to bottom in one process on a local Windows CPU (float32,
+`torch 2.14.0+cpu`), with no hosted runtime. These figures are not hosted evidence. Every MOMENT-1-large blob still
+needs a recorded hosted run.
+
+| Notebook | Measure | MOMENT-1-base `9fea447e` (old) | MOMENT-1-large `ca58581b` (new) |
+|---|---|---|---|
+| embeddings | embedding dimension / L2 norm of the sample vector | 768 / 7.218 | 1024 / 2.812 |
+| embeddings | missingness experiment: cosine / L2, missing copy | 0.907 / 3.31 | 0.754 / 2.28 |
+| embeddings | missingness experiment: cosine / L2, interpolated copy | 0.9999998 / 0.0047 | 0.99999 / 0.0105 |
+| imputation | pooled masked MAE / RMSE (interior patch 384–391) | 0.6045 / 0.780 | 0.1080 / 0.124 |
+| imputation | linear-interpolation baseline MAE; `VERDICT` ratio | 0.0523; 11.5× worse | 0.0523; 2.1× worse |
+| imputation | per-channel MAE, temperature / vibration (baseline 0.032 / 0.072) | 0.954 / 0.255 | 0.159 / 0.057 |
+| imputation | visible-point Pearson, temperature / vibration | 0.089 / 0.008 | 0.987 / 0.959 |
+| anomaly | top-3 recall on `vibration`; \|z-score\| baseline | 1.0; 1.0 | 1.0; 1.0 |
+| anomaly | pooled ranks of the three spikes; pooled top-3 recall | 1, 21, 45; 0.333 | 1, 2, 3; 1.0 |
+| anomaly | residual median / max, temperature | 1.624 / 3.766 | 0.299 / 0.884 |
+| anomaly | residual median / max, vibration | 0.264 / 4.005 | 0.120 / 3.633 |
+| classification | majority floor / 5-NN / probe accuracy | 16.7 % / 72.2 % / 72.2 % | 16.7 % / 77.8 % / 91.7 % |
+| classification | macro-F1, 5-NN / probe | 0.708 / 0.715 | 0.772 / 0.913 |
+| classification | selected policy; test accuracy / macro-F1; delta | unfrozen, epoch 3; 77.8 % / 0.776; +2 windows | probe kept (epoch 0); 91.7 % / 0.913; 0 windows |
+| all | CPU wall (cell time) / peak working set: embeddings | 82 s / 1.27 GB | 168 s / 3.16 GB |
+| all | imputation | 36 s / 1.23 GB | 40 s / 3.14 GB |
+| all | anomaly | 20 s / 1.23 GB | 36 s / 3.14 GB |
+| all | classification (HAPT download excluded) | ~437 s / 2.60 GB | ~1,400 s / 7.20 GB |
+
+Memory on hosted runtimes is an inference from these CPU peaks, not a measurement. A Colab T4 runtime (about 12.7 GB of
+RAM, 15 GB of GPU memory) should hold every notebook. The classification notebook's unfreeze is the largest consumer at
+7.2 GB peak on CPU. On a CPU-only runtime that notebook takes about half an hour.
+
 ## Interactive Colab Tutorials
 
-This pipeline provides four ready-to-run interactive Google Colab notebooks — one per inference capability and one end-to-end adaptation tutorial — each resolving the pinned `AutonLab/MOMENT-1-base` revision and exercising the repository's public API on bundled, referenced or your own series:
+This pipeline provides four ready-to-run interactive Google Colab notebooks — one per inference capability and one end-to-end adaptation tutorial — each resolving the pinned `AutonLab/MOMENT-1-large` revision and exercising the repository's public API on bundled, referenced or your own series:
 
 - **Embeddings Tutorial**:  
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_embeddings_colab.ipynb) [`moment_embeddings_colab.ipynb`](https://github.com/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_embeddings_colab.ipynb)  
@@ -36,7 +74,7 @@ This pipeline provides four ready-to-run interactive Google Colab notebooks — 
 
 - **Imputation Tutorial**:  
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_imputation_colab.ipynb) [`moment_imputation_colab.ipynb`](https://github.com/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_imputation_colab.ipynb)  
-  *Reconstruction-backed imputation contract: mask known values, reconstruct them with the pretrained model, and score the reconstruction against the withheld truth and a naive baseline. On the recorded runs of the synthetic sample the pinned base checkpoint scored worse than that baseline (a documented negative result the notebook prints as a verdict; see Public capability 2 below).*
+  *Reconstruction-backed imputation contract: mask known values, reconstruct them with the pretrained model, and score the reconstruction against the withheld truth and a naive baseline. On the synthetic sample the pinned MOMENT-1-large checkpoint tracks the series closely but fills the hidden patch about 2× worse than linear interpolation pooled (a documented result the notebook prints as a verdict; see Public capability 2 below).*
 
 - **Anomaly Detection Tutorial**:  
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_anomaly_detection_colab.ipynb) [`moment_anomaly_detection_colab.ipynb`](https://github.com/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_anomaly_detection_colab.ipynb)  
@@ -44,7 +82,7 @@ This pipeline provides four ready-to-run interactive Google Colab notebooks — 
 
 - **End-to-End Fine-Tuning Tutorial (classification)**:  
   [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_classification_colab.ipynb) [`moment_classification_colab.ipynb`](https://github.com/kurtvalcorza/moment-pipeline/blob/main/tutorials/moment_classification_colab.ipynb)  
-  *Bounded supervised adaptation on 179 UCI HAPT motion windows (six activities, 30 volunteers, CC BY 4.0, pinned and fetched at run time, split by volunteer 107 / 36 / 36): the inference contract on real windows, a majority floor (16.7 %), a cosine 5-NN vote (72.2 %) and a linear probe on the frozen embeddings — the **frozen policy** — (72.2 % accuracy, macro-F1 0.715), a bounded unfreeze of the last two encoder blocks selected against the probe by validation log-loss — the **unfrozen policy** — (77.8 % / 0.776, selected at epoch 3 of 3 at 3e-4), predictions before and after, and a 56.7 MB safetensors adapter (head plus trained blocks) whose reload reproduces the probabilities and the accuracy.*
+  *Bounded supervised adaptation on 179 UCI HAPT motion windows (six activities, 30 volunteers, CC BY 4.0, pinned and fetched at run time, split by volunteer 107 / 36 / 36): the inference contract on real windows and, in the MOMENT-1-base history (`9fea447e`), a majority floor (16.7 %), a cosine 5-NN vote (72.2 %) and a linear probe on the frozen embeddings — the **frozen policy** — (72.2 % accuracy, macro-F1 0.715), a bounded unfreeze of the last two encoder blocks selected against the probe by validation log-loss — the **unfrozen policy** — (77.8 % / 0.776, selected at epoch 3 of 3 at 3e-4), predictions before and after, and a 56.7 MB safetensors adapter (head plus trained blocks) whose reload reproduces the probabilities and the accuracy.*
 
 > [!NOTE]
 > All four notebooks run on the default CPU runtime; no GPU is required. The classification tutorial trains for about three minutes on CPU.
@@ -53,7 +91,7 @@ This pipeline provides four ready-to-run interactive Google Colab notebooks — 
 
 #### Description
 
-MOMENT-1-base is an open-weights time-series foundation model from the Auton Lab at Carnegie Mellon University (`AutonLab/MOMENT-1-base`, pinned revision `9fea447e740eb968a9e8d80c7562ae122bdb5dde`), packaged by this repository for representation learning, imputation, and anomaly scoring. Built on a patch-based encoder over a FLAN-T5-base backbone (~113.5M parameters in `model.safetensors`), it segments multi-channel time series into non-overlapping 8-step patches across a fixed 512-timestep window (64 patches, effective dimension 768) and maps them into latent representations. The released base checkpoint is fundamentally a self-reconstruction model (`task_name: reconstruction` with a pretrained `PretrainHead`), while classification and forecasting heads are untrained and deliberately refused. This repository provides a verified, robust DIMER pipeline wrapper: strict safetensors loading, supply-chain verification enforcing digest and byte-size checks, total exclusion of legacy pickle checkpoints, canonical data transformation with mandatory finite pre-fill, explicit patch-quantized masking contracts, raw anomaly residual scoring, and complete provenance tracking.
+MOMENT-1-large is an open-weights time-series foundation model from the Auton Lab at Carnegie Mellon University (`AutonLab/MOMENT-1-large`, pinned revision `ca58581bc7bea2ebed4e80dc0a3e4b8b609c6ecc`), packaged by this repository for representation learning, imputation, and anomaly scoring. Built on a patch-based encoder over a FLAN-T5-base backbone (~113.5M parameters in `model.safetensors`), it segments multi-channel time series into non-overlapping 8-step patches across a fixed 512-timestep window (64 patches, effective dimension 1024) and maps them into latent representations. The released checkpoint is fundamentally a self-reconstruction model (`task_name: reconstruction` with a pretrained `PretrainHead`), while classification and forecasting heads are untrained and deliberately refused. This repository provides a verified, robust DIMER pipeline wrapper: strict safetensors loading, supply-chain verification enforcing digest and byte-size checks, total exclusion of legacy pickle checkpoints, canonical data transformation with mandatory finite pre-fill, explicit patch-quantized masking contracts, raw anomaly residual scoring, and complete provenance tracking.
 
 #### Intended Use and Limitations
 
@@ -81,7 +119,7 @@ Primary intended users are machine learning researchers, data scientists, indust
 
 ###### Groups
 
-MOMENT-1-base is a numerical sequence model trained on the Timeseries-PILE benchmark, a broad multi-domain collection of synthetic, industrial, physical, and environmental time series. It does not model demographic or phenotypic human groups natively. However, the pretraining corpus was not demographically audited by its authors. When operators apply this pipeline to human biometric telemetry (e.g., ECG, photoplethysmography, gait analysis, or wearable health monitors), performance may vary across demographic categories such as age, biological sex, skin tone, or health status. Operators deploying on human subjects are obligated to perform independent subgroup validation and fairness audits on their own data.
+MOMENT-1-large is a numerical sequence model trained on the Timeseries-PILE benchmark, a broad multi-domain collection of synthetic, industrial, physical, and environmental time series. It does not model demographic or phenotypic human groups natively. However, the pretraining corpus was not demographically audited by its authors. When operators apply this pipeline to human biometric telemetry (e.g., ECG, photoplethysmography, gait analysis, or wearable health monitors), performance may vary across demographic categories such as age, biological sex, skin tone, or health status. Operators deploying on human subjects are obligated to perform independent subgroup validation and fairness audits on their own data.
 
 ###### Instrumentation
 
@@ -89,7 +127,7 @@ Training and evaluation data for MOMENT originate from diverse instrumentation, 
 
 ###### Environment
 
-1. **Operating environment:** Requires Python 3.12, PyTorch >=2.1.2, and `transformers`. The pipeline executes on CPU using ~454 MB for weights, supporting `device="auto"`, `device="cpu"`, and `device="cuda"`. The pipeline enforces `float32` precision exclusively; half-precision dtypes (`float16`, `bfloat16`) are refused on the public API due to instability and unsupported CPU operations.
+1. **Operating environment:** Requires Python 3.12, PyTorch >=2.1.2, and `transformers`. The pipeline executes on CPU using ~1.39 GB for weights, supporting `device="auto"`, `device="cpu"`, and `device="cuda"`. The pipeline enforces `float32` precision exclusively; half-precision dtypes (`float16`, `bfloat16`) are refused on the public API due to instability and unsupported CPU operations.
 2. **Data environment:** Assumes regular, 512-step windows normalized via Reversible Instance Normalization (RevIN). The model degrades when applied to non-stationary series with abrupt variance explosions, windows containing >50% masked patches, or data whose sampling frequency drastically departs from typical physical phenomena.
 
 ---
@@ -98,7 +136,7 @@ Training and evaluation data for MOMENT originate from diverse instrumentation, 
 
 ###### Performance Measures
 
-For reconstruction and imputation tasks, performance is evaluated using Mean Squared Error (MSE) and Mean Absolute Error (MAE) computed strictly over masked target points (`masked_point_mae`, `masked_point_rmse`). For anomaly scoring, per-element residuals are computed under MSE or MAE. For embeddings, representation quality is judged downstream via silhouette scores, retrieval precision, or linear probe classification accuracy — and the classification adaptation contract (`adaptation.py`) implements exactly that probe, with **accuracy** and **macro-F1** (unweighted mean of per-class F1) plus per-class precision / recall / F1 / support, the confusion matrix and the head's **log-loss** (the epoch-selection signal), all computed in the repository with no external scorer; `majority_baseline` and `knn_baseline` (cosine k-NN over the frozen embeddings) are its reference points. Recorded values on the seeded HAPT test split (36 windows, six volunteers, six activities, CPU float32): majority floor 16.7 % / 0.048; cosine 5-NN 72.2 % / 0.708; frozen policy (linear probe, 300 steps) 72.2 % / 0.715 (log-loss 0.697); unfrozen policy (last two blocks, best of 3 epochs by validation log-loss, selected at epoch 3 at 3e-4) 77.8 % / 0.776 (log-loss 0.565) — two windows of 36 over the probe; the build record's sweep: at 1e-4 epoch 2 was selected (75.0 %), at 3e-5 validation kept the probe (72.2 %). Evaluating metrics over masked positions only is essential; including observed positions in reconstruction metrics artificially deflates error and masks poor imputation fidelity. The public `evaluation_report` helper packages the tutorial metrics — `masked_point_metrics` (MAE/RMSE on deliberately hidden points, imputation) and `top_k_recall` (anomaly ranking) — into a machine-readable report whose verdict is `sample-sanity` on the synthetic samples and `not-measurable` for embeddings or unlabelled data.
+For reconstruction and imputation tasks, performance is evaluated using Mean Squared Error (MSE) and Mean Absolute Error (MAE) computed strictly over masked target points (`masked_point_mae`, `masked_point_rmse`). For anomaly scoring, per-element residuals are computed under MSE or MAE. For embeddings, representation quality is judged downstream via silhouette scores, retrieval precision, or linear probe classification accuracy — and the classification adaptation contract (`adaptation.py`) implements exactly that probe, with **accuracy** and **macro-F1** (unweighted mean of per-class F1) plus per-class precision / recall / F1 / support, the confusion matrix and the head's **log-loss** (the epoch-selection signal), all computed in the repository with no external scorer; `majority_baseline` and `knn_baseline` (cosine k-NN over the frozen embeddings) are its reference points. Recorded values on the seeded HAPT test split (MOMENT-1-base history, `9fea447e`; 36 windows, six volunteers, six activities, CPU float32): majority floor 16.7 % / 0.048; cosine 5-NN 72.2 % / 0.708; frozen policy (linear probe, 300 steps) 72.2 % / 0.715 (log-loss 0.697); unfrozen policy (last two blocks, best of 3 epochs by validation log-loss, selected at epoch 3 at 3e-4) 77.8 % / 0.776 (log-loss 0.565) — two windows of 36 over the probe; the build record's sweep: at 1e-4 epoch 2 was selected (75.0 %), at 3e-5 validation kept the probe (72.2 %). Evaluating metrics over masked positions only is essential; including observed positions in reconstruction metrics artificially deflates error and masks poor imputation fidelity. The public `evaluation_report` helper packages the tutorial metrics — `masked_point_metrics` (MAE/RMSE on deliberately hidden points, imputation) and `top_k_recall` (anomaly ranking) — into a machine-readable report whose verdict is `sample-sanity` on the synthetic samples and `not-measurable` for embeddings or unlabelled data.
 
 ###### Decision thresholds
 
@@ -114,16 +152,16 @@ Inference for embedding, imputation, and anomaly scoring is completely determini
 
 ###### Data
 
-MOMENT-1-base was pretrained on the Timeseries-PILE, an extensive compilation of publicly available time-series datasets spanning multiple domains. The upstream authors have not published a complete instance-level inventory of every private or sensitive artifact that might have been included in the public crawls. This repository distributes code, pipeline adapters, and tests; model weights are cached from Hugging Face Hub and never committed. The classification tutorial's adaptation corpus is the UCI *Smartphone-Based Recognition of Human Activities and Postural Transitions* dataset (HAPT; Reyes-Ortiz et al., 2015; CC BY 4.0 per the UCI repository's licence notice): the 79.6 MB archive is pinned in `samples.py` by byte size and SHA-256 (`4ac4ae06…`), fetched from the UCI static host at run time into the git-ignored `weights/hapt/` cache, refused on any mismatch and read without extraction; 179 ten-second windows are cut from the raw accelerometer and gyroscope files by an a-priori rule (per volunteer and activity, the centre 512 samples of the first labelled segment at least 512 samples long). The recordings are of 30 volunteers wearing a smartphone; the archive carries no names or other identifiers beyond volunteer and experiment numbers, and the repository redistributes none of it. Operators supplying inference data are responsible for auditing payloads to prevent accidental transmission of confidential, classified, or protected health information.
+MOMENT-1-large was pretrained on the Timeseries-PILE, an extensive compilation of publicly available time-series datasets spanning multiple domains. The upstream authors have not published a complete instance-level inventory of every private or sensitive artifact that might have been included in the public crawls. This repository distributes code, pipeline adapters, and tests; model weights are cached from Hugging Face Hub and never committed. The classification tutorial's adaptation corpus is the UCI *Smartphone-Based Recognition of Human Activities and Postural Transitions* dataset (HAPT; Reyes-Ortiz et al., 2015; CC BY 4.0 per the UCI repository's licence notice): the 79.6 MB archive is pinned in `samples.py` by byte size and SHA-256 (`4ac4ae06…`), fetched from the UCI static host at run time into the git-ignored `weights/hapt/` cache, refused on any mismatch and read without extraction; 179 ten-second windows are cut from the raw accelerometer and gyroscope files by an a-priori rule (per volunteer and activity, the centre 512 samples of the first labelled segment at least 512 samples long). The recordings are of 30 volunteers wearing a smartphone; the archive carries no names or other identifiers beyond volunteer and experiment numbers, and the repository redistributes none of it. Operators supplying inference data are responsible for auditing payloads to prevent accidental transmission of confidential, classified, or protected health information.
 
 ###### Human Life
 
-MOMENT-1-base is not certified, tested, or approved for life-critical applications or high-stakes decisions concerning human life, safety, or health. It must not be deployed as an autonomous diagnostic device, clinical patient monitor, emergency safety trip, or automated criminal justice assessment tool. Use in any human-adjacent domain requires rigorous external clinical validation, fail-safe redundant systems, and continuous human clinician or expert supervision.
+MOMENT-1-large is not certified, tested, or approved for life-critical applications or high-stakes decisions concerning human life, safety, or health. It must not be deployed as an autonomous diagnostic device, clinical patient monitor, emergency safety trip, or automated criminal justice assessment tool. Use in any human-adjacent domain requires rigorous external clinical validation, fail-safe redundant systems, and continuous human clinician or expert supervision.
 
 ###### Mitigations
 
 The pipeline implements extensive architectural and supply-chain mitigations:
-1. **Supply-chain security:** Pins immutable revision `9fea447e…`, validates SHA-256 digests for `config.json` (`f1c66c2b…`) and `model.safetensors` (`1a436826…`), validates weight byte count (`453,940,120`), and strictly forbids legacy pickle files (`pytorch_model.bin`) via `allow_patterns` and snapshot inspection.
+1. **Supply-chain security:** Pins immutable revision `ca58581b…`, validates SHA-256 digests for `config.json` (`b0111650…`) and `model.safetensors` (`a5692805…`), validates weight byte count (`1,385,501,256`), and strictly forbids legacy pickle files (`pytorch_model.bin`) via `allow_patterns` and snapshot inspection.
 2. **Tensor identity proof:** At load time, all 116 non-head and head tensors are verified against `model.safetensors` using `torch.equal`.
 3. **Numerical sanitization:** Implements mandatory finite prefill (`prefill_value`) to prevent NaN propagation during patch embedding, and explicitly surfaces `masked_point_fraction` and `masked_patch_fraction`.
 4. **Head refusal:** Rejects untrained classification and forecasting heads at API boundary; the only classification head is the caller-trained one of the adaptation contract, which never loads an upstream head.
@@ -149,7 +187,7 @@ Prohibited use cases include:
 
 ## Summary
 
-MOMENT-1-base is an open-weight pretrained time-series foundation model from the Auton Lab at Carnegie Mellon University. The released base checkpoint is a **reconstruction model**: its pretrained task head reconstructs masked time-series patches. The pipeline therefore exposes only capabilities defensible directly from those weights:
+MOMENT-1-large is an open-weight pretrained time-series foundation model from the Auton Lab at Carnegie Mellon University. The released checkpoint is a **reconstruction model**: its pretrained task head reconstructs masked time-series patches. The pipeline therefore exposes only capabilities defensible directly from those weights:
 
 1. pretrained encoder embeddings;
 2. reconstruction-backed imputation;
@@ -161,16 +199,16 @@ Classification and forecasting are not exposed as pretrained capabilities. Upstr
 
 | Field | Value |
 |---|---|
-| Model | `AutonLab/MOMENT-1-base` |
+| Model | `AutonLab/MOMENT-1-large` |
 | Developer | Auton Lab, Carnegie Mellon University |
 | Family | MOMENT-1 |
 | Released task | reconstruction |
 | Architecture | patch-based encoder using a FLAN-T5-base encoder backbone |
-| Approx. parameters | ~113.5M |
+| Approx. parameters | ~341.2M (341,248,520 in the reconstruction-task module) |
 | Sequence length | 512 timesteps |
 | Patch length / stride | 8 / 8 |
 | Patches per full window | 64 |
-| Effective representation dimension | 768 |
+| Effective representation dimension | 1024 |
 | Standard weight format | `model.safetensors` |
 | License | MIT |
 
@@ -182,10 +220,10 @@ The pipeline path is immutable at both model and source-code layers.
 
 | Item | Pin / assertion |
 |---|---|
-| Hugging Face revision | `9fea447e740eb968a9e8d80c7562ae122bdb5dde` |
-| `model.safetensors` SHA-256 | `1a436826ffe618273ec62b9656dc4cab8edc470364f104e90542a4ebc14fb825` |
-| `model.safetensors` size | 453,940,120 bytes |
-| `config.json` SHA-256 | `f1c66c2bb845229c0ed27a1600dbcc956b85ab21f9e5fd8a1663e6641bed7755` |
+| Hugging Face revision | `ca58581bc7bea2ebed4e80dc0a3e4b8b609c6ecc` |
+| `model.safetensors` SHA-256 | `a56928052ac6f5d09b97c3834bea6ce3aef9f02b513b5fac98954e7377801572` |
+| `model.safetensors` size | 1,385,501,256 bytes |
+| `config.json` SHA-256 | `b0111650e8718e31d7e89575666aa3e140747d35279ec1a7c9f6ed7616c29433` |
 | Upstream `momentfm` source | `moment-timeseries-foundation-model/moment` |
 | Upstream source commit | `38f7310ad594100747ca2a8357e9c7ca7d323e0e` |
 | Runtime lock | `uv.lock` + parity-checked `requirements.lock.txt` |
@@ -256,7 +294,9 @@ This distinction prevents a tutorial imputation workflow from silently rewriting
 
 ### Recorded result on the synthetic sample (a documented negative result)
 
-The imputation contract above is what this capability delivers; the *quality* of the imputed values on the repository's synthetic sample is not evidence in its favour. On every recorded run the pinned base checkpoint, called through `impute()`, scored worse than a naive same-support baseline on the deliberately hidden 8-step patch: the Kaggle CPU run of 2026-09-14 (trailing holdout) gave pooled MAE 1.121 against 0.171 for a last-value hold (temperature 2.047 vs 0.172, larger than that channel's standard deviation of 1.78; vibration 0.196 vs 0.170), and the notebook review of 2026-10-02 (local CPU, the same verified weights under `transformers 5.16.1` and under upstream's declared 4.33.3, identical to seven significant figures) rotated the holdout over all 32 patch positions of the sample and the model lost at every one (interior median MAE 0.99 vs 0.062). The reconstruction of points the model could see correlated with the truth at 0.087 (temperature) and 0.012 (vibration), no better than predicting the channel mean. The head tensors are proven live against the pinned file, so this is the behaviour of the pinned base checkpoint on this path, not a loading defect; whether it is a property of `MOMENT-1-base` itself or of the call convention used for the base model was not determined and remains an open repository question (a fidelity test on a fully visible sinusoid is the proposed check). The imputation tutorial therefore prints a model-vs-baseline verdict and a visible-point fidelity figure on every run, and its interpretation section reads the loss as such. No claim of working imputation on this sample, or on any other data, is made.
+The imputation contract above is what this capability delivers; the *quality* of the imputed values on the repository's synthetic sample is modest. In the CPU build record of 2026-10-17 (MOMENT-1-large @ `ca58581b`, local CPU, not a hosted run) the default interior holdout gave pooled MAE 0.1080 against 0.0523 for linear interpolation (2.1× worse; `vibration` 0.057 vs 0.072, where the model wins), with visible-point correlations of 0.987 (temperature) and 0.959 (vibration); rotated over all 32 patch positions the model beat interpolation at 7. Over 8 steps of a smooth synthetic series interpolation is a strong baseline.
+
+**Why the pin moved from MOMENT-1-base (RFC 0001, Amendment 1).** Until 2026-10-17 this repository pinned `AutonLab/MOMENT-1-base` @ `9fea447e`, and every recorded imputation run lost badly (pooled MAE 0.6045 vs 0.0523 on the Colab T4 run of blob `50746e51`; visible-point correlations 0.089 / 0.008). The cause is determined and lies in that checkpoint: its released reconstruction head does not reconstruct. Reviewer CPU evidence (tutorial-triage review, 2026-10-15) shows a visible-point Pearson of -0.005 on a clean, unpadded 512-step sine under upstream's documented call, the same failure for MOMENT-1-small, and an informative base encoder (a ridge readout on frozen states reaches R² 0.90). The pipeline's call equals upstream's `forward` to 1.9e-6; `transformers` 4.54.1 (upstream's declared minimum at the pinned `momentfm` commit) and 5.16.1 agree. MOMENT-1-large reconstructs the same sine with Pearson 0.986 through identical code. The imputation tutorial prints a model-vs-baseline verdict and a visible-point fidelity figure on every run. No claim that MOMENT imputes better than interpolation, on this sample or any other data, is made.
 
 ## Public capability 3 — anomaly scoring
 
@@ -301,11 +341,11 @@ Unscored positions are marked `NaN` by construction. They are not NaNs propagate
 
 ## Public capability 4 — classification adaptation (caller-trained head)
 
-`moment_pipeline.adaptation` is the repository's first task-head contract, and the head is the caller's own: MOMENT-1-base ships no classification head and its upstream `classification` task head is not pretrained (RFC M-1/M-4 still hold — `load_moment` refuses that task). `adapt(model, train, val, *, probe_steps=300, probe_lr=1e-2, trainable_blocks=2, epochs=3, lr=3e-4, batch_size=8, seed=0)` takes an `embedding` task instance and validated `{id, x, label}` records (`samples.validate_dataset`: float32 `(channels, 512)` windows, 8..1,024 records, 2..100 classes, one channel count), pushes them through the package's own long-format validation and canonical windowing (`records_to_long_frame` → `validate_long_frame` → `to_windows` → `embed`), and runs two stages: **A — the frozen policy**, a `Linear(768, classes)` head trained full-batch on the frozen L2-normalised pooled embeddings (AdamW, `probe_lr`, weight decay 1e-4, `probe_steps` steps), recorded as epoch 0; **B — the unfrozen policy** (when `trainable_blocks` > 0 and `epochs` > 0), the last *k* of the 12 T5 encoder blocks trained with the head end to end (AdamW at `lr`, weight decay 0.01, clip 1.0, seeded shuffling, no augmentation; patch embedding, earlier blocks and final norm frozen). Every epoch is scored on `val` by `evaluate` and the epoch with the lowest validation log-loss is kept, its tensors restored — epoch 0 competes, so the selected policy may be the probe. `evaluate` returns accuracy, macro-F1, per-class precision / recall / F1 / support, the confusion matrix and log-loss (`adaptation.classification_metrics`, no external scorer) with the verdict `measured` (≥ 50 records) or `measured-small-sample`; `majority_baseline` and `knn_baseline` (cosine k-NN over the frozen embeddings) are the reference points; `classify` returns argmax labels and uncalibrated softmax probabilities. `save_artifact` writes the head and any trained `encoder.block.{k}.*` tensors as safetensors (`org.valcorza.moment-1-base.classifier-adapter.v1`) with a manifest naming the base id, revision and weight digest, the classes, the policy, the tensor names, the file digest and the epoch history; `load_artifact` verifies the manifest — the supported `format_version`, the pinned base id / revision / weight file / digest and task, exactly one contained `adapter.safetensors` entry whose size and SHA-256 match, at least two unique classes, a canonical policy and the exact tensor set it implies (the head alone under the frozen policy; the head plus exactly the last `trainable_blocks` blocks under the unfrozen policy) — **before** deserialising, rebuilds the head from the manifest's classes and overlays the block tensors onto a freshly loaded, digest-verified instance (the digest detects corruption or drift of the weights relative to the adjacent manifest; it is not authenticity against an actor who can replace both files); `adapt` is transactional — if the unfreeze, its validation or the progress callback raises, the pre-adaptation blocks and frozen flags are restored — and selects on the full-precision validation log-loss; `load_byod_dataset(path, *, require_group=True)` requires a non-empty `group` on every row, refuses repeated ids and file references outside the dataset directory, and refuses a zip whose members share a basename. When the unfrozen policy is selected the encoder inside the loaded instance is modified in place — `embed` then returns different vectors for every window, and the artifact records which policy won.
+`moment_pipeline.adaptation` is the repository's first task-head contract, and the head is the caller's own: MOMENT-1-large ships no classification head and its upstream `classification` task head is not pretrained (RFC M-1/M-4 still hold — `load_moment` refuses that task). `adapt(model, train, val, *, probe_steps=300, probe_lr=1e-2, trainable_blocks=2, epochs=3, lr=3e-4, batch_size=8, seed=0)` takes an `embedding` task instance and validated `{id, x, label}` records (`samples.validate_dataset`: float32 `(channels, 512)` windows, 8..1,024 records, 2..100 classes, one channel count), pushes them through the package's own long-format validation and canonical windowing (`records_to_long_frame` → `validate_long_frame` → `to_windows` → `embed`), and runs two stages: **A — the frozen policy**, a `Linear(1024, classes)` head trained full-batch on the frozen L2-normalised pooled embeddings (AdamW, `probe_lr`, weight decay 1e-4, `probe_steps` steps), recorded as epoch 0; **B — the unfrozen policy** (when `trainable_blocks` > 0 and `epochs` > 0), the last *k* of the 12 T5 encoder blocks trained with the head end to end (AdamW at `lr`, weight decay 0.01, clip 1.0, seeded shuffling, no augmentation; patch embedding, earlier blocks and final norm frozen). Every epoch is scored on `val` by `evaluate` and the epoch with the lowest validation log-loss is kept, its tensors restored — epoch 0 competes, so the selected policy may be the probe. `evaluate` returns accuracy, macro-F1, per-class precision / recall / F1 / support, the confusion matrix and log-loss (`adaptation.classification_metrics`, no external scorer) with the verdict `measured` (≥ 50 records) or `measured-small-sample`; `majority_baseline` and `knn_baseline` (cosine k-NN over the frozen embeddings) are the reference points; `classify` returns argmax labels and uncalibrated softmax probabilities. `save_artifact` writes the head and any trained `encoder.block.{k}.*` tensors as safetensors (`org.valcorza.moment-1-large.classifier-adapter.v1`) with a manifest naming the base id, revision and weight digest, the classes, the policy, the tensor names, the file digest and the epoch history; `load_artifact` verifies the manifest — the supported `format_version`, the pinned base id / revision / weight file / digest and task, exactly one contained `adapter.safetensors` entry whose size and SHA-256 match, at least two unique classes, a canonical policy and the exact tensor set it implies (the head alone under the frozen policy; the head plus exactly the last `trainable_blocks` blocks under the unfrozen policy) — **before** deserialising, rebuilds the head from the manifest's classes and overlays the block tensors onto a freshly loaded, digest-verified instance (the digest detects corruption or drift of the weights relative to the adjacent manifest; it is not authenticity against an actor who can replace both files); `adapt` is transactional — if the unfreeze, its validation or the progress callback raises, the pre-adaptation blocks and frozen flags are restored — and selects on the full-precision validation log-loss; `load_byod_dataset(path, *, require_group=True)` requires a non-empty `group` on every row, refuses repeated ids and file references outside the dataset directory, and refuses a zip whose members share a basename. When the unfrozen policy is selected the encoder inside the loaded instance is modified in place — `embed` then returns different vectors for every window, and the artifact records which policy won.
 
 ### What the tutorial found
 
-On the pinned UCI HAPT sample (179 six-channel windows of six activities from 30 volunteers, split by volunteer 107 / 36 / 36; CC BY 4.0, fetched at run time) the frozen embeddings put a cosine 5-NN vote at 72.2 % accuracy and a linear probe at 72.2 % / macro-F1 0.715 against a majority floor of 16.7 %; the three walking activities are separated almost perfectly and the three static postures collapse into each other, because MOMENT instance-normalises every window before patching and the constant gravity component that tells sitting from standing from laying never reaches the encoder. The bounded unfreeze (last two blocks, three epochs at 3e-4) was selected at epoch 3 by validation log-loss and scored 77.8 % / 0.776 on the test split — two windows better than the probe on 36, with the postures partly recovered (laying and sitting recall 0.33 → 0.50); at 1e-4 epoch 2 was selected for 75.0 %, and at 3e-5 validation kept the probe. The finding is a property of the normalisation, not something a head can repair; the notebook, the registry and the closing say so.
+**MOMENT-1-base history (`9fea447e`, the checkpoint pinned before RFC 0001 Amendment 1; see "Checkpoint change" for MOMENT-1-large):** On the pinned UCI HAPT sample (179 six-channel windows of six activities from 30 volunteers, split by volunteer 107 / 36 / 36; CC BY 4.0, fetched at run time) the frozen embeddings put a cosine 5-NN vote at 72.2 % accuracy and a linear probe at 72.2 % / macro-F1 0.715 against a majority floor of 16.7 %; the three walking activities are separated almost perfectly and the three static postures collapse into each other, because MOMENT instance-normalises every window before patching and the constant gravity component that tells sitting from standing from laying never reaches the encoder. The bounded unfreeze (last two blocks, three epochs at 3e-4) was selected at epoch 3 by validation log-loss and scored 77.8 % / 0.776 on the test split — two windows better than the probe on 36, with the postures partly recovered (laying and sitting recall 0.33 → 0.50); at 1e-4 epoch 2 was selected for 75.0 %, and at 3e-5 validation kept the probe. The finding is a property of the normalisation, not something a head can repair; the notebook, the registry and the closing say so.
 
 ## Canonical input contract
 
@@ -370,7 +410,7 @@ Pushes to `main` and manual workflow dispatch additionally run:
 
 Static notebook JSON validation alone is not accepted as evidence that the tutorials work.
 
-Recorded supported-runtime executions: `tutorials/moment_classification_colab.ipynb` blob `7c5c3732` at `ac2f9ef` ran top-to-bottom on a clean Kaggle Tesla T4 kernel (`kurtvalcorza/dimer-nb2-moment-classification` v1, `torch 2.14.0+cu130`, `transformers 5.16.1`) on 2026-09-19: 20/20 ok (1 restart after install cell), 294.3 s, 10 files, 534 MB fetched from the Hub; comparison {accuracy: {majority_floor: 0.1667, knn5: 0.7222, frozen_policy: 0.7222, selected_policy: 0.75}, macro_f1: {majority_floor: 0.0476, knn5: 0.7083, frozen_policy: 0.7145, selected_policy: 0.741}, log_loss: {frozen_policy: 0.6965, selected_policy: 0.5634}, per_class_recall: {laying: {knn5: 0.17, frozen: 0.33, selected: 0.33}, sitting: {knn5: 0.5, frozen: 0.33, selected: 0.5}, standing: {knn5: 0.67, frozen: 0.67, selected: 0.67}, walking: {knn5: 1, frozen: 1, selected: 1}, walking_downstairs: {knn5: 1, frozen: 1, selected: 1}, walking_upstairs: {knn5: 1, frozen: 1, selected: 1}}, delta_vs_frozen: {accuracy: 0.0278, macro_f1: 0.0265}, selected_policy: unfrozen last 2 blocks + linear head}. The three `TASK-INFERENCE` notebooks ran on Kaggle CPU on 2026-09-14 (blobs unchanged at `ac2f9ef`). Both are recorded in `docs/release-verification.md`.
+**MOMENT-1-base history (`9fea447e`, the checkpoint pinned before RFC 0001 Amendment 1; see "Checkpoint change" for MOMENT-1-large):** Recorded supported-runtime executions: `tutorials/moment_classification_colab.ipynb` blob `7c5c3732` at `ac2f9ef` ran top-to-bottom on a clean Kaggle Tesla T4 kernel (`kurtvalcorza/dimer-nb2-moment-classification` v1, `torch 2.14.0+cu130`, `transformers 5.16.1`) on 2026-09-19: 20/20 ok (1 restart after install cell), 294.3 s, 10 files, 534 MB fetched from the Hub; comparison {accuracy: {majority_floor: 0.1667, knn5: 0.7222, frozen_policy: 0.7222, selected_policy: 0.75}, macro_f1: {majority_floor: 0.0476, knn5: 0.7083, frozen_policy: 0.7145, selected_policy: 0.741}, log_loss: {frozen_policy: 0.6965, selected_policy: 0.5634}, per_class_recall: {laying: {knn5: 0.17, frozen: 0.33, selected: 0.33}, sitting: {knn5: 0.5, frozen: 0.33, selected: 0.5}, standing: {knn5: 0.67, frozen: 0.67, selected: 0.67}, walking: {knn5: 1, frozen: 1, selected: 1}, walking_downstairs: {knn5: 1, frozen: 1, selected: 1}, walking_upstairs: {knn5: 1, frozen: 1, selected: 1}}, delta_vs_frozen: {accuracy: 0.0278, macro_f1: 0.0265}, selected_policy: unfrozen last 2 blocks + linear head}. The three `TASK-INFERENCE` notebooks ran on Kaggle CPU on 2026-09-14 (blobs unchanged at `ac2f9ef`). Both are recorded in `docs/release-verification.md`.
 
 ## Intended use
 
@@ -399,7 +439,7 @@ Pipeline code in this repository is MIT licensed. The pinned MOMENT model and up
 
 ## References
 
-- Hugging Face model: `AutonLab/MOMENT-1-base`
+- Hugging Face model: `AutonLab/MOMENT-1-large`
 - Upstream code: `moment-timeseries-foundation-model/moment`
 - Model and task contract: [`docs/rfc/0001-moment-base.md`](docs/rfc/0001-moment-base.md)
 - Release-completion tracking: issue #5

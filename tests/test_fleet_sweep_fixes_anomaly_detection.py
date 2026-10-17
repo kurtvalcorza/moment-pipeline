@@ -242,9 +242,12 @@ def _section4(nb: dict, use_byod: bool, path: str) -> str:
 
 
 def _run_section4(nb: dict, use_byod: bool, path: str) -> dict:
+    from moment_pipeline.config import MomentConfig
     from moment_pipeline.csvio import read_long_csv_bytes
+    from moment_pipeline.validation import ValidationError, validate_long_frame
 
-    ns = {"os": os, "read_long_csv_bytes": read_long_csv_bytes}
+    ns = {"os": os, "read_long_csv_bytes": read_long_csv_bytes, "MomentConfig": MomentConfig,
+          "ValidationError": ValidationError, "validate_long_frame": validate_long_frame}
     with contextlib.redirect_stdout(io.StringIO()):
         exec(compile(_section4(nb, use_byod, path), "<section 4>", "exec"), ns)
     return ns
@@ -259,20 +262,25 @@ def test_swp_b_byod_path_field_default_off(nb: dict) -> None:
 def test_swp_b_byod_path_reads_a_csv_without_colab(nb: dict, tmp_path: Path, monkeypatch) -> None:
     """SWP-B: with USE_BYOD and BYOD_PATH the CSV is read on any runtime; a missing path is named."""
     monkeypatch.delenv("DIMER_BYOD_PATH", raising=False)
+    monkeypatch.chdir(tmp_path)
     csv = tmp_path / "mine.csv"
     csv.write_text("series_id,timestamp,channel,value\nS,2026-01-01T00:00:00,c,1.0\nS,2026-01-01T00:15:00,c,2.0\n", encoding="utf-8")
     ns = _run_section4(nb, True, str(csv))
     assert ns["sample_kind"] == "BYOD" and ns["sample_identity"]["name"] == "mine.csv"
-    with pytest.raises(FileNotFoundError, match="missing.csv"):
+    with pytest.raises(Exception, match="BYOD input refused.*missing.csv") as excinfo:
         _run_section4(nb, True, str(tmp_path / "missing.csv"))
+    assert getattr(excinfo.value, "dimer_refusal", False)
 
 
-def test_swp_b_empty_path_off_colab_and_cancelled_upload_are_named(nb: dict, monkeypatch) -> None:
+def test_swp_b_empty_path_off_colab_and_cancelled_upload_are_named(
+    nb: dict, tmp_path: Path, monkeypatch
+) -> None:
     """SWP-B: USE_BYOD with an empty path off Colab, or a cancelled Colab upload, stops with a clear message."""
     monkeypatch.delenv("DIMER_BYOD_PATH", raising=False)
+    monkeypatch.chdir(tmp_path)
     monkeypatch.delitem(sys.modules, "google.colab", raising=False)
     monkeypatch.setitem(sys.modules, "google", types.ModuleType("google"))
-    with pytest.raises(RuntimeError, match="only in Google Colab"):
+    with pytest.raises(Exception, match="BYOD input refused.*only in Google Colab"):
         _run_section4(nb, True, "")
     google = types.ModuleType("google")
     colab = types.ModuleType("google.colab")
@@ -282,5 +290,29 @@ def test_swp_b_empty_path_off_colab_and_cancelled_upload_are_named(nb: dict, mon
     google.colab = colab
     monkeypatch.setitem(sys.modules, "google", google)
     monkeypatch.setitem(sys.modules, "google.colab", colab)
-    with pytest.raises(ValueError, match="Upload exactly one CSV"):
+    with pytest.raises(Exception, match="BYOD input refused.*upload exactly one CSV"):
         _run_section4(nb, True, "")
+
+
+def test_dat20_refusal_keeps_outputs_marks_them_stale_and_clears_the_run(nb: dict, tmp_path: Path, monkeypatch) -> None:
+    """DAT20: a refused BYOD input is one message (no traceback), earlier outputs are kept but marked stale, the
+    previous run's in-memory inputs are forgotten, and the next valid input clears the stale marker."""
+    monkeypatch.delenv("DIMER_BYOD_PATH", raising=False)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "outputs").mkdir()
+    (tmp_path / "outputs" / "earlier.json").write_text("{}", encoding="utf-8")
+    ns = _run_section4(nb, False, "")
+    assert ns["sample_kind"] == "synthetic"
+    bad = tmp_path / "bad.csv"
+    bad.write_text("series_id,when,channel,value\nS,2026-01-01T00:00:00,c,1.0\n", encoding="utf-8")
+    with pytest.raises(Exception, match="BYOD input refused - bad.csv") as excinfo:
+        exec(compile(_section4(nb, True, str(bad)), "<section 4>", "exec"), ns)
+    assert getattr(excinfo.value, "dimer_refusal", False)
+    assert excinfo.value._render_traceback_() == [str(excinfo.value)]
+    assert "frame" not in ns and "sample_identity" not in ns
+    assert (tmp_path / "outputs" / "earlier.json").is_file()
+    marker = tmp_path / "outputs" / "RUN_INVALIDATED.txt"
+    assert "bad.csv" in marker.read_text(encoding="utf-8")
+    with contextlib.redirect_stdout(io.StringIO()):
+        exec(compile(_section4(nb, False, ""), "<section 4>", "exec"), ns)
+    assert not marker.exists() and ns["sample_kind"] == "synthetic"

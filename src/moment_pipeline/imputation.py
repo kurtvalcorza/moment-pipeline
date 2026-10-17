@@ -1,6 +1,6 @@
 """Task 2 — reconstruction plus the v1 user-facing imputation contract.
 
-MOMENT-1-base exposes pretrained reconstruction weights. DIMER uses that primitive
+MOMENT-1-large exposes pretrained reconstruction weights. DIMER uses that primitive
 for imputation but keeps the product semantics explicit:
 
 * canonical ``x_enc`` is finite before model entry; raw NaN never reaches MOMENT;

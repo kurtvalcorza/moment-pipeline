@@ -281,12 +281,13 @@ def test_mim_m6_opening_documents_both_executor_variables_and_byod_field(nb: dic
 
 def test_mim_b1_prose_reads_the_loss_and_the_registry_no_longer_claims_working_imputation(nb: dict) -> None:
     md = _markdown(nb)
-    assert "did not beat the naive baseline on any recorded run" in md
-    assert "The recorded result is a negative one" in md
-    assert "the model lost at every one (interior median 0.99 vs 0.062)" in md
+    # RFC 0001 Amendment 1 / T57-M1: the loss is still read as such, and its MOMENT-1-base cause is determined
+    assert "What the numbers say, and why this notebook uses MOMENT-1-large" in md
+    assert "reconstruction head, which does not reconstruct" in md
+    assert "open repository question" not in md and "4.33.3" not in md
     assert "that MOMENT beats the interpolation baseline reliably" not in md
     registry = (ROOT / "tutorials" / "README.md").read_text(encoding="utf-8")
-    assert "Recorded result: a documented negative one" in registry
+    assert "MOMENT-1-large CPU build record (2026-10-17" in registry
     card = (ROOT / "MODEL_CARD.md").read_text(encoding="utf-8")
     assert "### Recorded result on the synthetic sample (a documented negative result)" in card
 

@@ -1,4 +1,4 @@
-"""moment-pipeline — a DIMER pipeline for the pinned `AutonLab/MOMENT-1-base` checkpoint.
+"""moment-pipeline — a DIMER pipeline for the pinned `AutonLab/MOMENT-1-large` checkpoint.
 
 v1 exposes only what the pretrained base weights support: embeddings,
 imputation/reconstruction, and reconstruction-based anomaly scoring.
