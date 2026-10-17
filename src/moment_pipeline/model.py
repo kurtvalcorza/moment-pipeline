@@ -57,6 +57,9 @@ PINNED_CONFIG_BYTES = 951
 PINNED_WEIGHTS_FILENAME = "model.safetensors"
 PINNED_WEIGHTS_SHA256 = "a56928052ac6f5d09b97c3834bea6ce3aef9f02b513b5fac98954e7377801572"
 PINNED_WEIGHTS_BYTES = 1_385_501_256
+# T5 encoder depth of the pinned MOMENT-1-large checkpoint (`t5_config.num_layers`, config.json).
+# `load_moment` refuses a pipeline whose config or built encoder disagrees with it.
+PINNED_ENCODER_LAYERS = 24
 
 #: Pickle-based weight formats. `pytorch_model.bin` is present upstream at the pinned
 #: revision; the rest are the other serializations `torch.load` would happily unpickle, so
@@ -690,6 +693,22 @@ def load_moment(
         proof["head_type"] = head_type
     else:
         proof["head_type"] = type(pipeline.head).__name__
+
+    t5_config = getattr(pipeline.config, "t5_config", None)
+    declared_layers = (
+        t5_config.get("num_layers")
+        if isinstance(t5_config, dict)
+        else getattr(t5_config, "num_layers", None)
+    )
+    built_layers = len(pipeline.encoder.block)
+    if declared_layers != PINNED_ENCODER_LAYERS or built_layers != PINNED_ENCODER_LAYERS:
+        raise IntegrityError(
+            "ENCODER_DEPTH",
+            f"expected {PINNED_ENCODER_LAYERS} T5 encoder layers, config declares "
+            f"{declared_layers} and the built encoder has {built_layers}",
+            {"declared": declared_layers, "built": built_layers},
+        )
+    proof["encoder_layers"] = built_layers
 
     d_model = int(pipeline.config.d_model)
     resolved_device = device

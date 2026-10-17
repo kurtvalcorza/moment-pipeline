@@ -452,7 +452,7 @@ TEMPLATE = {
                 "## 7. The unfrozen policy: a bounded unfreeze selected against the probe\n\n"
                 "`adapt` with `TRAINABLE_BLOCKS` > 0 first retrains the linear probe on the frozen embeddings (epoch 0 "
                 "of the history, the frozen policy), then unfreezes the last `TRAINABLE_BLOCKS` T5 encoder blocks — two "
-                "by default, 14,158,848 of 109,635,456 parameters; the patch embedding, the earlier blocks and the final "
+                "by default, blocks 22 and 23 of 24, 25,694,208 of 341,240,320 parameters; the patch embedding, the earlier blocks and the final "
                 "norm stay frozen — and trains them with the head end to end on the windows for `EPOCHS` epochs (AdamW "
                 "at `LEARNING_RATE`, weight decay 0.01, gradient clipping 1.0, seeded shuffling, no augmentation). Every "
                 "epoch is scored on validation, and the epoch with the **lowest validation log-loss** is kept — epoch 0, "

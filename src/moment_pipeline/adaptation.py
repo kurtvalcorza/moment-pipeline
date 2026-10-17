@@ -31,14 +31,16 @@ import numpy as np
 from .canonical import WindowSet, to_windows
 from .config import MomentConfig
 from .embedding import embed
-from .model import PINNED_WEIGHTS_FILENAME, LoadedMoment
+from .model import PINNED_ENCODER_LAYERS, PINNED_WEIGHTS_FILENAME, LoadedMoment
 from .samples import MAX_RECORDS, records_to_long_frame, validate_dataset
 from .validation import validate_long_frame
 
-ENCODER_BLOCKS = 12
+# Encoder depth of the pinned MOMENT-1-large checkpoint (24 T5 layers). The block indices that
+# `trainable_blocks` selects are always derived from the loaded encoder (`encoder_block_count`).
+ENCODER_BLOCKS = PINNED_ENCODER_LAYERS
 BLOCK_PREFIX = "encoder.block."
 DEFAULT_TRAINABLE_BLOCKS = (
-    2  # the unfrozen policy trains the last two encoder blocks (14,158,848 parameters)
+    2  # trains encoder blocks 22-23, the last two of 24 (25,694,208 parameters)
 )
 MIN_SCORED_RECORDS = 50  # below this a scored dataset is labelled a small sample
 ARTIFACT_FORMAT = "org.valcorza.moment-1-large.classifier-adapter.v1"
@@ -200,17 +202,38 @@ class ClassifierAdapter:
         return {"policy": self.policy, "classes": list(self.classes), **self.config}
 
 
+def encoder_block_count(model: LoadedMoment) -> int:
+    """The number of T5 encoder blocks in `model.pipeline`, cross-checked against the config's
+    `t5_config.num_layers` when the pipeline carries one."""
+    encoder = getattr(model.pipeline, "encoder", None)
+    blocks = getattr(encoder, "block", None)
+    if blocks is None:
+        raise ValueError("the pipeline has no `encoder.block` list to adapt")
+    count = len(blocks)
+    t5_config = getattr(getattr(model.pipeline, "config", None), "t5_config", None)
+    declared = (
+        t5_config.get("num_layers")
+        if isinstance(t5_config, Mapping)
+        else getattr(t5_config, "num_layers", None)
+    )
+    if declared is not None and int(declared) != count:
+        raise ValueError(f"config declares {declared} encoder layers but the encoder has {count}")
+    return count
+
+
 def _trainable_names(model: LoadedMoment, trainable_blocks: int) -> list[str]:
+    """Parameter names of the LAST `trainable_blocks` encoder blocks of the loaded encoder."""
+    n_blocks = encoder_block_count(model)
     if (
         isinstance(trainable_blocks, bool)
         or not isinstance(trainable_blocks, int)
-        or not 0 <= trainable_blocks <= ENCODER_BLOCKS
+        or not 0 <= trainable_blocks <= n_blocks
     ):
-        raise ValueError(f"trainable_blocks must be an int in 0..{ENCODER_BLOCKS}")
+        raise ValueError(f"trainable_blocks must be an int in 0..{n_blocks}")
     if trainable_blocks == 0:
         return []
-    first = ENCODER_BLOCKS - trainable_blocks
-    prefixes = tuple(f"{BLOCK_PREFIX}{k}." for k in range(first, ENCODER_BLOCKS))
+    first = n_blocks - trainable_blocks
+    prefixes = tuple(f"{BLOCK_PREFIX}{k}." for k in range(first, n_blocks))
     return [name for name, _p in model.pipeline.named_parameters() if name.startswith(prefixes)]
 
 
@@ -604,9 +627,10 @@ def _check_artifact_manifest(
     ):
         raise ValueError("artifact manifest does not name at least two unique valid classes")
     blocks = adapter.get("trainable_blocks")
-    if isinstance(blocks, bool) or not isinstance(blocks, int) or not 0 <= blocks <= ENCODER_BLOCKS:
+    n_blocks = encoder_block_count(model)
+    if isinstance(blocks, bool) or not isinstance(blocks, int) or not 0 <= blocks <= n_blocks:
         raise ValueError(
-            f"artifact manifest does not record an integer trainable_blocks in 0..{ENCODER_BLOCKS}"
+            f"artifact manifest does not record an integer trainable_blocks in 0..{n_blocks}"
         )
     policy = adapter.get("policy")
     if policy == POLICY_FROZEN:
