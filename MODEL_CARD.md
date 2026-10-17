@@ -60,11 +60,11 @@ MOMENT-1-large figure in the table at the printed precision; the CPU wall and me
 | all | CPU wall (cell time) / peak working set: embeddings | 82 s / 1.27 GB | 168 s / 3.16 GB |
 | all | imputation | 36 s / 1.23 GB | 40 s / 3.14 GB |
 | all | anomaly | 20 s / 1.23 GB | 36 s / 3.14 GB |
-| all | classification (HAPT download excluded) | ~437 s / 2.60 GB | ~1,400 s / 7.20 GB |
+| all | classification (HAPT download excluded) | ~437 s / 2.60 GB | ~830 s / 7.13 GB (after the encoder-depth fix; ~1,400 s / 7.20 GB before it) |
 
 Memory on hosted runtimes is an inference from these CPU peaks, not a measurement. A Colab T4 runtime (about 12.7 GB of
 RAM, 15 GB of GPU memory) should hold every notebook. The classification notebook's unfreeze is the largest consumer at
-7.2 GB peak on CPU. On a CPU-only runtime that notebook takes about half an hour.
+7.1 GB peak on CPU. On a CPU-only runtime that notebook takes about a quarter of an hour.
 
 ## Interactive Colab Tutorials
 

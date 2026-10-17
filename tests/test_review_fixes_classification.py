@@ -62,7 +62,7 @@ def test_mcl_m3_no_build_record_result_in_the_prose(nb: dict) -> None:
     for cell in (c for c in nb["cells"] if c["cell_type"] == "markdown"):
         text = _src(cell)
         if "91.7 %" in text:
-            assert "CPU build record of 17 October 2026" in text, f"unlabelled build-record number: {text[:120]!r}"
+            assert "the `7f442e3` blob of this notebook" in text or "CPU build record of 17 October 2026" in text, f"unlabelled number: {text[:120]!r}"
     assert "partly recovering the static postures" not in md and "static postures partly recovered" not in md
     assert "epoch 2 selected, 75.0 %" not in md
     for cell in (c for c in nb["cells"] if c["cell_type"] == "markdown"):
@@ -138,8 +138,11 @@ def test_mcl_m7_class_cosine_table_reads_the_gap(nb: dict) -> None:
 def test_mcl_m3_timing_figures_name_their_environment(nb: dict) -> None:
     md = _markdown(nb)
     assert "about 150 s" not in md and "about three minutes on CPU" not in md and "about half a minute on CPU" not in md
-    assert "1,061 s in the CPU build record of 17 October 2026" in md
-    assert "no hosted run of the MOMENT-1-large revision is recorded yet" in md
+    assert "1,061 s" not in md and "531 s in the CPU build record of 17 October 2026 after the encoder-depth fix" in md
+    assert "no hosted run of this revision is recorded yet" in md
+    # the unfreeze ladder is quoted from the run after the encoder-depth fix, not the blocks-10/11 run
+    assert "epochs 1–3: 0.652, 0.615, 0.582" in md and "0.732, 0.762, 0.692" not in md
+    assert "blocks 22 and 23 of 24, 25,694,208 of 341,240,320 parameters" in md and "14,158,848" not in md
     registry = (ROOT / "tutorials" / "README.md").read_text(encoding="utf-8")
     assert "seven min of model time" not in registry and "MOMENT-1-large CPU build record of 2026-10-17" in registry
 
