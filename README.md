@@ -67,7 +67,7 @@ See `tutorials/README.md` for the registry and `docs/release-verification.md` fo
 
 ## Release status
 
-**Candidate** — the four standalone tutorials were regenerated at `3b0cee5` (anomaly detection `fe88efc016c8`, classification `7b70813b2417`, embeddings `7bfc3151e54e`, imputation `50746e514d6b`); each new blob passed a Colab CLI 0.7.4 sequential execution on a fresh Colab Tesla T4 in one pass, no restart, 0 errors (2026-10-07/08, default path only), recorded in `docs/release-verification.md`. Static and unit checks — including the standalone generator parity checks — are necessary but were never the evidence; the hosted runs are. Promotion to Release-grade is a review decision against `docs/release-verification.md` for the exact release revision.
+**Candidate** — the four standalone tutorials moved to MOMENT-1-large at `7f442e3` (anomaly detection `aa35f9d219e4`, classification `bd5817b425fc`, embeddings `2a730408b856`, imputation `55bc20b790b8`); each blob passed a Colab CLI 0.7.4 sequential execution on a fresh Colab Tesla T4 in one pass, no restart, 0 errors (2026-10-17, default path only), recorded in `docs/release-verification.md`. The MOMENT-1-base blobs of `3b0cee5` passed the same check on 2026-10-07/08 and remain history. Static and unit checks — including the standalone generator parity checks — are necessary but were never the evidence; the hosted runs are. Promotion to Release-grade is a review decision against `docs/release-verification.md` for the exact release revision.
 
 ## Installation and tests
 

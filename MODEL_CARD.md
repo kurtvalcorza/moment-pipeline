@@ -36,8 +36,9 @@ Numbers elsewhere in this card that are labelled *MOMENT-1-base history* belong 
 
 The table compares the two checkpoints on the four tutorials' default paths. Both columns come from a CPU build record
 of 2026-10-17: the notebooks' own code run top to bottom in one process on a local Windows CPU (float32,
-`torch 2.14.0+cpu`), with no hosted runtime. These figures are not hosted evidence. Every MOMENT-1-large blob still
-needs a recorded hosted run.
+`torch 2.14.0+cpu`), with no hosted runtime. These figures are not hosted evidence. Colab Tesla T4 runs of all four
+MOMENT-1-large blobs at `7f442e3` (2026-10-17, recorded in `docs/release-verification.md`) reproduce every
+MOMENT-1-large figure in the table at the printed precision; the CPU wall and memory rows are CPU-only.
 
 | Notebook | Measure | MOMENT-1-base `9fea447e` (old) | MOMENT-1-large `ca58581b` (new) |
 |---|---|---|---|
