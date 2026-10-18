@@ -1,7 +1,7 @@
 """Integration: the real pinned weights on CPU.
 
 Marked `integration` and excluded from the default CI job. Everything here needs the
-~454 MB `model.safetensors` and network access on a cold cache; none of it needs a GPU.
+~1.39 GB `model.safetensors` and network access on a cold cache; none of it needs a GPU.
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ def test_pinned_revision_and_digests_resolve(snapshot):
     assert snapshot.path.name == PINNED_REVISION
     assert snapshot.revision == PINNED_REVISION
     assert snapshot.config_sha256 == PINNED_CONFIG_SHA256
-    assert snapshot.config_bytes == 949
+    assert snapshot.config_bytes == 951
     assert snapshot.weights_sha256 == PINNED_WEIGHTS_SHA256
     assert snapshot.weights_bytes == PINNED_WEIGHTS_BYTES
     assert (snapshot.seq_len, snapshot.patch_len, snapshot.patch_stride) == (512, 8, 8)
@@ -77,7 +77,7 @@ def test_snapshot_never_contains_the_pickle_weights(snapshot):
 def test_reconstruction_load_is_proven_against_the_safetensors_file(reconstruction_model):
     proof = reconstruction_model.proof
     assert proof["weight_file"] == "model.safetensors"
-    assert proof["n_tensors_in_file"] == 116
+    assert proof["n_tensors_in_file"] == 224
     assert len(proof["encoder_tensors_checked"]) >= 3
     assert proof["head_tensors_checked"] == ["head.linear.bias", "head.linear.weight"]
     assert proof["head_type"] == "PretrainHead"
@@ -86,12 +86,12 @@ def test_reconstruction_load_is_proven_against_the_safetensors_file(reconstructi
 def test_proof_compares_every_non_head_tensor_and_names_its_limits(reconstruction_model):
     """R-6: widen the comparison to the whole file, and stop overstating what it shows.
 
-    The file holds 116 tensors, 2 of them `head.*`. Reconstruction compares all 116; the
+    The file holds 224 tensors, 2 of them `head.*`. Reconstruction compares all 224; the
     proof also records that a value comparison cannot discriminate which *file* was read,
     because `pytorch_model.bin` at this revision serializes the same values.
     """
     proof = reconstruction_model.proof
-    assert proof["n_tensors_compared"] == proof["n_tensors_in_file"] == 116
+    assert proof["n_tensors_compared"] == proof["n_tensors_in_file"] == 224
     assert proof["live_tensors_not_in_file"] == []
     assert proof["does_not_prove"] == "which file on disk was read"
     assert "allow_patterns" in proof["file_identity_basis"]
@@ -99,8 +99,8 @@ def test_proof_compares_every_non_head_tensor_and_names_its_limits(reconstructio
 
 def test_embedding_proof_compares_every_non_head_tensor(embedding_model):
     proof = embedding_model.proof
-    assert proof["n_tensors_in_file"] == 116
-    assert proof["n_tensors_compared"] == 114  # 116 minus the two head tensors
+    assert proof["n_tensors_in_file"] == 224
+    assert proof["n_tensors_compared"] == 222  # 224 minus the two head tensors
     assert proof["live_tensors_not_in_file"] == []
 
 
@@ -108,7 +108,7 @@ def test_provenance_carries_the_file_identity_basis(embedding_model, snapshot):
     windows = to_windows(make_long_frame(n_points=512))
     record = build_provenance(embedding_model, windows, embed(windows, embedding_model))
     assert "allow_patterns" in record["load_proof"]["file_identity_basis"]
-    assert record["load_proof"]["n_tensors_compared"] == 114
+    assert record["load_proof"]["n_tensors_compared"] == 222
 
 
 # --- R-3: provenance records what was verified, not what the caller asserted --------
@@ -151,7 +151,7 @@ def test_d_model_is_derived_not_declared(snapshot, embedding_model):
 
     declared = json.loads((snapshot.path / "config.json").read_text())["d_model"]
     assert declared is None  # config.json leaves it null; the backbone decides
-    assert embedding_model.identity.d_model_effective == 768
+    assert embedding_model.identity.d_model_effective == 1024
 
 
 def test_two_loads_give_identical_head_weights(snapshot):
@@ -172,14 +172,14 @@ def test_embedding_dimension_and_determinism(embedding_model):
     windows = to_windows(make_long_frame(n_points=512, series=("A", "B"), seed=5))
     first = embed(windows, embedding_model)
     second = embed(windows, embedding_model)
-    assert first.embeddings.shape == (2, 768)
-    assert first.d_model == 768
+    assert first.embeddings.shape == (2, 1024)
+    assert first.d_model == 1024
     assert np.allclose(first.embeddings, second.embeddings, atol=1e-6)
     assert np.isfinite(first.embeddings).all()
     assert first.reduction == "mean"
     frame = first.to_frame()
     assert list(frame.columns[:2]) == ["series_id", "window_id"]
-    assert frame.shape == (2, 770)
+    assert frame.shape == (2, 1026)
 
 
 def test_embedding_refuses_a_reconstruction_instance(reconstruction_model):
@@ -295,7 +295,7 @@ def test_provenance_of_a_real_embedding_run(embedding_model):
     assert record["model"]["weights_sha256"] == PINNED_WEIGHTS_SHA256
     assert record["model"]["config_sha256"] == PINNED_CONFIG_SHA256
     assert record["load_proof"]["weight_file"] == "model.safetensors"
-    assert record["inference"]["embedding_dim"] == 768
+    assert record["inference"]["embedding_dim"] == 1024
     assert record["inference"]["latency_seconds"] > 0.0
     assert record["runtime"]["momentfm"] == "0.1.5"
 
@@ -468,3 +468,59 @@ def test_provenance_of_a_real_anomaly_run(reconstruction_model):
     frame = result.to_frame()
     assert len(frame) == 512
     assert set(frame["channel"]) == {"max"}
+
+
+def _sine_windows(prefill_holdout: bool = False):
+    import pandas as pd
+
+    from moment_pipeline.canonical import to_windows as _to_windows
+    from moment_pipeline.config import MomentConfig
+    from moment_pipeline.validation import validate_long_frame
+
+    t = np.arange(512, dtype=float)
+    values = np.sin(2 * np.pi * t / 32.0) + 0.002 * t
+    stamps = pd.date_range("2026-01-01", periods=512, freq="15min")
+    frame = pd.DataFrame({"series_id": "S", "timestamp": stamps, "channel": "c", "value": values})
+    config = MomentConfig(task="reconstruction")
+    report, normalized = validate_long_frame(frame, config)
+    return _to_windows(normalized, config, report=report, frame=normalized), values
+
+
+def test_reconstruction_head_reconstructs_a_clean_sine(reconstruction_model):
+    """Review M4: the failure RFC 0001 Amendment 1 fixed (the MOMENT-1-base head returned values
+    uncorrelated with
+    its input) must not come back with a re-pin or a library bump. Amendment 1 recorded sine
+    Pearson 0.986."""
+    windows, values = _sine_windows()
+    unmasked = reconstruct(windows, reconstruction_model, warmup=False).reconstruction[0, 0]
+    unmasked = unmasked.astype(float)
+    assert np.corrcoef(values, unmasked)[0, 1] > 0.95
+    visible = np.ones_like(windows.input_mask, dtype=np.float32)
+    visible[0, 384:392] = 0
+    masked = reconstruct(windows, reconstruction_model, mask=visible, warmup=False)
+    masked = masked.reconstruction[0, 0].astype(float)
+    hidden = slice(384, 392)
+    model_mae = np.abs(masked[hidden] - values[hidden]).mean()
+    visible_mean = np.delete(values, np.arange(384, 392)).mean()
+    mean_predictor_mae = np.abs(visible_mean - values[hidden]).mean()
+    assert model_mae < mean_predictor_mae
+
+
+def test_hidden_values_cannot_reach_the_reconstruction(reconstruction_model):
+    """Review m3: randomising the deliberately hidden values leaves the reconstruction unchanged
+    (atol 1e-6)."""
+    windows, _ = _sine_windows()
+    visible = np.ones_like(windows.input_mask, dtype=np.float32)
+    visible[0, 384:392] = 0
+    reference = reconstruct(windows, reconstruction_model, mask=visible, warmup=False)
+    hidden = np.broadcast_to((reference.model_mask == 0)[:, None, :], windows.x_enc.shape)
+    rng = np.random.default_rng(0)
+    for _ in range(3):
+        x = windows.x_enc.copy()
+        x[hidden] = rng.normal(0.0, 50.0, size=int(hidden.sum())).astype(np.float32)
+        perturbed = reconstruct(
+            dataclasses.replace(windows, x_enc=x), reconstruction_model, mask=visible, warmup=False
+        )
+        np.testing.assert_allclose(
+            perturbed.reconstruction, reference.reconstruction, atol=1e-6, rtol=0
+        )

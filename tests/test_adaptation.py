@@ -12,6 +12,7 @@ import hashlib
 import io
 import json
 import zipfile
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -85,11 +86,11 @@ def _records(n=12):
 class _StandIn(torch.nn.Module):
     """A tiny encoder with MOMENT's parameter naming (`encoder.block.<k>.*`) and `embed` signature."""
 
-    def __init__(self, d_model: int = 16):
+    def __init__(self, d_model: int = 16, n_blocks: int = ENCODER_BLOCKS):
         super().__init__()
         self.encoder = torch.nn.Module()
         self.encoder.block = torch.nn.ModuleList(
-            [torch.nn.Linear(WINDOW_LENGTH, d_model) for _ in range(ENCODER_BLOCKS)]
+            [torch.nn.Linear(WINDOW_LENGTH, d_model) for _ in range(n_blocks)]
         )
         self.head = torch.nn.Identity()
 
@@ -102,10 +103,10 @@ class _StandIn(torch.nn.Module):
         return _Result()
 
 
-def _model(d_model: int = 16, task: str = "embedding") -> LoadedMoment:
+def _model(d_model: int = 16, task: str = "embedding", n_blocks: int = ENCODER_BLOCKS) -> LoadedMoment:
     identity = ModelIdentity(
-        name="AutonLab/MOMENT-1-base",
-        revision="9fea447e740eb968a9e8d80c7562ae122bdb5dde",
+        name="AutonLab/MOMENT-1-large",
+        revision="ca58581bc7bea2ebed4e80dc0a3e4b8b609c6ecc",
         config_sha256="c" * 64,
         weights_sha256="w" * 64,
         weights_bytes=1,
@@ -121,7 +122,9 @@ def _model(d_model: int = 16, task: str = "embedding") -> LoadedMoment:
         dtype="float32",
     )
     torch.manual_seed(0)
-    return LoadedMoment(pipeline=_StandIn(d_model), identity=identity, snapshot=None, proof={})
+    return LoadedMoment(
+        pipeline=_StandIn(d_model, n_blocks), identity=identity, snapshot=None, proof={}
+    )
 
 
 def _archive(users: int = 3, seed: int = 0) -> bytes:
@@ -455,6 +458,36 @@ def test_features_knn_probe_unfreeze_and_artifact_round_trip(tmp_path):
     assert classify(fresh, reloaded, test[:3])["probabilities"] == labels["probabilities"]
 
 
+def _block_indices(names):
+    return sorted({int(n.split(".")[2]) for n in names})
+
+
+def test_unfreeze_trains_the_last_blocks_of_the_loaded_encoder():
+    """The pinned MOMENT-1-large encoder has 24 T5 layers (config.json `t5_config.num_layers`); the unfreeze
+    must select the LAST `trainable_blocks` of them (22 and 23 by default), never a fixed base-depth index."""
+    from moment_pipeline import adaptation
+
+    # The pinned large encoder: 2 trainable blocks must be 22 and 23 (the base-era constant picked 10 and 11).
+    large = _model(n_blocks=24)
+    default_k = adaptation.DEFAULT_TRAINABLE_BLOCKS
+    assert _block_indices(adaptation._trainable_names(large, default_k)) == [22, 23]
+    pinned = json.loads(
+        (Path(__file__).resolve().parents[1] / "weights" / "moment-1-large" / "config.json").read_text(encoding="utf-8")
+    )
+    assert pinned["t5_config"]["num_layers"] == 24 == ENCODER_BLOCKS
+    for n_blocks in (24, 12, 6):
+        model = _model(n_blocks=n_blocks)
+        assert adaptation.encoder_block_count(model) == n_blocks
+        for k in (1, default_k, 3):
+            assert _block_indices(adaptation._trainable_names(model, k)) == list(range(n_blocks - k, n_blocks))
+        assert _block_indices(adaptation._trainable_names(model, n_blocks)) == list(range(n_blocks))
+        with pytest.raises(ValueError, match="trainable_blocks"):
+            adaptation._trainable_names(model, n_blocks + 1)
+    large.pipeline.config = type("Cfg", (), {"t5_config": {"num_layers": 12}})()
+    with pytest.raises(ValueError, match="declares 12 encoder layers"):
+        adaptation.encoder_block_count(large)
+
+
 def test_adapt_and_artifacts_guard_their_arguments(tmp_path):
     model = _model()
     for kwargs, message in [
@@ -585,7 +618,7 @@ def test_load_artifact_refuses_a_tensor_set_that_differs_from_the_recorded_polic
     assert adapter.policy == ad.POLICY_UNFROZEN.format(k=1)
     artifact = save_artifact(model, adapter, tmp_path / "ok")
     manifest = json.loads((artifact / "manifest.json").read_text(encoding="utf-8"))
-    assert any(t.startswith("encoder.block.11.") for t in manifest["tensors"])
+    assert any(t.startswith(f"encoder.block.{ENCODER_BLOCKS - 1}.") for t in manifest["tensors"])
     claims_frozen = tmp_path / "claims_frozen"
     shutil.copytree(artifact, claims_frozen)
     frozen = {**manifest["adapter"], "policy": POLICY_FROZEN, "trainable_blocks": 0}

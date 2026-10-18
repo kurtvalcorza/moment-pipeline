@@ -43,7 +43,7 @@ TEMPLATE = {
     "model_section_note": "The loader prints upstream's warning *\"Only reconstruction head is pre-trained. Classification and forecasting heads must be fine-tuned.\"* — expected: the `task=\"embedding\"` instance replaces the head by an identity, and the classification head this notebook trains is its own (Sections 6–7), not upstream's untrained one.",
     "run_all": (
         "Selecting **Run all** in a fresh supported runtime builds an isolated hash-locked environment from the pinned dependencies, with nothing installed into the notebook kernel and no restart (including `momentfm` from "
-        "its pinned source commit), stages and digest-verifies the pinned MOMENT-1-base snapshot (safetensors, 454 MB), "
+        "its pinned source commit), stages and digest-verifies the pinned MOMENT-1-large snapshot (safetensors, 1.39 GB), "
         "fetches the 79.6 MB UCI HAPT archive (no credential), cuts 179 digest-pinned ten-second motion windows from it "
         "and draws 107 / 36 / 36 training, validation and test windows by a seeded split of whole volunteers, runs three "
         "test windows through the inference contract — the public validation, windowing and embedding path with an input "
@@ -53,7 +53,7 @@ TEMPLATE = {
         "**unfrozen policy**), scores the held-out split with the selected model, prints predictions before and after, "
         "exports the head and any trained blocks as safetensors with a manifest, and reloads that artifact into a fresh "
         "pipeline to verify parity. The default path needs no repository clone, no DIMER worker or service, no credential, "
-        "no upload dialog and no configuration edit (NOTEBOOK_SPEC 2.0 §5). Measured durations, each with its environment: the whole default path took 294 s on the recorded Kaggle Tesla T4 run of 2026-09-19 (downloads included) and 430 s of cell time on the local CPU pre-flight of 2026-09-19 (Windows, CPython 3.12, CPU float32, downloads pre-staged); the review of 2026-10-02 measured more than 590 s on another CPU. Treat any CPU figure as an estimate for your machine; a CUDA runtime is used automatically when present."
+        "no upload dialog and no configuration edit (NOTEBOOK_SPEC 2.0 §5). Measured durations, each with its environment: in the CPU build record of 17 October 2026 after the encoder-depth fix (MOMENT-1-large @ `ca58581b`, this notebook's code, Windows CPU float32, `torch 2.14.0+cpu`; not a hosted run) the default path took about 830 s of cell time with the checkpoint pre-staged (the three-epoch unfreeze alone 531 s, peak memory 7.1 GB), plus the HAPT download; in the hosted Colab T4 run of 17 October 2026 of commit `032c262` (MOMENT-1-large @ `ca58581b`, blob `0bc12ed4ab0d`, Colab account 2; REL13: an earlier blob of this notebook carrying the same modules; executed notebook in `docs/execution-evidence/2026-10-17/`) the whole notebook took 297.3 s of Colab CLI wall time, including 61 s to build the isolated environment and 57.8 s for the three-epoch unfreeze of blocks 22 and 23. Treat any CPU figure as an estimate for your machine; a CUDA runtime is used automatically when present and is much faster."
     ),
     "byod": (
         "After the tutorial workflow completes, set `USE_BYOD = True` in Section 4 and re-run from that cell to supply your own "
@@ -65,7 +65,7 @@ TEMPLATE = {
         "runtime. BYOD is optional and never part of the default path."
     ),
     "pipeline_class": "LoadedMoment",
-    "weights_key": "moment-1-base",
+    "weights_key": "moment-1-large",
     "modules": [
         "adaptation.py",
         "anomaly.py",
@@ -83,7 +83,7 @@ TEMPLATE = {
     "entry_module": "model.py",
     "model_load": 'load_moment(task="embedding", weights_dir=WEIGHTS_DIR)',
     "runtime_imports": ["torch", "transformers", "pandas", "numpy"],
-    "title": "MOMENT-1-base — DIMER E2E supervised adaptation tutorial: activity classification from motion windows, linear probe vs bounded unfreeze (standalone)",
+    "title": "MOMENT-1-large — DIMER E2E supervised adaptation tutorial: activity classification from motion windows, linear probe vs bounded unfreeze (standalone)",
     "badges": [
         (
             "GitHub",
@@ -97,8 +97,8 @@ TEMPLATE = {
         ),
         (
             "Hugging Face",
-            "https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-AutonLab%2FMOMENT--1--base-ffcc4d?style=flat",
-            "https://huggingface.co/AutonLab/MOMENT-1-base",
+            "https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-AutonLab%2FMOMENT--1--large-ffcc4d?style=flat",
+            "https://huggingface.co/AutonLab/MOMENT-1-large",
         ),
         (
             "Upstream",
@@ -107,18 +107,18 @@ TEMPLATE = {
         ),
         ("arXiv", "https://img.shields.io/badge/arXiv-2402.03885-b31b1b.svg", "https://arxiv.org/abs/2402.03885"),
     ],
-    "capability": "pretrained time-series representation extraction (pooled 768-d window embeddings) and bounded supervised adaptation to a labelled-window classification task — a linear probe on the frozen embeddings with an optional unfreeze of the last encoder blocks — measured by held-out accuracy and macro-F1, using the pinned `AutonLab/MOMENT-1-base` encoder",
+    "capability": "pretrained time-series representation extraction (pooled 1024-d window embeddings) and bounded supervised adaptation to a labelled-window classification task — a linear probe on the frozen embeddings with an optional unfreeze of the last encoder blocks — measured by held-out accuracy and macro-F1, using the pinned `AutonLab/MOMENT-1-large` encoder",
     "intro": (
         "At inference every 512-step window (each channel independently, 64 non-overlapping patches of 8 steps, "
-        "instance-normalised per window) passes through the 12-block T5 encoder of MOMENT-1-base and the patch "
-        "representations are mean-pooled into one 768-d vector per window; the `embedding` task instance replaces the "
+        "instance-normalised per window) passes through the 24-block T5 encoder of MOMENT-1-large and the patch "
+        "representations are mean-pooled into one 1024-d vector per window; the `embedding` task instance replaces the "
         "pretrained reconstruction head with an identity, so the vector is a representation, not a prediction. The "
         "carried package adds manifest verification, the long-format validation and windowing contract, input "
         "validation with named ceilings, and the `validate_inputs`, `evaluation_report` and `build_provenance` "
         "helpers; the per-batch `evaluation_report` of an embedding is always `not-measurable`, because a vector has no "
         "intrinsic accuracy.\n\n"
         "What this notebook adds to inference is **supervised adaptation under an explicit frozen-vs-unfrozen policy** "
-        "— the first task-head contract of this repository, and a caller-trained one: MOMENT-1-base ships no "
+        "— the first task-head contract of this repository, and a caller-trained one: MOMENT-1-large ships no "
         "classification head and its upstream classification head is not pretrained. The dataset is real: 179 "
         "ten-second windows of smartphone motion data from the UCI *Smartphone-Based Recognition of Human Activities "
         "and Postural Transitions* dataset (HAPT, CC BY 4.0) — for each of 30 volunteers and each of six activities "
@@ -137,7 +137,7 @@ TEMPLATE = {
         "corpus."
     ),
     "guided": {"opening": [(
-        '**Who this notebook is for.** A learner who knows basic Python and pandas, has used Colab or Jupyter and has met time-series data, and wants to see how a pretrained time-series foundation model is used and adapted under an explicit frozen-vs-unfrozen policy — what goes in, what comes out, and what the output does and does not prove. The audience is students and practitioners preparing their own sensor or monitoring series; no prior experience with MOMENT is assumed — each term is explained where it first matters and again in the **Glossary**. CPU works (the unfreeze takes a few minutes); a T4 is faster.\n\n**Input → Model → Output.**\n\n| | |\n|---|---|\n| Input | 179 ten-second, six-channel motion windows (512 samples at 50 Hz) cut from the digest-pinned UCI HAPT archive, split 107 / 36 / 36 by whole volunteers — or your own labelled windows |\n| Model | the MOMENT-1-base encoder (`task="embedding"`); a linear head on its frozen pooled embeddings (the probe, the frozen policy), optionally with the last two encoder blocks unfrozen (the unfrozen policy), selected on validation log-loss |\n| Output | an activity label and softmax probabilities per window, held-out accuracy and macro-F1 beside a majority floor and a 5-NN vote, and a safetensors adapter that reloads with identical probabilities |\n\n**How to use this notebook.** Choose a runtime, then **Runtime → Run all**. Run all completes in one pass: Section 1 installs nothing into the notebook\'s own Python, so no restart is needed (the recorded hosted runs of the previous version needed one; this version removes it). Sections 1–3 are **infrastructure** — the isolated environment, the carried package and the verified snapshot — and their cells are collapsed; you may run them without studying them. The learning path starts in Section 4. Form fields (`# @param`) are the only values meant to be edited, and the defaults reproduce the default path. Before each principal result the notebook asks you to **Predict**; after it comes a collapsible **Check your reasoning** with a worked answer. The worked answers quote the recorded Kaggle Tesla T4 run of 19 September 2026, named as such wherever a number appears; **CPU and CUDA runs of the same split can differ by a window or two** (the local CPU pre-flight of an earlier revision and the T4 run differed by one test window on the same split), so compare your printed comparison with the worked answer in windows, not in decimals. **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end. Writing your predictions down is optional.\n\n**Roadmap:** 1–3 infrastructure → 4 the HAPT corpus, validation and a volunteer-level split *(evaluation practice: leakage)* → 5 the inference contract on real windows → 6 majority floor, 5-NN vote and the linear probe *(core concept: a frozen representation)* → 7 the bounded unfreeze, selected against the probe *(core concept: what is trained)* → 8 held-out evaluation *(evaluation practice)* → 9 before/after predictions, export and reload *(engineering)* → conclude.'
+        '**Who this notebook is for.** A learner who knows basic Python and pandas, has used Colab or Jupyter and has met time-series data, and wants to see how a pretrained time-series foundation model is used and adapted under an explicit frozen-vs-unfrozen policy — what goes in, what comes out, and what the output does and does not prove. The audience is students and practitioners preparing their own sensor or monitoring series; no prior experience with MOMENT is assumed — each term is explained where it first matters and again in the **Glossary**. CPU works (the unfreeze takes a few minutes); a T4 is faster.\n\n**Input → Model → Output.**\n\n| | |\n|---|---|\n| Input | 179 ten-second, six-channel motion windows (512 samples at 50 Hz) cut from the digest-pinned UCI HAPT archive, split 107 / 36 / 36 by whole volunteers — or your own labelled windows |\n| Model | the MOMENT-1-large encoder (`task="embedding"`); a linear head on its frozen pooled embeddings (the probe, the frozen policy), optionally with the last two encoder blocks unfrozen (the unfrozen policy), selected on validation log-loss |\n| Output | an activity label and softmax probabilities per window, held-out accuracy and macro-F1 beside a majority floor and a 5-NN vote, and a safetensors adapter that reloads with identical probabilities |\n\n**How to use this notebook.** Choose a runtime, then **Runtime → Run all**. Run all completes in one pass: Section 1 installs nothing into the notebook\'s own Python, so no restart is needed (the recorded hosted runs of the previous version needed one; this version removes it). Sections 1–3 are **infrastructure** — the isolated environment, the carried package and the verified snapshot — and their cells are collapsed; you may run them without studying them. The learning path starts in Section 4. Form fields (`# @param`) are the only values meant to be edited, and the defaults reproduce the default path. Before each principal result the notebook asks you to **Predict**; after it comes a collapsible **Check your reasoning** with a worked answer. The worked answers quote two named sources: the hosted Colab T4 run of 17 October 2026 of commit `032c262` (MOMENT-1-large @ `ca58581b`, blob `0bc12ed4ab0d`, Colab account 2; REL13: an earlier blob of this notebook carrying the same modules; executed notebook in `docs/execution-evidence/2026-10-17/`) for every figure of the default path, the unfreeze ladder included, and the CPU build record of 17 October 2026 after the encoder-depth fix (this notebook\'s code, Windows CPU float32, `torch 2.14.0+cpu`; not a hosted run) for the CPU timings; the source is named wherever a number appears; **CPU and CUDA runs of the same split can differ by a window or two**, so compare your printed comparison with the worked answer in windows, not in decimals. Numbers recorded with the previously pinned MOMENT-1-base (`9fea447e`) are kept only where they explain a change, and are labelled with that revision. **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end. Writing your predictions down is optional.\n\n**Roadmap:** 1–3 infrastructure → 4 the HAPT corpus, validation and a volunteer-level split *(evaluation practice: leakage)* → 5 the inference contract on real windows → 6 majority floor, 5-NN vote and the linear probe *(core concept: a frozen representation)* → 7 the bounded unfreeze, selected against the probe *(core concept: what is trained)* → 8 held-out evaluation *(evaluation practice)* → 9 before/after predictions, export and reload *(engineering)* → conclude.'
     )]},
     "learning_objectives": (
         "install the pinned runtime; read what the carried package guarantees; stage and digest-verify the immutable "
@@ -158,7 +158,7 @@ TEMPLATE = {
     "prerequisites": [
         '- **Learner:** basic Python and NumPy familiarity; no prior experience with MOMENT or time-series foundation models. Windows, patches, padding, masks and the evaluation verdicts are explained where they are first used and again in the Glossary.',
         '- **Runtime:** a fresh supported **Linux x86_64** runtime (Google Colab, Kaggle or Linux Jupyter). Section 1 builds its own Python 3.12.12 environment from a hash-locked list of manylinux wheels (plus `momentfm`, built from its pinned commit), so the Python version of the kernel itself does not matter and nothing is installed into it; a Windows or macOS kernel is not supported.',
-        "- **Compute:** the default path runs on CPU and uses CUDA automatically when available; the public API accepts `float32` only. One set of measured figures, environment named — the local CPU pre-flight of 2026-09-19 (Windows, CPython 3.12.10, CPU float32, `torch 2.14.0+cpu`): the 179-window k-NN pass 18.7 s, the linear probe 76.8 s including its features, the three-epoch unfreeze of the last two blocks 307.5 s, the whole path 430 s; the review of 2026-10-02 saw more than 590 s on another CPU, and the recorded Kaggle Tesla T4 run of 2026-09-19 took 294 s for everything. The notebook prints its own timings, so read those rather than these estimates. The locked `torch==2.14.0` wheel (the CUDA build, ~555 MB) with its NVIDIA libraries and the 454 MB checkpoint are the large downloads of the run — see the measured total under External access — then the 79.6 MB archive.",
+        "- **Compute:** the default path runs on CPU and uses CUDA automatically when available; the public API accepts `float32` only. One set of measured figures, environment named — the CPU build record of 17 October 2026 after the encoder-depth fix (MOMENT-1-large @ `ca58581b`, this notebook's code, Windows CPU float32, `torch 2.14.0+cpu`; not a hosted run): the 179-window k-NN pass 68.7 s, the within/between-class cosine table 48.2 s, the linear probe 150.3 s including its features, the three-epoch unfreeze of the last two blocks 531 s, about 830 s of cell time in all (downloads excluded), peak process memory 7.1 GB. A T4 runtime is the recommended choice for this notebook; on a CPU-only runtime expect roughly a quarter of an hour. The notebook prints its own timings, so read those rather than these estimates. The locked `torch==2.14.0` wheel (the CUDA build, ~555 MB) with its NVIDIA libraries and the 1.39 GB checkpoint are the large downloads of the run — see the measured total under External access — then the 79.6 MB archive.",
         "- **Knowledge:** basic Python, NumPy and pandas; what a long-format time-series table is; what a linear probe is and why it is the cheapest honest test of a representation; what accuracy and macro-F1 measure; what validation-based selection between two policies means.",
         "- **Data contract:** records are `{id, x, label}` — a float32 `(channels, 512)` array (or a path to a `.npy`) with 1..32 channels (an explicit `channels` list naming exactly that many unique channels, or the six HAPT names for six-channel windows and deterministic `channel_00`.. names otherwise — one ordered schema across the whole set), finite values of magnitude at most 1,000, a label of 1..64 plain characters, ids matching `[A-Za-z0-9_.:-]{1,64}` and unique; a training set needs 8..1,024 records and 2..100 classes with one channel count throughout; windows are de-duplicated by sample digest and split by `user` / `group` so one person's data never straddles splits. Every window then passes through the package's long-format validation (`series_id, timestamp, channel, value`) and canonical windowing exactly as inference input does. BYOD accepts a `.zip` (or a directory) holding `records.csv` and the `.npy` files.",
         "- **Validation is structural, not semantic:** nothing checks that a label is right for its window — a mislabelled set is trained on without complaint; the sample rate is assumed to be 50 Hz only for the timestamps the canonical path requires, and the model never sees it.",
@@ -194,6 +194,32 @@ TEMPLATE = {
                 'SPLIT_SEED = 42  # @param {{type:"integer"}}\n\n'
                 "os.makedirs('outputs', exist_ok=True)\n"
                 "t0 = time.perf_counter()\n"
+                'class BYODRefusal(Exception):\n'
+                '    """A refused BYOD input (NOTEBOOK_SPEC DAT20): shown as one message, with no traceback."""\n'
+                '\n'
+                '    dimer_refusal = True  # the isolated-environment router prints the message alone\n'
+                '\n'
+                '    def _render_traceback_(self):  # the same when the cell runs in the kernel itself\n'
+                '        return [str(self)]\n'
+                '\n'
+                '\n'
+                'RUN_STALE_MARKER = Path("outputs") / "RUN_INVALIDATED.txt"\n'
+                "STALE_RESULTS = ('frame', 'labels', 'sample_identity', 'sample_kind', 'payload', 'windows', 'normalized', 'report', 'input_manifest', 'result', 'scores', 'metrics', 'provenance', 'payload_out', 'ranked', 'pooled', 'channel_summary', 'embeddings', 'imputed', 'records', 'splits', 'train_records', 'val_records', 'test_records', 'dataset_manifests', 'classes', 'data_source', 'raw_count', 'evaluation_report_payload')\n"
+                '\n'
+                '\n'
+                'def refuse_byod(source, rule):\n'
+                '    """Invalidate the active run and return one actionable refusal (DAT20).\n'
+                '\n'
+                "    Files an earlier run wrote to outputs/ are kept but marked stale by RUN_INVALIDATED.txt, and the previous run's\n"
+                '    inputs and results are forgotten, so no later cell can present them as results for the refused input.\n'
+                '    """\n'
+                '    for stale in STALE_RESULTS:\n'
+                '        globals().pop(stale, None)\n'
+                '    Path("outputs").mkdir(exist_ok=True)\n'
+                '    RUN_STALE_MARKER.write_text(f"Active run invalidated by a refused BYOD input ({{source}}): {{rule}}\\nFiles in outputs/ come from an earlier run; they are NOT results for this input.\\n", encoding="utf-8")\n'
+                '    return BYODRefusal(f"BYOD input refused - {{source}}: {{rule}} Earlier files in outputs/ were kept but marked stale (outputs/RUN_INVALIDATED.txt), and the previous results were cleared from memory. Fix the file or BYOD_PATH and run this cell again, or untick USE_BYOD to return to the HAPT sample.")\n'
+                '\n'
+                '\n'
                 'def byod_file(path, kind, suffixes=()):\n'
                 '    """BYOD path first (works on Colab, Kaggle and Jupyter); on Colab an empty path opens the upload dialog."""\n'
                 '    if str(path).strip():\n'
@@ -216,10 +242,20 @@ TEMPLATE = {
                 '        raise ValueError(f\'{{source.name}}: expected a {{kind}} ending in {{" or ".join(suffixes)}}.\')\n'
                 '    return source\n\n\n'
 
-                "if USE_BYOD:\n"
-                "    byod_path = byod_file(BYOD_PATH, 'labelled-window archive or file accepted by load_byod_dataset')\n"
-                "    records = load_byod_dataset(byod_path)\n"
-                "    splits = split_dataset(records, seed=SPLIT_SEED)\n"
+                'if USE_BYOD:\n'
+                '    # A refused input (missing path, no upload, unreadable archive, too few windows or volunteers, a broken\n'
+                '    # record) prints one message and invalidates the run; any other error keeps its traceback.\n'
+                '    try:\n'
+                "        byod_path = byod_file(BYOD_PATH, 'labelled-window archive or file accepted by load_byod_dataset')\n"
+                '    except (FileNotFoundError, RuntimeError, ValueError) as exc:\n'
+                "        raise refuse_byod(repr(BYOD_PATH) if str(BYOD_PATH).strip() else 'upload dialog', f'{{exc}}') from None\n"
+                '    try:\n'
+                '        records = load_byod_dataset(byod_path)\n'
+                '        splits = split_dataset(records, seed=SPLIT_SEED)\n'
+                '        for _part in splits.values():\n'
+                '            validate_dataset(_part)\n'
+                '    except ValueError as exc:\n'
+                "        raise refuse_byod(byod_path.name, f'{{exc}}.') from None\n"
                 "    data_source = 'BYOD (' + byod_path.name + ')'\n"
                 "    raw_count = {{'byod': len(records)}}\n"
                 "else:\n"
@@ -227,6 +263,7 @@ TEMPLATE = {
                 "    raw_count = {{'windows': len(corpus), 'volunteers': len({{r['user'] for r in corpus}}), 'channels': list(CHANNELS)}}\n"
                 "    splits = build_sample_dataset(corpus, seed=SPLIT_SEED)\n"
                 "    data_source = f'{{CORPUS_NAME}} ({{CORPUS_RELEASE}}; {{CORPUS_LICENSE}})'\n"
+                'RUN_STALE_MARKER.unlink(missing_ok=True)  # a valid input starts a new run\n'
                 "fetch_seconds = round(time.perf_counter() - t0, 1)\n"
                 "train_records, val_records, test_records = splits['train'], splits['validation'], splits['test']\n"
                 "dataset_manifests = {{name: validate_dataset(part) for name, part in splits.items()}}\n"
@@ -266,14 +303,14 @@ TEMPLATE = {
                 "inference tutorial starts from; `validate_inputs` runs the package's `validate_long_frame` → `to_windows` "
                 "path and returns an input manifest, while a deliberately broken frame — a duplicated "
                 "(series, channel, timestamp) row — is validated too and its rejection recorded as a finding. `embed` "
-                "returns one unit-norm 768-d vector per window, in window order, with `d_model`, `reduction` and the "
+                "returns one unit-norm 1024-d vector per window, in window order, with `d_model`, `reduction` and the "
                 "missingness fractions (0 here: the windows are complete); `evaluation_report` stays `not-measurable`, as "
                 "it must for a batch of vectors, and `build_provenance` records the model, runtime and inference blocks. "
                 "A first look at the representation is then printed, before any metric is read: the mean cosine similarity "
                 "**within** each activity and **between** activities over the training windows (one table, not one pair). "
-                "How to read it: pooled MOMENT vectors are all close in cosine — even a same-activity and a cross-activity "
-                "pair can both score above 0.98, and the cross-activity pair can be the closer one, as the recorded Kaggle T4 "
-                "run of 2026-09-19 showed (0.984 vs 0.997) — so a single pair is an anecdote; what carries information is "
+                "How to read it: pooled MOMENT vectors are all close in cosine — a same-activity and a cross-activity "
+                "pair can both score above 0.94, and the cross-activity pair can be the closer one, as the hosted Colab T4 run of 17 October 2026 of commit `032c262` (MOMENT-1-large @ `ca58581b`, blob `0bc12ed4ab0d`, Colab account 2; REL13: an earlier blob of this notebook carrying the same modules; executed notebook in `docs/execution-evidence/2026-10-17/`) "
+                "showed (0.947 vs 0.991) — so a single pair is an anecdote; what carries information is "
                 "whether the within-class mean sits *above* the between-class mean for a class, and by how much relative to "
                 "the spread. **Cosine is a similarity, not a score**, and a vector carries no label; the k-NN vote in Section 6 "
                 "is what turns these similarities into a prediction. Success here means the three stages ran and the four "
@@ -407,7 +444,7 @@ TEMPLATE = {
         },
         {
             "md": (
-                '<details><summary>Check your reasoning</summary>In the recorded Kaggle T4 run of 2026-09-19 the floor scored 16.7 % (one of six balanced classes), the 5-NN vote 72.2 % and the probe 72.2 % (macro-F1 0.708 and 0.715). The three walking activities were found perfectly and the static postures confused: laying and sitting recall 0.33 under the probe. MOMENT instance-normalises every window, which removes the constant gravity component that mostly distinguishes the postures. A CPU run can differ from these by a window or two (one window = 2.8 points).</details>'
+                '<details><summary>Check your reasoning</summary>In the hosted Colab T4 run of 17 October 2026 of commit `032c262` (MOMENT-1-large @ `ca58581b`, blob `0bc12ed4ab0d`, Colab account 2; REL13: an earlier blob of this notebook carrying the same modules; executed notebook in `docs/execution-evidence/2026-10-17/`) the floor scored 16.7 % (one of six balanced classes), the 5-NN vote 77.8 % (macro-F1 0.772) and the probe 91.7 % (macro-F1 0.913). The walking activities and laying were found almost perfectly; sitting was the weakest class (recall 0.67 under the probe) and one walking-downstairs window was missed. MOMENT instance-normalises every window, which removes much of the constant gravity component that distinguishes the postures, yet the MOMENT-1-large embeddings still separate them far better than the MOMENT-1-base embeddings did (`9fea447e`: probe 72.2 %, laying and sitting recall 0.33, on the recorded Kaggle T4 run of 2026-09-19). A CPU run can differ from these by a window or two (one window = 2.8 points).</details>'
             ),
         },
         {
@@ -415,7 +452,7 @@ TEMPLATE = {
                 "## 7. The unfrozen policy: a bounded unfreeze selected against the probe\n\n"
                 "`adapt` with `TRAINABLE_BLOCKS` > 0 first retrains the linear probe on the frozen embeddings (epoch 0 "
                 "of the history, the frozen policy), then unfreezes the last `TRAINABLE_BLOCKS` T5 encoder blocks — two "
-                "by default, 14,158,848 of 109,635,456 parameters; the patch embedding, the earlier blocks and the final "
+                "by default, blocks 22 and 23 of 24, 25,694,208 of 341,240,320 parameters; the patch embedding, the earlier blocks and the final "
                 "norm stay frozen — and trains them with the head end to end on the windows for `EPOCHS` epochs (AdamW "
                 "at `LEARNING_RATE`, weight decay 0.01, gradient clipping 1.0, seeded shuffling, no augmentation). Every "
                 "epoch is scored on validation, and the epoch with the **lowest validation log-loss** is kept — epoch 0, "
@@ -423,8 +460,8 @@ TEMPLATE = {
                 "modified in place only when the unfreeze wins. Accuracy and macro-F1 are printed beside the loss at "
                 "every epoch.\n\n"
                 "Watch the validation log-loss epoch by epoch: it need not fall monotonically, and the probe is kept whenever no epoch beats it. Success here means "
-                "the ladder ran to its last epoch and named a selected policy and a `best_epoch`. Timing with its environment: 307.5 s on the local CPU pre-flight of 2026-09-19 (the whole T4 run took 294 s). **To re-run with other settings:** change `EPOCHS`, `LEARNING_RATE`, `BATCH_SIZE` or `TRAINABLE_BLOCKS` here, then re-run Section 6 and then Sections 7–9 in order; both cells restore the frozen encoder first, so each experiment starts from the pinned model and the frozen-policy numbers of Section 6 are reproduced exactly."
-                '\n\n**Predict before running:** the unfreeze trains 14 M parameters on 107 windows. Will the validation log-loss fall every epoch, and will the unfreeze necessarily be selected over the probe?'
+                "the ladder ran to its last epoch and named a selected policy and a `best_epoch`. Timing with its environment: 531 s in the CPU build record of 17 October 2026 after the encoder-depth fix (MOMENT-1-large @ `ca58581b`, this notebook's code, Windows CPU float32, `torch 2.14.0+cpu`; not a hosted run); 57.8 s in the hosted Colab T4 run of 17 October 2026 of commit `032c262` (MOMENT-1-large @ `ca58581b`, blob `0bc12ed4ab0d`, Colab account 2; REL13: an earlier blob of this notebook carrying the same modules; executed notebook in `docs/execution-evidence/2026-10-17/`). **To re-run with other settings:** change `EPOCHS`, `LEARNING_RATE`, `BATCH_SIZE` or `TRAINABLE_BLOCKS` here, then re-run Section 6 and then Sections 7–9 in order; both cells restore the frozen encoder first, so each experiment starts from the pinned model and the frozen-policy numbers of Section 6 are reproduced exactly."
+                '\n\n**Predict before running:** the unfreeze trains about 25.7 M parameters on 107 windows. Will the validation log-loss fall every epoch, and will the unfreeze necessarily be selected over the probe?'
             ),
             "code": (
                 'EPOCHS = 3  # @param {{type:"integer"}}\n'
@@ -453,7 +490,7 @@ TEMPLATE = {
         },
         {
             "md": (
-                '<details><summary>Check your reasoning</summary>Not necessarily on either count. With 107 training windows the validation log-loss can rise again after an epoch (it did in the recorded Kaggle T4 run, see Section 8), and the probe competes as epoch 0, so the unfreeze is kept only if one of its epochs beats the probe on validation log-loss; `selected_policy` and `best_epoch` say which won. The cell restored the frozen encoder first, so a re-run with another `TRAINABLE_BLOCKS` or `LEARNING_RATE` starts from the pinned model.</details>'
+                '<details><summary>Check your reasoning</summary>Not necessarily on either count. With 107 training windows the validation log-loss can rise again after an epoch (it did in the earlier hosted Colab T4 run of 17 October 2026 of the pre-fix commit `7f442e3` (blob `bd5817b425fc`; REL13: earlier-blob history), whose unfreeze trained encoder blocks 10 and 11 instead of the last two; in the hosted Colab T4 run of 17 October 2026 of commit `032c262` (MOMENT-1-large @ `ca58581b`, blob `0bc12ed4ab0d`, Colab account 2; REL13: an earlier blob of this notebook carrying the same modules; executed notebook in `docs/execution-evidence/2026-10-17/`), which trained blocks 22 and 23, it fell at every epoch, 0.6436, 0.6025, 0.5961, see Section 8), and the probe competes as epoch 0, so the unfreeze is kept only if one of its epochs beats the probe on validation log-loss; `selected_policy` and `best_epoch` say which won. The cell restored the frozen encoder first, so a re-run with another `TRAINABLE_BLOCKS` or `LEARNING_RATE` starts from the pinned model.</details>'
             ),
         },
         {
@@ -513,7 +550,7 @@ TEMPLATE = {
         },
         {
             "md": (
-                "<details><summary>Check your reasoning</summary>A 3-point gain is one window (36 × 0.03 ≈ 1). In the recorded Kaggle T4 run of 2026-09-19 epoch 3 of the unfreeze was selected and scored 75.0 % accuracy and macro-F1 0.741 on the test split against the probe's 72.2 % and 0.715 — `delta_windows` 1 of 36 — with sitting recall 0.33 → 0.50 (one window) and laying unchanged at 0.33. That is within what one seeded split can show by chance, and no claim about the postures follows from it: whether unfreezing can recover information that per-window normalisation removed before the encoder is a hypothesis, and the test would be several split seeds (`SPLIT_SEED`) with the delta tabulated in windows. The verdict lines record the comparison instead of asserting it; the local CPU pre-flight of an earlier revision differed from the T4 run by one window on the same split.</details>"
+                "<details><summary>Check your reasoning</summary>A 3-point gain is one window (36 × 0.03 ≈ 1). In the hosted Colab T4 run of 17 October 2026 of commit `032c262` (MOMENT-1-large @ `ca58581b`, blob `0bc12ed4ab0d`, Colab account 2; REL13: an earlier blob of this notebook carrying the same modules; executed notebook in `docs/execution-evidence/2026-10-17/`) no unfrozen epoch beat the probe on validation log-loss (probe 0.5763; epochs 1–3: 0.6436, 0.6025, 0.5961), so the probe was kept: `selected_policy` is the frozen policy, `best_epoch` 0, `delta_windows` 0, and both rows are the same model at 91.7 % accuracy and macro-F1 0.913 on the test split (the CPU build record of 17 October 2026 after the encoder-depth fix, `torch 2.14.0+cpu`, not a hosted run, gave the same test figures and a slightly different ladder, 0.652, 0.615, 0.582, as CPU and CUDA runs can). Unfreezing the last two blocks of the 24-block encoder (blocks 22 and 23) on 107 windows fitted the training split (train loss 0.74 → 0.30) and brought validation log-loss down every epoch, but not below the probe's. With the previously pinned MOMENT-1-base (`9fea447e`, recorded Kaggle T4 run of 2026-09-19) the unfreeze was selected at epoch 3 and gained one window over a weaker probe (75.0 % vs 72.2 %). Either way, a difference of a window or two is within what one seeded split can show by chance; the test would be several split seeds (`SPLIT_SEED`) with the delta tabulated in windows. The verdict lines record the comparison instead of asserting it.</details>"
             ),
         },
         {
@@ -595,14 +632,14 @@ TEMPLATE = {
         "on a real labelled corpus through the package's own validation and windowing path, chooses between them on "
         "validation rather than by assumption, and reports the answer against a floor and a no-training baseline rather "
         "than in isolation. **Read your own comparison** — the four accuracy rows, `delta_in_windows` and the per-class recall — "
-        "and not a number from someone else's run: in the recorded Kaggle T4 run of 2026-09-19 the frozen embeddings put the 5-NN vote and the probe at 72.2 % against a floor of 16.7 %, "
-        "the unfreeze was selected and scored 75.0 %, a delta of **one window** of 36, and a CPU pre-flight of an earlier revision landed one window away from that on the same split. A delta of that size is what one seeded split shows by chance.\n\n"
+        "and not a number from someone else's run: in the hosted Colab T4 run of 17 October 2026 of commit `032c262` (MOMENT-1-large @ `ca58581b`, blob `0bc12ed4ab0d`, Colab account 2; REL13: an earlier blob of this notebook carrying the same modules; executed notebook in `docs/execution-evidence/2026-10-17/`) the frozen embeddings put the 5-NN vote at 77.8 % and the probe at 91.7 % against a floor of 16.7 %, "
+        "and no unfrozen epoch beat the probe on validation, so the probe was kept (a delta of **zero windows**). With the previously pinned MOMENT-1-base (`9fea447e`, recorded Kaggle T4 run of 2026-09-19) the probe reached 72.2 % and the unfreeze 75.0 %, one window better. A delta of one or two windows is what one seeded split shows by chance.\n\n"
         "The test split is 36 windows from six volunteers of one seeded split of one small corpus with no dispersion "
         "estimate — one window is about 2.8 points of accuracy, so a two- or three-point delta is noise. The representation "
         "finding is the more useful one, and it is visible in both policies: MOMENT instance-normalises every window before patching, so the constant "
-        "gravity component that tells sitting from standing from laying never reaches the encoder — the walking "
-        "activities, which differ in dynamics, separate almost perfectly, while the static postures collapse into each "
-        "other. Because the normalisation happens *before* the encoder, neither the head nor the unfrozen blocks can recover what it removed; a per-class recall that moves by one window after the unfreeze is not evidence that they did. Accuracy and macro-F1 "
+        "gravity component that tells sitting from standing from laying never reaches the encoder in its raw form — the walking "
+        "activities, which differ in dynamics, separate almost perfectly, and the static postures are the hard classes (sitting recall 0.67 under the MOMENT-1-large probe in the hosted Colab T4 run of 17 October 2026 of commit `032c262` (MOMENT-1-large @ `ca58581b`, blob `0bc12ed4ab0d`, Colab account 2; REL13: an earlier blob of this notebook carrying the same modules; executed notebook in `docs/execution-evidence/2026-10-17/`); laying and sitting 0.33 with MOMENT-1-base, `9fea447e`). "
+        "The larger encoder recovers more of the posture signal from what remains after normalisation, but because the normalisation happens *before* the encoder, neither the head nor the unfrozen blocks can recover what it removed; a per-class recall that moves by one window after the unfreeze is not evidence that they did. Accuracy and macro-F1 "
         "say whether the gold activity is predicted, not whether the embeddings are good for any other task; the head's "
         "softmax is not a calibrated confidence. When the unfrozen policy is selected it changes the last blocks, which "
         "every window shares, so `embed` returns different vectors after it — cosines are not comparable across the "
@@ -621,6 +658,8 @@ TEMPLATE = {
         "representation quality on any other task, a usable acceptance threshold, or production fitness.\n\n"
         "**Optional experiments (they do not affect the default path; each one: Predict → change one field → re-run Section 6, then Sections 7–9 → observe → explain).** Set `LEARNING_RATE = 3e-5` and predict whether any epoch will beat the probe's validation log-loss (if none does, the probe is kept and Sections 8–9 report the same model twice; the artifact then holds the head only, and reload parity must still pass — it does, because Section 7 restored the pinned encoder before training). Set `LEARNING_RATE = 1e-4` and predict which epoch is selected. Set `TRAINABLE_BLOCKS = 1` or `4`, or `EPOCHS = 6`, and watch whether validation log-loss keeps falling or turns. Set another `SPLIT_SEED` in Section 4 and re-run from there: the floor, k-NN, probe and selected policy all move, which is the dispersion this one split cannot show. Drop the gyroscope channels in `read_corpus` and read what the accelerometer alone carries. Or bring your own labelled "
         "windows through BYOD (set `USE_BYOD = True` and `BYOD_PATH` in Section 4 and re-run from Section 4) and read the k-NN baseline before either policy. In every case the k-NN and frozen-policy numbers of Section 6 are computed on the pinned encoder, never on a previously adapted one.\n\n"
+        '**Pretraining overlap (BYOD).** MOMENT was pretrained on the Time-series Pile, which includes public benchmark series such as ETT, Weather, Electricity, Traffic, the UCR/UEA archives and Monash; a zero-shot score on one of those, brought in as your own data, is therefore optimistic. Whether the HAPT windows used here are in the Pile has not been checked, so read the default scores the same way.\n'
+        '\n'
         '## Troubleshooting\n\n'
         '- **Section 1 stops with "This notebook needs a Linux x86_64 runtime"** — use Google Colab, Kaggle or a Linux x86_64 Jupyter server.\n'
         '- **The uv wheel fails its size/SHA-256 check, or a download in Section 1 times out** — run Section 1 again; a complete environment is reused and an incomplete one is finished. If it repeats, `files.pythonhosted.org` or `pypi.org` is blocked or altered.\n'
@@ -652,12 +691,12 @@ TEMPLATE = {
         '- The activities confused most were ___, because ___.\n'
         '- One reason not to trust the gain over the probe yet: ___ (for example 36 test windows, one window ≈ 2.8 points).\n\n'
         "## References\n\n"
-        "- Repository README: https://github.com/kurtvalcorza/moment-pipeline/blob/main/README.md\n"
-        "- Repository model card: https://github.com/kurtvalcorza/moment-pipeline/blob/main/MODEL_CARD.md\n"
-        "- Upstream model: https://huggingface.co/{MODEL_ID}\n"
-        "- Upstream code: https://github.com/moment-timeseries-foundation-model/moment\n"
-        "- MOMENT: A Family of Open Time-series Foundation Models (Goswami et al., 2024): https://arxiv.org/abs/2402.03885\n"
-        "- Reyes-Ortiz, Oneto, Samà, Parra, Anguita. Transition-Aware Human Activity Recognition Using Smartphones. Neurocomputing 171 (2016) — the HAPT dataset, UCI Machine Learning Repository id 341, CC BY 4.0: https://archive.ics.uci.edu/dataset/341\n"
-        "- DIMER Notebook Specification 2.0 and Model Card Specification 1.1 (fleet specs in the ml-worker repository)"
+        '[1] M. Goswami, K. Szafer, A. Choudhry, Y. Cai, S. Li, and A. Dubrawski, "MOMENT: A family of open time-series foundation models," in *Proc. 41st Int. Conf. Mach. Learn. (ICML)*, 2024. [Online]. Available: https://arxiv.org/abs/2402.03885\n\n'
+        '[2] Auton Lab, Carnegie Mellon University, "{MODEL_ID}," model card, Hugging Face, rev. `{MODEL_REVISION}`, licence MIT. [Online]. Available: https://huggingface.co/{MODEL_ID}\n\n'
+        '[3] Auton Lab, Carnegie Mellon University, "moment," source code, GitHub, commit `38f7310ad594100747ca2a8357e9c7ca7d323e0e`. [Online]. Available: https://github.com/moment-timeseries-foundation-model/moment\n\n'
+        '[4] K. Valcorza, "moment-pipeline README," GitHub. [Online]. Available: https://github.com/kurtvalcorza/moment-pipeline/blob/main/README.md\n\n'
+        '[5] K. Valcorza, "moment-pipeline model card," GitHub. [Online]. Available: https://github.com/kurtvalcorza/moment-pipeline/blob/main/MODEL_CARD.md\n\n'
+        '[6] J.-L. Reyes-Ortiz, L. Oneto, A. Samà, X. Parra, and D. Anguita, "Transition-aware human activity recognition using smartphones," *Neurocomputing*, vol. 171, pp. 754–767, 2016. Dataset: UCI Machine Learning Repository, id 341 (HAPT), CC BY 4.0. [Online]. Available: https://archive.ics.uci.edu/dataset/341\n\n'
+        '[7] DIMER, "DIMER Notebook Specification 2.5" and "Model Card Specification 1.1," fleet specifications in the ml-worker repository.'
     ),
 }

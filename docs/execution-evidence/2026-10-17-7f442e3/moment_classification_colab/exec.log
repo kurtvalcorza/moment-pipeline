@@ -1,0 +1,91 @@
+[colab] Parsing notebook '/home/kurt/acct2/colab-runs/moment-pipeline-7f442e3-d81fdf/moment_classification_colab_7f442e3_colab-cli-t4.ipynb'...
+[colab] Executing cell 1/21 - Infrastructure: build (or reuse) the isolated environment and route later cells to it...
+{'isolated_environment': '/content/dimer_isolated_env_65c7f05290ca', 'reused': False, 'isolated_python': '3.12.12', 'kernel_python': '3.13.15', 'locked_packages': 61, 'setup_seconds': 55}
+{'routed_to': '/content/dimer_isolated_env_65c7f05290ca/bin/python', 'worker_pid': 2543, 'worker_reused': False}
+[colab] Executing cell 2/21 - Infrastructure: record the runtime...
+{'notebook_source': {'repository': 'moment-pipeline', 'repository_revision': 'cf46b2713be50ceb42b74a3fa2a68100d842023f', 'embedded_module': 'src/moment_pipeline/model.py', 'embedded_modules': ['src/moment_pipeline/config.py', 'src/moment_pipeline/model.py', 'src/moment_pipeline/samples.py', 'src/moment_pipeline/validation.py', 'src/moment_pipeline/canonical.py', 'src/moment_pipeline/csvio.py', 'src/moment_pipeline/embedding.py', 'src/moment_pipeline/provenance.py', 'src/moment_pipeline/adaptation.py', 'src/moment_pipeline/imputation.py', 'src/moment_pipeline/anomaly.py', 'src/moment_pipeline/roles.py'], 'module_sha256': '2cbb49201a1f9caea915b132ef8e71c8f9f81923f35e873353b038ad9d7c4877', 'generator': 'build_notebook.py/2.2', 'notebook_spec': '2.5'}, 'python': '3.12.12', 'executable': '/content/dimer_isolated_env_65c7f05290ca/bin/python', 'torch': '2.14.0+cu130', 'transformers': '5.16.1', 'pandas': '3.0.5', 'numpy': '2.5.3', 'cuda': True}
+[colab] Executing cell 3/21 - moment_classification-09...
+[colab] Executing cell 4/21 - moment_classification-11...
+[colab] Executing cell 5/21 - moment_classification-13...
+[colab] Executing cell 6/21 - moment_classification-15...
+[colab] Executing cell 7/21 - moment_classification-17...
+[colab] Executing cell 8/21 - moment_classification-19...
+[colab] Executing cell 9/21 - moment_classification-21...
+[colab] Executing cell 10/21 - moment_classification-23...
+[colab] Executing cell 11/21 - moment_classification-25...
+[colab] Executing cell 12/21 - moment_classification-27...
+[colab] Executing cell 13/21 - moment_classification-29...
+[colab] Executing cell 14/21 - moment_classification-31...
+[colab] Executing cell 15/21 - Infrastructure: stage and digest-verify the pinned snapshot, then load the model...
+{'model_id': 'AutonLab/MOMENT-1-large', 'revision': 'ca58581bc7bea2ebed4e80dc0a3e4b8b609c6ecc', 'license': 'MIT', 'files': 3, 'total_bytes': 1385508513}
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+{'weights_dir': '/content/weights/moment-1-large', 'fetched': ['README.md', 'config.json', 'model.safetensors']}
+{'verified_files': 3, 'revision': 'ca58581bc7bea2ebed4e80dc0a3e4b8b609c6ecc'}
+Loading weights from local directory
+/content/dimer_isolated_env_65c7f05290ca/lib/python3.12/site-packages/momentfm/models/moment.py:174: UserWarning: Only reconstruction head is pre-trained. Classification and forecasting heads must be fine-tuned.
+  warnings.warn("Only reconstruction head is pre-trained. Classification and forecasting heads must be fine-tuned.")
+{'effective_model': 'AutonLab/MOMENT-1-large', 'revision': 'ca58581bc7bea2ebed4e80dc0a3e4b8b609c6ecc', 'task': 'embedding', 'device': 'cuda', 'dtype': 'float32', 'weight_file': 'model.safetensors', 'weights_dir': '/content/weights/moment-1-large', 'source': 'digest-verified local snapshot (fetched this run)'}
+[colab] Executing cell 16/21 - moment_classification-35...
+{'data_source': 'UCI HAPT smartphone motion windows (six activities) (UCI Machine Learning Repository dataset 341 (Reyes-Ortiz, Anguita, Oneto, Parra 2015), static archive pinned 2026-09-19; CC BY 4.0 (UCI Machine Learning Repository licence notice for dataset 341))', 'raw': {'windows': 179, 'volunteers': 30, 'channels': ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']}, 'splits': {'train': 107, 'validation': 36, 'test': 36}, 'classes': ['laying', 'sitting', 'standing', 'walking', 'walking_downstairs', 'walking_upstairs'], 'user_summary': {'train': {'windows': 107, 'users': 18, 'label_counts': {'laying': 18, 'sitting': 18, 'standing': 18, 'walking': 18, 'walking_downstairs': 17, 'walking_upstairs': 18}}, 'validation': {'windows': 36, 'users': 6, 'label_counts': {'laying': 6, 'sitting': 6, 'standing': 6, 'walking': 6, 'walking_downstairs': 6, 'walking_upstairs': 6}}, 'test': {'windows': 36, 'users': 6, 'label_counts': {'laying': 6, 'sitting': 6, 'standing': 6, 'walking': 6, 'walking_downstairs': 6, 'walking_upstairs': 6}}}, 'fetch_seconds': 10.5, 'corpus_bytes': 79596192}
+{'train': {'n': 107, 'users': 18, 'label_counts': {'laying': 18, 'sitting': 18, 'standing': 18, 'walking': 18, 'walking_downstairs': 17, 'walking_upstairs': 18}, 'n_channels': 6, 'value_range': {'min': -4.21619176864624, 'max': 4.627609729766846}, 'digest': '7ec96e15d79ffd07...'}}
+{'validation': {'n': 36, 'users': 6, 'label_counts': {'laying': 6, 'sitting': 6, 'standing': 6, 'walking': 6, 'walking_downstairs': 6, 'walking_upstairs': 6}, 'n_channels': 6, 'value_range': {'min': -3.472769021987915, 'max': 3.3896913528442383}, 'digest': '4490b2f9f2a5c160...'}}
+{'test': {'n': 36, 'users': 6, 'label_counts': {'laying': 6, 'sitting': 6, 'standing': 6, 'walking': 6, 'walking_downstairs': 6, 'walking_upstairs': 6}, 'n_channels': 6, 'value_range': {'min': -2.973691940307617, 'max': 3.377473831176758}, 'digest': '725d8711e47c6d9f...'}}
+{'example': {'id': 'train-000', 'label': 'walking_upstairs', 'user': 'user10', 'experiment': 19, 'first_sample': 11578, 'source': 'RawData/{acc,gyro}_exp19_user10.txt'}, 'shape': (6, 512)}
+{'probe': 'duplicate id', 'rejected': "duplicate id 'same'"}
+{'probe': 'wrong window length', 'rejected': 'records[0]: x must be (1..32 channels, 512) samples, got shape (6, 511)'}
+{'probe': 'non-finite window', 'rejected': 'records[0]: x must be finite with |value| <= 1000.0'}
+{'probe': 'single class', 'rejected': '1 distinct labels; 2..100 are required'}
+[colab] Executing cell 17/21 - moment_classification-38...
+{'ceilings': {'max_windows': 1024, 'max_channels': 32, 'max_rows': 5000000}, 'contract': {'sequence_length': 512, 'patch_length': 8, 'd_model': 1024, 'ENCODER_BLOCKS': 12, 'task': 'embedding'}}
+{'probe_ids': ['test-000', 'test-001', 'test-002'], 'probe_labels': ['walking', 'laying', 'standing'], 'seconds': 0.711, 'device': 'cuda', 'checks': {'one_vector_per_window': True, 'window_order': True, 'complete_windows': True, 'all_values_finite': True}, 'findings': 1, 'batch_report_verdict': 'not-measurable', 'per_point_missingness_mask_passed_to_model': False}
+{'cosine_same_activity': 0.9473, 'cosine_other_activity': 0.9907, 'note': 'one pair each; an anecdote - read the class table below instead'}
+{'training_split_cosines': 'mean within-class vs between-class cosine over the training windows', 'seconds': 11.4}
+{'laying': {'n': 18, 'within': 0.9544, 'between': 0.9406, 'gap': 0.0138}}
+{'sitting': {'n': 18, 'within': 0.949, 'between': 0.9389, 'gap': 0.0101}}
+{'standing': {'n': 18, 'within': 0.969, 'between': 0.9474, 'gap': 0.0216}}
+{'walking': {'n': 18, 'within': 0.9838, 'between': 0.9399, 'gap': 0.0439}}
+{'walking_downstairs': {'n': 17, 'within': 0.9828, 'between': 0.95, 'gap': 0.0328}}
+{'walking_upstairs': {'n': 18, 'within': 0.9811, 'between': 0.9459, 'gap': 0.0352}}
+{'all_cosines_near_one': True, 'classes_with_positive_gap': ['laying', 'sitting', 'standing', 'walking', 'walking_downstairs', 'walking_upstairs'], 'note': 'a positive gap means windows of that activity sit closer to each other than to the rest; the size of the gaps, not the absolute cosines, is the signal'}
+[colab] Executing cell 18/21 - moment_classification-40...
+{'restarted_from_frozen_encoder': True, 'frozen_encoder_sha256': 'd634e89e42207019...'}
+{'majority_floor': {'accuracy': 0.1667, 'macro_f1': 0.0476, 'n': 36}, 'baseline': "majority training label ('laying') predicted for every window"}
+{'knn_baseline': {'accuracy': 0.7778, 'macro_f1': 0.7717, 'n': 36}, 'baseline': 'cosine 5-NN vote over the frozen embeddings of the training windows', 'seconds': 14.8}
+{'frozen_policy': 'frozen encoder + linear probe', 'probe_final_loss': 0.3412, 'validation': {'n': 36, 'accuracy': 0.777778, 'macro_f1': 0.77619, 'log_loss': 0.5763051509857178}, 'seconds': 20.2}
+{'frozen_policy_test': {'accuracy': 0.9167, 'macro_f1': 0.9131, 'n': 36}, 'log_loss': 0.4564, 'verdict': 'measured-small-sample', 'per_class_recall': {'laying': 1.0, 'sitting': 0.67, 'standing': 1.0, 'walking': 1.0, 'walking_downstairs': 0.83, 'walking_upstairs': 1.0}}
+{'definitions': {'accuracy': 'fraction of windows whose predicted label equals the gold label', 'macro_f1': 'unweighted mean over classes of the per-class F1 (precision-recall harmonic mean)', 'per_class': 'precision, recall, F1 and support for every class of the gold label set', 'confusion': 'rows are gold classes, columns predicted classes, in the order of `classes`', 'log_loss': 'mean negative log-probability the head assigns to the gold label (the selection signal)'}}
+{'frozen_policy_verdict': 'above the majority floor'}
+[colab] Executing cell 19/21 - moment_classification-43...
+{'epoch': 1, 'stage': 'unfrozen last 2 blocks + linear head', 'train_loss': 1.3661, 'val_log_loss': 0.7339, 'val_accuracy': 0.6667, 'val_macro_f1': 0.6395}
+{'epoch': 2, 'stage': 'unfrozen last 2 blocks + linear head', 'train_loss': 0.4667, 'val_log_loss': 0.7527, 'val_accuracy': 0.6944, 'val_macro_f1': 0.6466}
+{'epoch': 3, 'stage': 'unfrozen last 2 blocks + linear head', 'train_loss': 0.2797, 'val_log_loss': 0.6173, 'val_accuracy': 0.6667, 'val_macro_f1': 0.6651}
+{'epoch': 0, 'stage': 'linear probe (frozen encoder)', 'train_loss': 0.3412, 'val_log_loss': 0.5763, 'val_accuracy': 0.7778, 'val_macro_f1': 0.7762}
+{'selected_policy': 'frozen encoder + linear probe', 'best_epoch': 0, 'selection': 'lowest validation log-loss (epoch 0 = linear probe)', 'trainable_head': 6150, 'trainable_blocks': 25694208, 'total_parameters': 341240320, 'seconds': 98.9}
+[colab] Executing cell 20/21 - moment_classification-46...
+{'accuracy': {'majority_floor': 0.1667, 'knn5': 0.7778, 'frozen_policy': 0.9167, 'selected_policy': 0.9167}}
+{'macro_f1': {'majority_floor': 0.0476, 'knn5': 0.7717, 'frozen_policy': 0.9131, 'selected_policy': 0.9131}}
+{'log_loss': {'frozen_policy': 0.4564, 'selected_policy': 0.4564}}
+{'per_class_recall': {'laying': {'knn5': 0.5, 'frozen': 1.0, 'selected': 1.0}, 'sitting': {'knn5': 0.33, 'frozen': 0.67, 'selected': 0.67}, 'standing': {'knn5': 0.83, 'frozen': 1.0, 'selected': 1.0}, 'walking': {'knn5': 1.0, 'frozen': 1.0, 'selected': 1.0}, 'walking_downstairs': {'knn5': 1.0, 'frozen': 0.83, 'selected': 0.83}, 'walking_upstairs': {'knn5': 1.0, 'frozen': 1.0, 'selected': 1.0}}}
+{'delta_vs_frozen': {'accuracy': 0.0, 'macro_f1': 0.0}}
+{'selected_policy': 'frozen encoder + linear probe'}
+{'delta_in_windows': {'delta_windows': 0, 'n_test': 36, 'one_window_in_points': 2.8, 'reading': 'the probe was kept: both rows are the same model'}}
+{'confusion_selected': [[6, 0, 0, 0, 0, 0], [1, 4, 1, 0, 0, 0], [0, 0, 6, 0, 0, 0], [0, 0, 0, 6, 0, 0], [0, 0, 0, 0, 5, 1], [0, 0, 0, 0, 0, 6]], 'classes': ['laying', 'sitting', 'standing', 'walking', 'walking_downstairs', 'walking_upstairs']}
+{'selected_policy_verdict': 'above the majority floor', 'report': 'outputs/moment_classification_evaluation_report.json'}
+[colab] Executing cell 21/21 - moment_classification-49...
+Loading weights from local directory
+/content/dimer_isolated_env_65c7f05290ca/lib/python3.12/site-packages/momentfm/models/moment.py:174: UserWarning: Only reconstruction head is pre-trained. Classification and forecasting heads must be fine-tuned.
+  warnings.warn("Only reconstruction head is pre-trained. Classification and forecasting heads must be fine-tuned.")
+{'id': 'test-000', 'gold': 'walking', 'frozen_label': 'walking', 'frozen_top_probability': 0.8784, 'selected_label': 'walking', 'selected_top_probability': 0.8784}
+{'id': 'test-001', 'gold': 'laying', 'frozen_label': 'laying', 'frozen_top_probability': 0.7326, 'selected_label': 'laying', 'selected_top_probability': 0.7326}
+{'id': 'test-002', 'gold': 'standing', 'frozen_label': 'standing', 'frozen_top_probability': 0.7599, 'selected_label': 'standing', 'selected_top_probability': 0.7599}
+{'id': 'test-003', 'gold': 'laying', 'frozen_label': 'laying', 'frozen_top_probability': 0.5441, 'selected_label': 'laying', 'selected_top_probability': 0.5441}
+{'id': 'test-004', 'gold': 'standing', 'frozen_label': 'standing', 'frozen_top_probability': 0.5329, 'selected_label': 'standing', 'selected_top_probability': 0.5329}
+{'id': 'test-005', 'gold': 'standing', 'frozen_label': 'standing', 'frozen_top_probability': 0.5734, 'selected_label': 'standing', 'selected_top_probability': 0.5734}
+{'selected_policy': 'frozen encoder + linear probe', 'decision_rule': "argmax of the head's softmax; not calibrated, no threshold", 'predictions_changed': 0, 'of': 6}
+{'artifact': 'outputs/moment_classification_adapter', 'format': 'org.valcorza.moment-1-large.classifier-adapter.v1', 'policy': 'frozen encoder + linear probe', 'classes': ['laying', 'sitting', 'standing', 'walking', 'walking_downstairs', 'walking_upstairs'], 'tensors': 2, 'bytes': 24776, 'sha256': '1ae7a4cb164028bb...'}
+Loading weights from local directory
+/content/dimer_isolated_env_65c7f05290ca/lib/python3.12/site-packages/momentfm/models/moment.py:174: UserWarning: Only reconstruction head is pre-trained. Classification and forecasting heads must be fine-tuned.
+  warnings.warn("Only reconstruction head is pre-trained. Classification and forecasting heads must be fine-tuned.")
+{'reload_parity': {'probabilities_identical': True, 'accuracy_in_memory': 0.916667, 'accuracy_reloaded': 0.916667, 'classes_identical': True}, 'reloaded_policy': 'frozen encoder + linear probe', 'reloaded_best_epoch': 0}
+['moment_classification_adapter', 'moment_classification_evaluation_report.json', 'moment_classification_input_manifest.json', 'moment_classification_predictions.csv', 'moment_classification_result.json', 'moment_classification_train.csv']
+[colab] Saving notebook with outputs to '/home/kurt/acct2/colab-runs/moment-pipeline-7f442e3-d81fdf/moment_classification_colab_7f442e3_colab-cli-t4_output.ipynb'...

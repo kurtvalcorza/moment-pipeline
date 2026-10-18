@@ -1,13 +1,13 @@
-"""Pinned, integrity-verified loader for `AutonLab/MOMENT-1-base`.
+"""Pinned, integrity-verified loader for `AutonLab/MOMENT-1-large`.
 
 The standard path is deliberately narrow (RFC "Supply-chain invariants"):
 
-1. only `AutonLab/MOMENT-1-base` at revision `9fea447e…` is accepted — `main`, `latest`,
+1. only `AutonLab/MOMENT-1-large` at revision `ca58581b…` is accepted — `main`, `latest`,
    any other sha, a local directory and any `s3://` / URL source are refused *before*
    any network call;
 2. the resolved snapshot directory must be named after the pinned commit;
 3. no pickle-format weight file may be present in the snapshot — `pytorch_model.bin`
-   exists upstream at this very revision (453,978,525 bytes), so a silent `.bin` fallback
+   exists upstream at this very revision (1,385,575,757 bytes), so a silent `.bin` fallback
    is a live hazard, and the download uses `allow_patterns` so the file is never fetched.
    **These two exclusion controls are what guarantee which file was loaded** (RFC
    invariant 7); they are mutation-tested;
@@ -46,17 +46,20 @@ from .config import (
 #: the same way, so a generated standalone notebook and the fleet tooling can read the identity
 #: without knowing this package's own vocabulary. The ``PINNED_*`` names below are the package's
 #: original spelling and stay in use everywhere; they alias these, never the reverse.
-MODEL_ID = "AutonLab/MOMENT-1-base"
-MODEL_REVISION = "9fea447e740eb968a9e8d80c7562ae122bdb5dde"
-MODEL_KEY = "moment-1-base"
+MODEL_ID = "AutonLab/MOMENT-1-large"
+MODEL_REVISION = "ca58581bc7bea2ebed4e80dc0a3e4b8b609c6ecc"
+MODEL_KEY = "moment-1-large"
 
 PINNED_MODEL_ID = MODEL_ID
 PINNED_REVISION = MODEL_REVISION
-PINNED_CONFIG_SHA256 = "f1c66c2bb845229c0ed27a1600dbcc956b85ab21f9e5fd8a1663e6641bed7755"
-PINNED_CONFIG_BYTES = 949
+PINNED_CONFIG_SHA256 = "b0111650e8718e31d7e89575666aa3e140747d35279ec1a7c9f6ed7616c29433"
+PINNED_CONFIG_BYTES = 951
 PINNED_WEIGHTS_FILENAME = "model.safetensors"
-PINNED_WEIGHTS_SHA256 = "1a436826ffe618273ec62b9656dc4cab8edc470364f104e90542a4ebc14fb825"
-PINNED_WEIGHTS_BYTES = 453_940_120
+PINNED_WEIGHTS_SHA256 = "a56928052ac6f5d09b97c3834bea6ce3aef9f02b513b5fac98954e7377801572"
+PINNED_WEIGHTS_BYTES = 1_385_501_256
+# T5 encoder depth of the pinned MOMENT-1-large checkpoint (`t5_config.num_layers`, config.json).
+# `load_moment` refuses a pipeline whose config or built encoder disagrees with it.
+PINNED_ENCODER_LAYERS = 24
 
 #: Pickle-based weight formats. `pytorch_model.bin` is present upstream at the pinned
 #: revision; the rest are the other serializations `torch.load` would happily unpickle, so
@@ -64,7 +67,7 @@ PINNED_WEIGHTS_BYTES = 453_940_120
 FORBIDDEN_WEIGHT_PATTERNS = ("*.bin", "*.pt", "*.pth", "*.ckpt", "*.pkl")
 KNOWN_FORBIDDEN_WEIGHT_FILE = "pytorch_model.bin"
 KNOWN_FORBIDDEN_WEIGHT_SHA256 = (
-    "23c3d65bbb6dcd323352029e9fbe4ee3a3da0fff55b45ee4e00f38fff4e9bfb9"
+    "52f5ee65c80790c7f6dab8736243368e193fcc04d2d642d9f69c89dd644bd199"
 )
 
 ALLOW_PATTERNS = ["config.json", "model.safetensors", "README.md"]
@@ -94,7 +97,7 @@ REVISION_BASIS = (
 MODEL_LICENSE = "MIT"
 MODEL_LICENSE_BASIS = (
     "declared as `license: mit` in the model card metadata at revision "
-    "9fea447e740eb968a9e8d80c7562ae122bdb5dde; no LICENSE file exists in the "
+    "ca58581bc7bea2ebed4e80dc0a3e4b8b609c6ecc; no LICENSE file exists in the "
     "Hugging Face repository at that revision"
 )
 
@@ -690,6 +693,22 @@ def load_moment(
         proof["head_type"] = head_type
     else:
         proof["head_type"] = type(pipeline.head).__name__
+
+    t5_config = getattr(pipeline.config, "t5_config", None)
+    declared_layers = (
+        t5_config.get("num_layers")
+        if isinstance(t5_config, dict)
+        else getattr(t5_config, "num_layers", None)
+    )
+    built_layers = len(pipeline.encoder.block)
+    if declared_layers != PINNED_ENCODER_LAYERS or built_layers != PINNED_ENCODER_LAYERS:
+        raise IntegrityError(
+            "ENCODER_DEPTH",
+            f"expected {PINNED_ENCODER_LAYERS} T5 encoder layers, config declares "
+            f"{declared_layers} and the built encoder has {built_layers}",
+            {"declared": declared_layers, "built": built_layers},
+        )
+    proof["encoder_layers"] = built_layers
 
     d_model = int(pipeline.config.d_model)
     resolved_device = device

@@ -1,4 +1,4 @@
-"""Static release-asset validation for the MOMENT-1-base (embeddings, imputation, anomaly scoring) DIMER pipeline.
+"""Static release-asset validation for the MOMENT-1-large (embeddings, imputation, anomaly scoring) DIMER pipeline.
 
 Checks the STANDALONE tutorial notebook (DIMER Notebook Specification 2.0 §4), the tutorial
 registry, model card, README, STATUS.md and weight documentation for source conformance and
@@ -22,11 +22,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = "moment_pipeline"
 REPO_NAME = "moment-pipeline"
-EXPECTED_MODEL_ID = "AutonLab/MOMENT-1-base"
+EXPECTED_MODEL_ID = "AutonLab/MOMENT-1-large"
 PIPELINE_CLASS = "LoadedMoment"
 # Additional 40-hex revisions a document may legitimately cite: the momentfm source commit the
 # package installs from (RFC M-7), named in pyproject.toml, README.md and MODEL_CARD.md.
-KNOWN_SHAS: frozenset[str] = frozenset(("38f7310ad594100747ca2a8357e9c7ca7d323e0e",))
+KNOWN_SHAS: frozenset[str] = frozenset((
+    "38f7310ad594100747ca2a8357e9c7ca7d323e0e",
+    # the MOMENT-1-base revision this repository pinned until RFC 0001 Amendment 1 (2026-10-17); cited as history
+    "9fea447e740eb968a9e8d80c7562ae122bdb5dde",
+))
 # Colab form gates that must default to the non-interactive sample path.
 BYOD_GATES = ("USE_BYOD",)
 # This repository ships THREE standalone TASK-INFERENCE notebooks and ONE E2E adaptation notebook, generated
@@ -219,10 +223,10 @@ NOTEBOOKS = {
             "'device': pipe.identity.device",
         ),
         "markdown_markers": (
-            "**Capability:** pretrained time-series representation extraction (pooled 768-d window embeddings) and bounded supervised adaptation",
+            "**Capability:** pretrained time-series representation extraction (pooled 1024-d window embeddings) and bounded supervised adaptation",
             "a linear probe on the frozen embeddings with an optional unfreeze of the last encoder blocks",
             "**supervised adaptation under an explicit frozen-vs-unfrozen policy**",
-            "MOMENT-1-base ships no classification head",
+            "MOMENT-1-large ships no classification head",
             "**majority floor**",
             "**cosine 5-NN vote**",
             "**frozen policy**",
@@ -271,7 +275,7 @@ INSTALL_CELL_MARKER = "def _isolated_environment_ready():"
 # Specification 2.0; see docs/release-verification.md for the release gate.
 # ---------------------------------------------------------------------------
 
-NOTEBOOK_SPEC = "2.0"
+NOTEBOOK_SPEC = "2.5"
 ALLOWED_PROFILES = {"E2E", "ARTIFACT-INFERENCE", "TASK-INFERENCE", "MULTI-CAPABILITY", "SMOKE"}
 STATUS_TOKENS = ("Candidate", "Release-grade")
 PLACEHOLDER = re.compile(r"\b(TODO|TBD|FIXME)\b|Insert text here|Tooltip:", re.I)
@@ -348,7 +352,7 @@ COMMON_MARKDOWN_MARKERS = (
     "without the repository being",
     "It does **not** establish benchmark superiority",
     "## References",
-    f"- Repository model card: https://github.com/kurtvalcorza/{REPO_NAME}/blob/main/MODEL_CARD.md",
+    f"model card,\" GitHub. [Online]. Available: https://github.com/kurtvalcorza/{REPO_NAME}/blob/main/MODEL_CARD.md",
 )
 # Patterns that must never appear in tutorial code (comment-stripped), in any cell.
 FORBIDDEN_PATTERNS = (

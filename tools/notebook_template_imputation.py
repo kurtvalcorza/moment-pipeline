@@ -35,7 +35,7 @@ TEMPLATE = {
     # release metadata, read on 2026-10-07; the lock's torch 2.14.0 is the CUDA build and carries the NVIDIA libraries).
     "lock_download": {"bytes": 3078108227, "measured": "sum of the locked manylinux x86_64 wheel sizes from PyPI release metadata, 2026-10-07; the lock's `torch==2.14.0` is the CUDA build, so the CPU path downloads its NVIDIA libraries too"},
     'pipeline_class': 'LoadedMoment',
-    'weights_key': 'moment-1-base',
+    'weights_key': 'moment-1-large',
     'modules': ['anomaly.py', 'canonical.py', 'config.py', 'csvio.py', 'embedding.py', 'imputation.py', 'model.py', 'provenance.py', 'roles.py', 'validation.py'],
     'entry_module': 'model.py',
     'model_load': 'load_moment(task="reconstruction", weights_dir=WEIGHTS_DIR)',
@@ -54,8 +54,8 @@ TEMPLATE = {
         ),
         (
             'Hugging Face',
-            'https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-AutonLab%2FMOMENT--1--base-ffcc4d?style=flat',
-            'https://huggingface.co/AutonLab/MOMENT-1-base',
+            'https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-AutonLab%2FMOMENT--1--large-ffcc4d?style=flat',
+            'https://huggingface.co/AutonLab/MOMENT-1-large',
         ),
         (
             'Upstream',
@@ -69,13 +69,13 @@ TEMPLATE = {
         ),
     ],
     'capability': (
-        'pretrained reconstruction-backed time-series imputation (patch-granular artificial masking) with the pinned `AutonLab/MOMENT-1-base` checkpoint'
+        'pretrained reconstruction-backed time-series imputation (patch-granular artificial masking) with the pinned `AutonLab/MOMENT-1-large` checkpoint'
     ),
     'intro': (
         "This notebook uses MOMENT's pretrained reconstruction path for patch-granular artificial masking through the repository's public `moment_pipeline` API, carried in this notebook. It withholds known source values, evaluates only deliberately hidden truth, preserves observed values in the exported imputed series, and writes machine-readable metrics and provenance. **No gradient training, fine-tuning, in-context conditioning, or fitted preprocessing occurs** — **no adaptation occurs.** **Upstream vs. this repository.** Upstream MOMENT supplies the pretrained reconstruction model. This repository supplies immutable pinning/integrity verification, long-format validation and canonicalization, patch-quantized masking semantics, masked-point evaluation, an observed-value-preserving imputed product, and provenance/export contracts. The displayed MAE/RMSE values are sample/tutorial evidence only."
     ),
     "guided": {"opening": [(
-        '**Who this notebook is for.** A learner who knows basic Python and pandas, has used Colab or Jupyter and has met time-series data, and wants to see how a pretrained time-series foundation model is used without any training to fill hidden values — what goes in, what comes out, and what the output does and does not prove. The audience is students and practitioners preparing their own sensor or monitoring series; no prior experience with MOMENT is assumed — each term is explained where it first matters and again in the **Glossary**. CPU is enough.\n\n**Input → Model → Output.**\n\n| | |\n|---|---|\n| Input | a long-format CSV: the synthetic two-channel series `A` (256 steps) or your own, plus an explicit visibility mask that hides one stretch of known values |\n| Model | the MOMENT-1-base reconstruction head (`task="reconstruction"`), with masking applied per 8-step patch |\n| Output | an imputed series in which only missing or deliberately hidden cells are replaced; MAE and RMSE on the hidden cells, per channel and pooled, beside a same-support baseline (linear interpolation across an interior gap, a last-value hold for a trailing one); a printed **model-vs-baseline verdict** and a visible-point fidelity check; and a `sample-sanity` report |\n\n**How to use this notebook.** Choose a runtime, then **Runtime → Run all**. Run all completes in one pass: Section 1 installs nothing into the notebook\'s own Python, so no restart is needed (the recorded hosted runs of the previous version needed one; this version removes it). Sections 1–3 are **infrastructure** — the isolated environment, the carried package and the verified snapshot — and their cells are collapsed; you may run them without studying them. The learning path starts in Section 4. Form fields (`# @param`) are the only values meant to be edited, and the defaults reproduce the default path. Before each principal result the notebook asks you to **Predict**; after it comes a collapsible **Check your reasoning** with a worked answer. The worked answers quote only numbers from recorded runs (the Kaggle CPU run of 14 September 2026 and the review of 2 October 2026, both named where used) and otherwise state what the code and the sample guarantee; compare them with what your run prints. One warning up front, so that the printed metrics are read correctly: **on every recorded run of this sample the pinned MOMENT-1-base checkpoint reconstructed the hidden patch worse than the naive baseline** — Section 7 prints that comparison as a verdict, and the Interpretation section explains what it does and does not mean. **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end. Writing your predictions down is optional.\n\n**Roadmap:** 1–3 infrastructure → 4 the synthetic sample (or your CSV) → 5 validation, canonicalization and the evaluation mask, with a `HOLDOUT_START` field *(core concept: windows, padding, masks)* → 6 impute *(core concept: patch-quantized masking)* → 7 masked-point metrics, a same-support baseline and the verdict *(evaluation practice)* → 8 the plot around the hidden patch → 9 → export and provenance *(engineering)* → conclude.'
+        '**Who this notebook is for.** A learner who knows basic Python and pandas, has used Colab or Jupyter and has met time-series data, and wants to see how a pretrained time-series foundation model is used without any training to fill hidden values — what goes in, what comes out, and what the output does and does not prove. The audience is students and practitioners preparing their own sensor or monitoring series; no prior experience with MOMENT is assumed — each term is explained where it first matters and again in the **Glossary**. CPU is enough.\n\n**Input → Model → Output.**\n\n| | |\n|---|---|\n| Input | a long-format CSV: the synthetic two-channel series `A` (256 steps) or your own, plus an explicit visibility mask that hides one stretch of known values |\n| Model | the MOMENT-1-large reconstruction head (`task="reconstruction"`), with masking applied per 8-step patch |\n| Output | an imputed series in which only missing or deliberately hidden cells are replaced; MAE and RMSE on the hidden cells, per channel and pooled, beside a same-support baseline (linear interpolation across an interior gap, a last-value hold for a trailing one); a printed **model-vs-baseline verdict** and a visible-point fidelity check; and a `sample-sanity` report |\n\n**How to use this notebook.** Choose a runtime, then **Runtime → Run all**. Run all completes in one pass: Section 1 installs nothing into the notebook\'s own Python, so no restart is needed (the recorded hosted runs of the previous version needed one; this version removes it). Sections 1–3 are **infrastructure** — the isolated environment, the carried package and the verified snapshot — and their cells are collapsed; you may run them without studying them. The learning path starts in Section 4. Form fields (`# @param`) are the only values meant to be edited, and the defaults reproduce the default path. Before each principal result the notebook asks you to **Predict**; after it comes a collapsible **Check your reasoning** with a worked answer. Every number in the worked answers is labelled with the run that produced it: the hosted Colab T4 run of 17 October 2026 of commit `032c262` (MOMENT-1-large @ `ca58581b`, blob `f76d3be12ca7`, Colab account 2; REL13: an earlier blob of this notebook carrying the same modules; executed notebook in `docs/execution-evidence/2026-10-17/`) for this notebook\'s default path (it reproduced the CPU build record of the same day at the printed precision), that CPU build record for the optional holdout sweep, which the hosted run did not exercise, and the earlier MOMENT-1-base runs (`9fea447e`) where the text explains why the notebook moved to MOMENT-1-large; compare them with what your run prints. One warning up front, so that the printed metrics are read correctly: **on the default holdout the model loses to linear interpolation on `temperature` by about 5× and beats it on `vibration` by about 1.3×, and once each channel\'s error is divided by that channel\'s spread the two are roughly level** — Section 7 prints a verdict per channel and a scale-free pooled verdict, and the Interpretation section explains what they do and do not mean. **Troubleshooting**, a **Glossary** and a **Conclusion** template are at the end. Writing your predictions down is optional.\n\n**Roadmap:** 1–3 infrastructure → 4 the synthetic sample (or your CSV) → 5 validation, canonicalization and the evaluation mask, with a `HOLDOUT_START` field *(core concept: windows, padding, masks)* → 6 impute *(core concept: patch-quantized masking)* → 7 masked-point metrics, a same-support baseline and the verdict *(evaluation practice)* → 8 the plot around the hidden patch → 9 → export and provenance *(engineering)* → conclude.'
     )]},
     'learning_objectives': (
         'install the pinned runtime; read what the carried package guarantees; resolve and digest-verify the immutable model revision; generate the deterministic synthetic sample or bring your own long-format CSV; validate and canonicalize the input into an input manifest; hide one complete 8-step patch with known truth, choosing where it goes; impute and evaluate only withheld truth through an evaluation report; compare a same-support naive baseline and read the printed verdict, including when the model loses; and export the imputed series, metrics, and provenance. By the end of this notebook you will be able to do each of these without the repository being reachable.'
@@ -86,7 +86,7 @@ TEMPLATE = {
     'prerequisites': [
         '- **Learner:** basic Python and pandas familiarity; no prior experience with MOMENT or time-series foundation models. Windows, patches, padding, masks and the evaluation verdicts are explained where they are first used and again in the Glossary.',
         '- **Runtime:** a fresh supported **Linux x86_64** runtime (Google Colab, Kaggle or Linux Jupyter). Section 1 builds its own Python 3.12.12 environment from a hash-locked list of manylinux wheels (plus `momentfm`, built from its pinned commit), so the Python version of the kernel itself does not matter and nothing is installed into it; a Windows or macOS kernel is not supported.',
-        '- **Compute:** CPU is the default path and no GPU is required; CUDA is used automatically when available. The public v1 API accepts `float32` only. The locked `torch==2.14.0` wheel (the CUDA build, ~555 MB) and its NVIDIA libraries are the largest downloads of the run — see the measured total under External access — followed by the ~454 MB `model.safetensors`.',
+        '- **Compute:** CPU is the default path and no GPU is required; CUDA is used automatically when available. The public v1 API accepts `float32` only. The locked `torch==2.14.0` wheel (the CUDA build, ~555 MB) and its NVIDIA libraries are the largest downloads of the run — see the measured total under External access — followed by the ~1.39 GB `model.safetensors`.',
         '- **Knowledge:** basic Python and pandas; what a long-format time-series table is.',
         "- **Data:** the default sample is the repository's deterministic clean two-channel synthetic series regenerated in code, so nothing is downloaded and no private data is needed. The artificial evaluation mask is deterministic, so no random seed is required. Optional BYOD upload is gated off by default so the sample path can run top-to-bottom without interaction. Expected BYOD input: one UTF-8 CSV with columns `series_id`, `timestamp`, `channel`, `value`; `value` numeric or missing; identifiers and timestamps valid. Duplicate or ambiguous column names are rejected from the raw CSV header before dataframe parsing, and duplicate `(series_id, channel, timestamp)` rows are rejected by production validation. Operational ceilings: at most 5,000,000 rows, 1,024 series, 32 channels, and 1,024 canonical windows; MOMENT uses 512-step windows and 8-step non-overlapping patches; short series are left-padded, long series keep the final 512 timestamps, irregular spacing is surfaced rather than silently interpolated. BYOD is read locally in the notebook runtime and is not sent to an external inference service. Do not upload confidential or restricted data (personal or otherwise sensitive data included) to a hosted notebook environment unless you are authorized to do so.",
     ],
@@ -136,11 +136,47 @@ TEMPLATE = {
                 '    return frame.to_csv(index=False, date_format="%Y-%m-%dT%H:%M:%S", float_format="%.6f", lineterminator="\\n").encode("utf-8")\n'
                 '\n'
                 '\n'
+                'class BYODRefusal(Exception):\n'
+                '    """A refused BYOD input (NOTEBOOK_SPEC DAT20): shown as one message, with no traceback."""\n'
+                '\n'
+                '    dimer_refusal = True  # the isolated-environment router prints the message alone\n'
+                '\n'
+                '    def _render_traceback_(self):  # the same when the cell runs in the kernel itself\n'
+                '        return [str(self)]\n'
+                '\n'
+                '\n'
+                'RUN_STALE_MARKER = Path("outputs") / "RUN_INVALIDATED.txt"\n'
+                "STALE_RESULTS = ('frame', 'labels', 'sample_identity', 'sample_kind', 'payload', 'windows', 'normalized', 'report', 'input_manifest', 'result', 'scores', 'metrics', 'provenance', 'payload_out', 'ranked', 'pooled', 'channel_summary', 'embeddings', 'imputed', 'records', 'splits', 'train_records', 'val_records', 'test_records', 'dataset_manifests', 'classes', 'data_source', 'raw_count', 'evaluation_report_payload')\n"
+                '\n'
+                '\n'
+                'def refuse_byod(source, rule):\n'
+                '    """Invalidate the active run and return one actionable refusal (DAT20).\n'
+                '\n'
+                "    Files an earlier run wrote to outputs/ are kept but marked stale by RUN_INVALIDATED.txt, and the previous run's\n"
+                '    inputs and results are forgotten, so no later cell can present them as results for the refused input.\n'
+                '    """\n'
+                '    for stale in STALE_RESULTS:\n'
+                '        globals().pop(stale, None)\n'
+                '    Path("outputs").mkdir(exist_ok=True)\n'
+                '    RUN_STALE_MARKER.write_text(f"Active run invalidated by a refused BYOD input ({{source}}): {{rule}}\\nFiles in outputs/ come from an earlier run; they are NOT results for this input.\\n", encoding="utf-8")\n'
+                '    return BYODRefusal(f"BYOD input refused - {{source}}: {{rule}} Earlier files in outputs/ were kept but marked stale (outputs/RUN_INVALIDATED.txt), and the previous results were cleared from memory. Fix the CSV or BYOD_PATH and run this cell again, or untick USE_BYOD to return to the sample.")\n'
+                '\n'
+                '\n'
+                'def read_byod_csv(name, payload):\n'
+                '    """Parse and validate a BYOD CSV; a broken input contract is a refusal, not a traceback."""\n'
+                '    try:\n'
+                '        parsed = read_long_csv_bytes(payload)\n'
+                '        validate_long_frame(parsed, MomentConfig(task="reconstruction"))\n'
+                '    except ValidationError as exc:\n'
+                '        raise refuse_byod(name, f"{{exc}}.") from None\n'
+                '    return parsed\n'
+                '\n'
+                '\n'
                 'if BYOD_PATH:\n'
                 '    if not Path(BYOD_PATH).expanduser().is_file():\n'
-                '        raise FileNotFoundError(f"BYOD_PATH {{BYOD_PATH!r}} does not exist or is not a file (relative paths start at {{os.getcwd()}}); give the path of one long-format CSV.")\n'
+                '        raise refuse_byod(repr(BYOD_PATH), f"the path does not exist or is not a file (relative paths start at {{os.getcwd()}}); give the path of one long-format CSV with columns series_id,timestamp,channel,value.")\n'
                 '    payload = Path(BYOD_PATH).expanduser().read_bytes()\n'
-                '    frame = read_long_csv_bytes(payload)\n'
+                '    frame = read_byod_csv(Path(BYOD_PATH).name, payload)\n'
                 '    labels = None\n'
                 '    sample_identity = {{"kind": "byod", "name": Path(BYOD_PATH).name, "sha256": hashlib.sha256(payload).hexdigest()}}\n'
                 '    sample_kind = "BYOD"\n'
@@ -148,12 +184,12 @@ TEMPLATE = {
                 '    try:\n'
                 '        from google.colab import files\n'
                 '    except ImportError:\n'
-                '        raise RuntimeError("USE_BYOD is on but BYOD_PATH is empty, and the upload dialog exists only in Google Colab: copy the CSV into this runtime (or attach it as a Kaggle dataset) and set BYOD_PATH.") from None\n'
+                '        raise refuse_byod("upload dialog", "USE_BYOD is on but BYOD_PATH is empty, and the upload dialog exists only in Google Colab: copy the CSV into this runtime (or attach it as a Kaggle dataset) and set BYOD_PATH.") from None\n'
                 '    uploaded = files.upload()\n'
                 '    if len(uploaded) != 1:\n'
-                '        raise ValueError(f"Upload exactly one CSV with columns series_id,timestamp,channel,value (received {{len(uploaded)}} files; a cancelled dialog sends none). Run this cell again.")\n'
+                '        raise refuse_byod("upload dialog", f"upload exactly one CSV with columns series_id,timestamp,channel,value (received {{len(uploaded)}} files; a cancelled dialog sends none).")\n'
                 '    name, payload = next(iter(uploaded.items()))\n'
-                '    frame = read_long_csv_bytes(payload)\n'
+                '    frame = read_byod_csv(name, payload)\n'
                 '    labels = None\n'
                 '    sample_identity = {{"kind": "byod", "name": name, "sha256": hashlib.sha256(payload).hexdigest()}}\n'
                 '    sample_kind = "BYOD"\n'
@@ -167,6 +203,7 @@ TEMPLATE = {
                 '    sample_identity = {{"kind": "synthetic", "name": "moment_clean.csv", "sha256": observed}}\n'
                 '    sample_kind = "synthetic"\n'
                 '\n'
+                'RUN_STALE_MARKER.unlink(missing_ok=True)  # a valid input starts a new run\n'
                 'print({{"sample_kind": sample_kind, **sample_identity, "rows": len(frame), "columns": list(frame.columns)}})\n'
                 'print(frame.head())'
             ),
@@ -175,7 +212,7 @@ TEMPLATE = {
             "md": (
                 '## 5. Validate and canonicalize → input manifest\n'
                 '\n'
-                "Before the model runs, the cell prints the effective runtime and the operational ceilings — the `ResourceLimits` (rows, series, channels, windows), the fixed 512-step window and 8-step patch — and the device/precision policy. `validate_inputs` is the package's public validation stage: it runs exactly the two calls every task path makes (`validate_long_frame`, then `to_windows`), so it raises exactly what canonicalization would raise, and returns an **input manifest** naming the schema and ceilings, each window's series, valid positions, padding and truncation, the source-missingness fractions, and the verdict; it is written to `outputs/moment_imputation_input_manifest.json`. To show what rejection looks like, the cell also validates a deliberately broken copy (a channel with no observed value) and records the pipeline's own error code as a finding. The canonical `WindowSet` used by the model is built by the same calls; any padding, truncation, source missingness, or irregular frequency is disclosed here before model execution. Successful output means the input passed validation and every canonicalization effect is disclosed before the model runs. The cell then chooses one complete 8-step patch of the **first canonical window** for which every channel has source-observed truth and hides it — the **masking unit is the 8-step patch**, and this separates **source-missing data from artificial evaluation masking**: the artificial holdout consists only of genuine known truth. Only that first window is held out and scored; on a multi-series CSV the other windows are imputed but carry no artificial mask. `HOLDOUT_START = -1` picks the **middle interior patch** — one with source-observed points on both sides, so the task is gap filling and the baseline in Section 7 can interpolate across it; set it to any printed candidate start to move the gap (a trailing patch, with no observed point after it, turns the task into an extrapolation, and the cell says so)."
+                "Before the model runs, the cell prints the effective runtime and the operational ceilings — the `ResourceLimits` (rows, series, channels, windows), the fixed 512-step window and 8-step patch — and the device/precision policy. `validate_inputs` is the package's public validation stage: it runs exactly the two calls every task path makes (`validate_long_frame`, then `to_windows`), so it raises exactly what canonicalization would raise, and returns an **input manifest** naming the schema and ceilings, each window's series, valid positions, padding and truncation, the source-missingness fractions, and the verdict; it is written to `outputs/moment_imputation_input_manifest.json`. To show what rejection looks like, the cell also validates a deliberately broken copy (a channel with no observed value) and records the pipeline's own error code as a finding. The canonical `WindowSet` used by the model is built by the same calls; any padding, truncation, source missingness, or irregular frequency is disclosed here before model execution. Successful output means the input passed validation and every canonicalization effect is disclosed before the model runs. The cell then chooses one complete 8-step patch of the **first canonical window** for which every channel has source-observed truth and hides it — the **masking unit is the 8-step patch**, and this separates **source-missing data from artificial evaluation masking**: the artificial holdout consists only of genuine known truth. Only that first window is held out and scored; on a multi-series CSV the other windows are imputed but carry no artificial mask. `HOLDOUT_START = -1` picks the **middle interior patch** — one with source-observed points on both sides, so the task is gap filling and the baseline in Section 7 can interpolate across it; set it to any printed candidate start to move the gap (a trailing patch, with no observed point after it, turns the task into an extrapolation, and the cell says so). On the default sample the 256-step series is **left-padded** to the 512-step window, so half of the window is padding: after the holdout only 31 of its 64 patches are visible to the model. Padding and hidden points are both excluded from the model's instance normalisation statistics, so neither the padding nor the held-out truth shapes the normalisation."
                 '\n\n**Predict before running:** the cell hides one stretch of known values for evaluation. How many points will be held out per channel, and why that number? And why should the hidden patch have observed neighbours on both sides?'
             ),
             "code": (
@@ -276,7 +313,7 @@ TEMPLATE = {
             "md": (
                 '## 7. Evaluate → evaluation report (masked-point metrics, a same-support baseline and the verdict)\n'
                 '\n'
-                "`masked_point_metrics()` computes **MAE** and **RMSE** only on deliberately hidden cells that had genuine source truth. The pooled figures average over every channel, so on a multi-channel input they mix units (temperature in degrees and vibration in its own unit on the sample) and are **not** in any single original unit; the cell therefore also prints MAE and RMSE **per channel** for the model and the baseline, each beside the channel's standard deviation, and the verdict is read from the per-channel comparison as well as the pooled ratio. The baseline is evaluated on the **same artificially withheld positions** from the source series with the held-out patch removed, and the cell names what it computed: a **linear interpolation baseline** between the observed neighbours when the holdout is interior, or a **last-value hold** when it is trailing (there is nothing to interpolate towards). It is a same-support descriptive comparison, not used to tune or select MOMENT, and one sample comparison does not establish superiority either way. The cell then prints a one-line **verdict** (model better than, about equal to, or worse than the baseline, with the ratio) and a **visible-point fidelity** check: the Pearson correlation between the model's reconstruction and the truth on the points it *could see*, beside the error of simply predicting the channel mean — a reconstruction that tracks its input has a correlation near 1. `evaluation_report` is the package's public evaluation stage and always produces a report: with a deliberate artificial mask it carries the `masked_point_metrics` values and the named baseline with the verdict `sample-sanity` (one deterministic holdout, no dispersion estimate); without a deliberate mask the verdict is `not-measurable`. Successful output means the verified reconstruction was scored on the declared holdout only and the verdict was printed, whichever way it went; the reported sample metrics are not stable estimates of domain performance. The report is written to `outputs/{stem}_evaluation_report.json`."
+                "`masked_point_metrics()` computes **MAE** and **RMSE** only on deliberately hidden cells that had genuine source truth. The pooled figures average over every channel, so on a multi-channel input they mix units (temperature in degrees and vibration in its own unit on the sample) and are **not** in any single original unit; the cell therefore also prints MAE and RMSE **per channel** for the model and the baseline, each beside the channel's standard deviation, and the **verdict is scale-free**: each channel's MAE is divided by that channel's spread (the std of its observed, non-hidden points), the verdict is printed per channel, and the pooled verdict compares the mean of those scaled errors; the raw pooled MAE ratio is printed beneath it as a secondary number. Each channel also prints its **bias** (mean signed error on the holdout), which shows a level offset that MAE alone hides. The baseline is evaluated on the **same artificially withheld positions** from the source series with the held-out patch removed, and the cell names what it computed: a **linear interpolation baseline** between the observed neighbours when the holdout is interior, or a **last-value hold** when it is trailing (there is nothing to interpolate towards). It is a same-support descriptive comparison, not used to tune or select MOMENT, and one sample comparison does not establish superiority either way. The cell then prints a one-line **verdict** (model better than, about equal to, or worse than the baseline, with the ratio) and a **visible-point fidelity** check: the Pearson correlation between the model's reconstruction and the truth on the points it *could see*, beside the error of simply predicting the channel mean — a reconstruction that tracks its input has a correlation near 1. That figure says nothing about the hidden patch, and Pearson ignores offset and scale (a copy shifted by a constant still scores 1), so it is a sanity check on the reconstruction path, not evidence of imputation quality. `evaluation_report` is the package's public evaluation stage and always produces a report: with a deliberate artificial mask it carries the `masked_point_metrics` values and the named baseline with the verdict `sample-sanity` (one deterministic holdout, no dispersion estimate); without a deliberate mask the verdict is `not-measurable`. Successful output means the verified reconstruction was scored on the declared holdout only and the verdict was printed, whichever way it went; the reported sample metrics are not stable estimates of domain performance. The report is written to `outputs/{stem}_evaluation_report.json`."
                 '\n\n**Predict before running:** on a smooth synthetic series, will the pretrained model beat a straight line between the neighbours on the hidden patch? Write down the ratio you expect (model MAE ÷ baseline MAE) and which channel you expect to be harder.'
             ),
             "code": (
@@ -288,7 +325,7 @@ TEMPLATE = {
                 '\n'
                 '\n'
                 'def compare_to_baseline(model_mae, baseline_mae):\n'
-                '    """One-line verdict from the pooled MAE ratio; the thresholds only name the direction, they are not a test."""\n'
+                '    """One-line verdict from an error ratio (model / baseline); the thresholds only name the direction, they are not a test."""\n'
                 '    if baseline_mae <= 0:\n'
                 '        return float("inf"), "baseline error is zero; ratio undefined"\n'
                 '    ratio = model_mae / baseline_mae\n'
@@ -330,12 +367,22 @@ TEMPLATE = {
                 '    for (_, truth_row), prediction in zip(truth.iterrows(), pred, strict=True):\n'
                 '        baseline_rows.append({{"channel": channel, "timestamp": truth_row["timestamp"], "truth": float(truth_row["value"]), "prediction": float(prediction)}})\n'
                 '    channel_held = held[held["channel"] == channel]\n'
-                '    channel_std = float(source["value"].std(ddof=0))\n'
-                '    per_channel[channel] = {{"channel_std": channel_std, "model": error_summary(channel_held["original_value"], channel_held["imputed_value"])}}\n'
+                "    # Scale = spread of the channel's observed, non-hidden points, so each channel's error is unit-free (review M1).\n"
+                '    channel_std = float(source.loc[~source["is_holdout"], "value"].std(ddof=0))\n'
+                '    model_errors = channel_held["imputed_value"].to_numpy(dtype=float) - channel_held["original_value"].to_numpy(dtype=float)\n'
+                '    per_channel[channel] = {{"channel_std": channel_std, "model": error_summary(channel_held["original_value"], channel_held["imputed_value"]), "model_bias": float(model_errors.mean()) if model_errors.size else float("nan")}}\n'
                 '    if np.isfinite(pred).all() and pred.size:\n'
                 '        per_channel[channel]["baseline"] = error_summary(truth["value"], pred)\n'
+                '        per_channel[channel]["baseline_bias"] = float(np.mean(pred - truth["value"].to_numpy(dtype=float)))\n'
                 '        per_channel[channel]["baseline_predictions_all_equal"] = bool(np.allclose(pred, pred[0]))\n'
+                '        if channel_std > 0:\n'
+                '            scaled_model = per_channel[channel]["model"]["mae"] / channel_std\n'
+                '            scaled_baseline = per_channel[channel]["baseline"]["mae"] / channel_std\n'
+                '            channel_ratio, channel_line = compare_to_baseline(scaled_model, scaled_baseline)\n'
+                '            per_channel[channel].update({{"scaled_mae_model": scaled_model, "scaled_mae_baseline": scaled_baseline, "ratio": channel_ratio, "verdict": channel_line}})\n'
                 'baseline_frame = pd.DataFrame(baseline_rows)\n'
+                'verdict_basis = ""\n'
+                'raw_ratio = None\n'
                 'if baseline_frame.empty or not np.isfinite(baseline_frame["prediction"]).all():\n'
                 '    print("baseline unavailable: held-out region could not be interpolated from neighboring data")\n'
                 '    baseline_metrics = None\n'
@@ -344,11 +391,25 @@ TEMPLATE = {
                 'else:\n'
                 '    baseline_metrics = {{k: v for k, v in error_summary(baseline_frame["truth"], baseline_frame["prediction"]).items() if k != "n"}}\n'
                 '    print(f"tutorial baseline ({{baseline_name}}):", baseline_metrics)\n'
-                '    mae_ratio, verdict_line = compare_to_baseline(metrics.mae, baseline_metrics["mae"])\n'
-                'print("per-channel masked-point errors (model vs baseline; channel_std = spread of the channel):")\n'
+                '    scaled_rows = [row for row in per_channel.values() if "scaled_mae_model" in row]\n'
+                '    if scaled_rows:\n'
+                '        pooled_scaled_model = float(np.mean([row["scaled_mae_model"] for row in scaled_rows]))\n'
+                '        pooled_scaled_baseline = float(np.mean([row["scaled_mae_baseline"] for row in scaled_rows]))\n'
+                '        mae_ratio, verdict_line = compare_to_baseline(pooled_scaled_model, pooled_scaled_baseline)\n'
+                '        verdict_basis = f"scale-free: mean over {{len(scaled_rows)}} channel(s) of MAE / channel std, model {{pooled_scaled_model:.4f}} vs baseline {{pooled_scaled_baseline:.4f}}"\n'
+                '    else:\n'
+                '        mae_ratio, verdict_line = compare_to_baseline(metrics.mae, baseline_metrics["mae"])\n'
+                '        verdict_basis = "raw pooled MAE: no channel has a usable spread"\n'
+                '    raw_ratio = metrics.mae / baseline_metrics["mae"] if baseline_metrics["mae"] > 0 else float("inf")\n'
+                'print("per-channel masked-point errors (model vs baseline; channel_std = spread of the observed, non-hidden points; bias = mean signed error, prediction minus truth):")\n'
                 'for channel, row in per_channel.items():\n'
                 '    print("  ", channel, json.dumps(row))\n'
-                'print("VERDICT:", verdict_line, f"(pooled MAE {{metrics.mae:.4f}} vs baseline {{baseline_metrics[\'mae\']:.4f}})" if baseline_metrics else "")\n'
+                'for channel, row in per_channel.items():\n'
+                '    if "verdict" in row:\n'
+                '        print(f"VERDICT ({{channel}}): {{row[\'verdict\']}} (MAE / std: model {{row[\'scaled_mae_model\']:.4f}} vs baseline {{row[\'scaled_mae_baseline\']:.4f}}; bias: model {{row[\'model_bias\']:+.4f}}, baseline {{row[\'baseline_bias\']:+.4f}})")\n'
+                'print("VERDICT:", verdict_line, f"({{verdict_basis}})" if baseline_metrics else "")\n'
+                'if baseline_metrics:\n'
+                '    print(f"secondary (mixes units, not a verdict): raw pooled MAE {{metrics.mae:.4f}} vs baseline {{baseline_metrics[\'mae\']:.4f}}, ratio {{raw_ratio:.2f}}")'
                 '\n'
                 'visible_rows = scored_window[scored_window["source_observed"] & ~scored_window["model_hidden"]]\n'
                 'fidelity = {{channel: visible_point_fidelity(rows["original_value"], rows["reconstruction"]) for channel, rows in visible_rows.groupby("channel", sort=False)}}\n'
@@ -358,6 +419,8 @@ TEMPLATE = {
                 '\n'
                 'report = evaluation_report(result, model=pipe, sample_kind=sample_kind, baseline=baseline_metrics, baseline_id="linear_interpolation" if holdout_interior else "last_value_hold")\n'
                 'report["verdict_line"] = verdict_line\n'
+                'report["verdict_basis"] = verdict_basis\n'
+                'report["raw_pooled_mae_ratio"] = raw_ratio\n'
                 'report["per_channel"] = per_channel\n'
                 'report["visible_point_fidelity"] = fidelity\n'
                 'with open("outputs/{stem}_evaluation_report.json", "w", encoding="utf-8") as handle:\n'
@@ -369,14 +432,62 @@ TEMPLATE = {
         },
         {
             "md": (
-                '<details><summary>Check your reasoning</summary>On the recorded runs it did not. The Kaggle CPU run of 14 September 2026 (previous version, trailing holdout) printed pooled MAE 1.121 for the model against 0.171 for the baseline (a last-value hold) — 6.6× worse, temperature 2.047 vs 0.172 and vibration 0.196 vs 0.170 per channel — and the review of 2 October 2026 moved the 8-step holdout to every one of the 32 patch positions of this sample: the model lost to the baseline at all 32 (interior median MAE 0.99 vs 0.062). Its visible-point correlation was 0.087 (temperature) and 0.012 (vibration), so the reconstruction does not track the series either. Over 8 steps a smooth trend plus sinusoids is close to linear, so interpolation is a strong baseline here, but a correlation near zero on visible points is not explained by that: it means the pinned base checkpoint, called through this path, returns values near the series mean. Compare your `VERDICT` line and `fidelity` with these numbers. The verdict `sample-sanity` still applies: one holdout cannot rank the methods in general, and nothing here says what MOMENT does on other data.</details>\n\n**Change one thing (optional):** pick another interior candidate printed in Section 5, set `HOLDOUT_START` to it, and re-run Sections 5–9. Predict first: will the verdict flip, and will the baseline predictions still vary within a channel? Explain what you see from the per-channel table and the plot in Section 8.'
+                '<details><summary>Check your reasoning</summary>It depends on the channel. In the hosted Colab T4 run of 17 October 2026 of commit `032c262` (MOMENT-1-large @ `ca58581b`, blob `f76d3be12ca7`, Colab account 2; REL13: an earlier blob of this notebook carrying the same modules; executed notebook in `docs/execution-evidence/2026-10-17/`) the default interior holdout gave, per channel, `temperature` MAE 0.159 against 0.032 for linear interpolation (model about 4.9× worse, `ca58581b`) and `vibration` 0.057 against 0.072 (model about 1.3× better, `ca58581b`). Divided by each channel\'s spread (std of its observed, non-hidden points: 1.80 and 0.256) and averaged, the model scores 0.155 and the baseline 0.150, a ratio of 1.03, which the notebook\'s ±5 % rule prints as **about equal** (`ca58581b`). The raw pooled MAE (0.1080 vs 0.0523, `ca58581b`) is printed only as a secondary number: it averages degrees with vibration units, so temperature dominates it. The signed bias on the holdout was -0.159 for the model on `temperature` (every hidden value under-predicted, `ca58581b`), so the temperature deficit looks like a level offset; **its cause is not established** here. On a smooth 96-step temperature cycle an 8-step gap is close to a straight line, which favours interpolation, while the 16-step term in `vibration` makes the gap half a cycle, where a straight line does worse. With the optional sweep below (CPU build record of 17 October 2026, the same code on a local CPU; the sweep is off by default and was not part of the hosted run), over the 30 interior holdout positions the scale-free ratio had median 1.10 (range 0.41–2.03) and the model was better at 12; per channel, temperature median 4.09 (better at 1 of 30) and vibration median 0.74 (better at 25 of 30), all `ca58581b`. For contrast, the previously pinned MOMENT-1-base (`9fea447e`) printed pooled MAE 0.6045 against 0.0523 (11.5× worse) on the recorded Colab T4 run of blob `50746e51`, 5.1× worse even when scaled. The verdict `sample-sanity` still applies: one synthetic series cannot rank the methods in general, and nothing here says what MOMENT does on other data.</details>\n\n**Change one thing (optional):** pick another interior candidate printed in Section 5, set `HOLDOUT_START` to it, and re-run Sections 5–9. Predict first: will the verdict flip, and will the baseline predictions still vary within a channel? Explain what you see from the per-channel table and the plot in Section 8.'
+            ),
+        },
+        {
+            "md": (
+                "**Optional — move the holdout (scale-free sweep).** Tick `RUN_HOLDOUT_SWEEP` and run this cell to hide every **interior** 8-step patch of the scored window in turn (patches with observed points on both sides, so the baseline is always linear interpolation; the first and last patches are left out because there the baseline would be a hold, a different task). For each position and channel it prints MAE divided by the channel's spread for the model and the baseline, their ratio, and the median and range of the ratios. It re-runs the model once per position (about 30 forward passes) and writes nothing to `outputs/`; the default path never runs it."
+            ),
+            "code": (
+                'RUN_HOLDOUT_SWEEP = False  # @param {{type:"boolean"}}\n'
+                '\n'
+                '\n'
+                'def holdout_sweep(windows, model, patch=8):\n'
+                '    """Hide each interior patch of window 0 in turn; per channel, MAE / std of model and linear baseline."""\n'
+                '    valid = windows.input_mask[0] == 1\n'
+                '    observed = (windows.point_mask[0] == 1).all(axis=0) & valid\n'
+                '    first, last = int(np.flatnonzero(valid)[0]), int(np.flatnonzero(valid)[-1])\n'
+                '    rows = []\n'
+                '    for begin in range(first + patch, last + 1 - patch, patch):\n'
+                '        span = slice(begin, begin + patch)\n'
+                '        if not observed[span].all():\n'
+                '            continue\n'
+                '        visible = np.ones_like(windows.input_mask, dtype=np.float32)\n'
+                '        visible[0, span] = 0\n'
+                '        sweep_result = impute(windows, model, mask=visible, warmup=False)\n'
+                '        hidden = (sweep_result.model_mask[0] == 0) & valid\n'
+                '        keep = valid & ~hidden & observed\n'
+                '        index = np.arange(windows.x_enc.shape[2])\n'
+                '        row = {{"start": begin}}\n'
+                '        for c, channel in enumerate(windows.channels):\n'
+                '            truth = windows.x_enc[0, c].astype(float)\n'
+                '            spread = float(truth[keep].std())\n'
+                '            linear = np.interp(index, index[keep], truth[keep])\n'
+                '            model_mae = float(np.abs(sweep_result.reconstruction[0, c][hidden] - truth[hidden]).mean()) / spread\n'
+                '            linear_mae = float(np.abs(linear[hidden] - truth[hidden]).mean()) / spread\n'
+                '            row[channel] = {{"model": model_mae, "baseline": linear_mae, "ratio": model_mae / linear_mae if linear_mae > 0 else float("inf")}}\n'
+                '        rows.append(row)\n'
+                '    return rows\n'
+                '\n'
+                '\n'
+                'if RUN_HOLDOUT_SWEEP:\n'
+                '    sweep = holdout_sweep(windows, pipe)\n'
+                '    print("interior holdout positions:", len(sweep))\n'
+                '    for channel in windows.channels:\n'
+                '        ratios = np.array([row[channel]["ratio"] for row in sweep])\n'
+                '        print(f"  {{channel}}: model/baseline ratio of MAE/std - median {{np.median(ratios):.2f}}, min {{ratios.min():.2f}}, max {{ratios.max():.2f}}; model better at {{int((ratios < 1).sum())}} of {{ratios.size}}")\n'
+                '    pooled = np.array([np.mean([row[c]["model"] for c in windows.channels]) / np.mean([row[c]["baseline"] for c in windows.channels]) for row in sweep])\n'
+                '    print(f"  pooled scale-free ratio - median {{np.median(pooled):.2f}}, min {{pooled.min():.2f}}, max {{pooled.max():.2f}}; model better at {{int((pooled < 1).sum())}} of {{pooled.size}}")\n'
+                'else:\n'
+                '    print("Holdout sweep not run (tick RUN_HOLDOUT_SWEEP to run it).")'
             ),
         },
         {
             "md": (
                 '## 8. Visualize the held-out patch: truth, model and baseline\n'
                 '\n'
-                'One diagnostic plot per channel of the **scored window** (the series Section 5 held out, whichever series the CSV lists last), centred on the hidden patch: the source truth, the model reconstruction across the whole span (on the shaded held-out positions it is the imputed value; elsewhere it shows how closely the reconstruction tracks points the model could see), and the baseline on the held-out positions only. `imputed_value` replaces only source-missing or deliberately hidden cells; observed neighbours hidden from the model only because they share the patch are not overwritten. Successful output makes the verdict of Section 7 visually inspectable; it does not replace the machine-readable export.'
+                'One diagnostic plot per channel of the **scored window** (the **first canonical window** Section 5 held out: the series whose `series_id` sorts first), centred on the hidden patch: the source truth, the model reconstruction across the whole span (on the shaded held-out positions it is the imputed value; elsewhere it shows how closely the reconstruction tracks points the model could see), and the baseline on the held-out positions only. `imputed_value` replaces only source-missing or deliberately hidden cells; observed neighbours hidden from the model only because they share the patch are not overwritten. Successful output makes the verdict of Section 7 visually inspectable; it does not replace the machine-readable export.'
             ),
             "code": (
                 'def write_line_svg(path, layers, *, title, width=760, height=280, shade=None, x_labels=("", "")):\n'
@@ -487,11 +598,13 @@ TEMPLATE = {
         '\n'
         "A successful run proves that the carried package can validate this input, reconstruct with the pinned MOMENT checkpoint, keep source missingness separate from artificial evaluation masking, score only known withheld truth, preserve observed values in the imputed product, and export results and provenance. Successful execution proves that the recorded repository revision's package, carried in this notebook, can do exactly that — without the repository being reachable — and no more.\n"
         '\n'
-        '**The recorded result is a negative one, and the notebook says so.** On the synthetic sample the pinned MOMENT-1-base checkpoint, called through this path, **did not beat the naive baseline on any recorded run**: the Kaggle CPU run of 14 September 2026 (previous version, trailing holdout) scored pooled MAE 1.121 against 0.171 for a last-value hold; the review of 2 October 2026 (local CPU, same weights, transformers 5.16.1 and upstream\'s own 4.33.3 giving the same numbers to seven significant figures) rotated the holdout over all 32 patch positions and the model lost at every one (interior median 0.99 vs 0.062), and its reconstruction of points it could see correlated with the truth at 0.087 and 0.012 — no better than predicting the series mean. The head tensors are proven live against the pinned file, so this is what the pinned base checkpoint returns here, not a loading error; the cause (checkpoint behaviour, or the upstream call convention for the base model) was not determined and is listed as an open repository question. Read your own `VERDICT` line and `fidelity` figures the same way: if the ratio is above 1, the imputed values on this sample are **not** better than the interpolation between neighbours, and the exported imputed product should be read as a demonstration of the contract (masking, scoring, preservation, provenance), not as a usable imputation of this series.\n'
+        '**What the numbers say.** On the default sample the pinned MOMENT-1-large checkpoint loses to linear interpolation on `temperature` (MAE 0.159 vs 0.032) and beats it on `vibration` (0.057 vs 0.072); scaled per channel and averaged, the two are about equal (0.155 vs 0.150). All figures are from the hosted Colab T4 run of 17 October 2026 of commit `032c262` (MOMENT-1-large @ `ca58581b`, blob `f76d3be12ca7`, Colab account 2; REL13: an earlier blob of this notebook carrying the same modules; executed notebook in `docs/execution-evidence/2026-10-17/`). The model\'s temperature error is a consistent under-prediction (bias -0.159), and why it arises is **not established**: a level offset from instance normalisation over a short, left-padded window is one candidate, and has not been tested here. Read your own per-channel `VERDICT` lines first and the pooled one second; a ratio above 1 on a channel means the imputed values on that channel are **not** better than interpolation between neighbours.\n\n**Why MOMENT-1-large.** Until 17 October 2026 this repository pinned MOMENT-1-base, whose released reconstruction head is strongly indicated not to reconstruct its input (on a clean, unpadded sine its reconstruction is uncorrelated with the input); the switch was decided on that clean-sine diagnostic, run independently of this tutorial\'s sample, not by comparing tutorial scores. The evidence and a script that reproduces it: [scripts/diagnose_reconstruction_head.py](https://github.com/kurtvalcorza/moment-pipeline/blob/main/scripts/diagnose_reconstruction_head.py) and [RFC 0001, Amendment 1](https://github.com/kurtvalcorza/moment-pipeline/blob/main/docs/rfc/0001-moment-base.md).\n'
         '\n'
         'It **does not prove** that the displayed MAE/RMSE generalize to other series or domains, that MOMENT loses (or wins) against interpolation in general, or that the model supplies calibrated per-prediction uncertainty; the evaluation report says `sample-sanity` for that reason. It does **not** establish benchmark superiority, deployment calibration, safety for high-consequence decisions, or production fitness on an unseen domain. This path returns point reconstructions only; no uncertainty interval is provided.\n'
         '\n'
         '**Next experiments:** move `HOLDOUT_START` over several interior candidates and tabulate the per-channel MAE of model and baseline (the review\'s 32-position sweep takes under 10 s on CPU); repeat domain-appropriate masking over an independent dataset, report dispersion across windows/series, and compare multiple baselines without using the evaluation set for model selection; enable `USE_BYOD` with a series that has genuine source gaps and read how `masked_point_fraction` and `model_masked_point_fraction` diverge — note the **cross-channel patch coupling**: when one channel is missing at a position, MOMENT hides that whole 8-step patch for *every* channel, so observed points of the other channels are hidden from the model (and reported as `model_hidden`, never overwritten), which is why `model_masked_point_fraction` exceeds the source fraction.\n'
+        '\n'
+        '**Pretraining overlap (BYOD).** MOMENT was pretrained on the Time-series Pile, which includes public benchmark series such as ETT, Weather, Electricity, Traffic, the UCR/UEA archives and Monash; a zero-shot score on one of those, brought in as your own data, is therefore optimistic. The default sample is generated in code by this notebook and cannot be in the Pile.\n'
         '\n'
         '## Troubleshooting\n\n'
         '- **Section 1 stops with "This notebook needs a Linux x86_64 runtime"** — use Google Colab, Kaggle or a Linux x86_64 Jupyter server.\n'
@@ -511,7 +624,7 @@ TEMPLATE = {
         '- **Long-format table** — one row per `(series_id, timestamp, channel, value)`; the package turns it into windows.\n'
         '- **Window / patch** — the 512-step input MOMENT reads per series, cut into 64 non-overlapping 8-step patches.\n'
         '- **Left padding / truncation** — a series shorter than 512 steps is padded at the start and the padding masked out; a longer one keeps its final 512 timestamps.\n'
-        '- **Instance normalisation** — each window is rescaled by its own mean and spread before the encoder, so the absolute level is removed.\n'
+        '- **Instance normalisation** — each window is rescaled by its own mean and spread before the encoder, so the absolute level is removed; the mean and spread are computed only over observed, visible points, never over padding or the held-out patch.\n'
         '- **Input manifest** — the record of what validation saw and changed (padding, truncation, missingness) before the model ran.\n'
         '- **Isolated environment** — the separate Python 3.12.12 environment Section 1 builds from the hash lock; every later cell runs there.\n'
         '- **Visibility mask / patch quantization** — which positions the model may see; MOMENT hides whole 8-step patches, so a requested hidden point hides its patch neighbours too.\n'
@@ -519,7 +632,7 @@ TEMPLATE = {
         '- **Interior / trailing holdout** — a hidden patch with observed points on both sides (a gap) versus one at the end of the series (an extrapolation).\n'
         '- **Interpolation baseline / last-value hold** — a straight line between the nearest visible neighbours, or (for a trailing holdout) the last observed value repeated; scored on the same hidden points.\n'
         '- **Verdict / MAE ratio** — model MAE ÷ baseline MAE on the hidden points; above 1 the model did worse than the naive baseline.\n'
-        '- **Visible-point fidelity** — the correlation between the reconstruction and the truth on points the model could see; near 1 means the output tracks the input, near 0 means it does not.\n'
+        '- **Visible-point fidelity** — the correlation between the reconstruction and the truth on points the model could see; near 1 means the output tracks the input, near 0 means it does not. It says nothing about the hidden patch and ignores offset and scale.\n'
         '- **`sample-sanity`** — the evaluation verdict for one deterministic holdout: a check, not an estimate.\n'
         '- **BYOD** — bring your own data: your long-format CSV through the same cells.\n\n'
         '## Conclusion (your notes)\n\nOptional — fill in from **your** run:\n\n'
@@ -530,11 +643,11 @@ TEMPLATE = {
         '\n'
         '## References\n'
         '\n'
-        '- Repository README: https://github.com/kurtvalcorza/moment-pipeline/blob/main/README.md\n'
-        '- Repository model card: https://github.com/kurtvalcorza/moment-pipeline/blob/main/MODEL_CARD.md\n'
-        '- Sample dataset card: https://github.com/kurtvalcorza/moment-pipeline/blob/main/examples/sample-data/DATASET_CARD.md\n'
-        '- Upstream model: https://huggingface.co/{MODEL_ID}\n'
-        '- Upstream library: https://github.com/moment-timeseries-foundation-model/moment\n'
-        '- MOMENT: A Family of Open Time-series Foundation Models: https://arxiv.org/abs/2402.03885'
+        '[1] M. Goswami, K. Szafer, A. Choudhry, Y. Cai, S. Li, and A. Dubrawski, "MOMENT: A family of open time-series foundation models," in *Proc. 41st Int. Conf. Mach. Learn. (ICML)*, 2024. [Online]. Available: https://arxiv.org/abs/2402.03885\n\n'
+        '[2] Auton Lab, Carnegie Mellon University, "{MODEL_ID}," model card, Hugging Face, rev. `{MODEL_REVISION}`, licence MIT. [Online]. Available: https://huggingface.co/{MODEL_ID}\n\n'
+        '[3] Auton Lab, Carnegie Mellon University, "moment," source code, GitHub, commit `38f7310ad594100747ca2a8357e9c7ca7d323e0e`. [Online]. Available: https://github.com/moment-timeseries-foundation-model/moment\n\n'
+        '[4] K. Valcorza, "moment-pipeline README," GitHub. [Online]. Available: https://github.com/kurtvalcorza/moment-pipeline/blob/main/README.md\n\n'
+        '[5] K. Valcorza, "moment-pipeline model card," GitHub. [Online]. Available: https://github.com/kurtvalcorza/moment-pipeline/blob/main/MODEL_CARD.md\n\n'
+        '[6] K. Valcorza, "moment-pipeline synthetic sample dataset card," GitHub. [Online]. Available: https://github.com/kurtvalcorza/moment-pipeline/blob/main/examples/sample-data/DATASET_CARD.md'
     ),
 }

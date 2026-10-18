@@ -20,11 +20,11 @@ from moment_pipeline.model import (
 from moment_pipeline.provenance import build_provenance, measure_latency
 
 IDENTITY = ModelIdentity(
-    name="AutonLab/MOMENT-1-base",
+    name="AutonLab/MOMENT-1-large",
     revision=PINNED_REVISION,
-    config_sha256="f1c66c2bb845229c0ed27a1600dbcc956b85ab21f9e5fd8a1663e6641bed7755",
-    weights_sha256="1a436826ffe618273ec62b9656dc4cab8edc470364f104e90542a4ebc14fb825",
-    weights_bytes=453_940_120,
+    config_sha256="b0111650e8718e31d7e89575666aa3e140747d35279ec1a7c9f6ed7616c29433",
+    weights_sha256="a56928052ac6f5d09b97c3834bea6ce3aef9f02b513b5fac98954e7377801572",
+    weights_bytes=1_385_501_256,
     license="MIT",
     license_basis="model card metadata",
     weight_file_loaded="model.safetensors",

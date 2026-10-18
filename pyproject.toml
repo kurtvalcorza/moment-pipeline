@@ -1,7 +1,7 @@
 [project]
 name = "moment-pipeline"
 version = "0.1.0"
-description = "DIMER pipeline for AutonLab/MOMENT-1-base: embeddings, imputation/reconstruction, and reconstruction-based anomaly scoring."
+description = "DIMER pipeline for AutonLab/MOMENT-1-large: embeddings, imputation/reconstruction, and reconstruction-based anomaly scoring."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 license = { text = "MIT" }

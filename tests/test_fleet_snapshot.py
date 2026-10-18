@@ -93,7 +93,7 @@ def pinned_to_stand_in(monkeypatch, tmp_path):
 def test_fleet_identity_names_alias_the_package_pins():
     assert (MODEL_ID, MODEL_REVISION) == (PINNED_MODEL_ID, PINNED_REVISION)
     assert MODEL_LICENSE == "MIT"
-    assert MODEL_KEY == "moment-1-base"
+    assert MODEL_KEY == "moment-1-large"
     assert model_mod.DEFAULT_WEIGHTS_DIR == ROOT / "weights" / MODEL_KEY
 
 
@@ -246,8 +246,9 @@ def test_verify_snapshot_dir_accepts_a_manifest_directory_named_by_key(pinned_to
 
 
 class _FakePipeline:
-    def __init__(self):
-        self.config = types.SimpleNamespace(d_model=768)
+    def __init__(self, num_layers: int = 24, built_layers: int = 24):
+        self.config = types.SimpleNamespace(d_model=1024, t5_config={"num_layers": num_layers})
+        self.encoder = types.SimpleNamespace(block=[object()] * built_layers)
         self.head = types.SimpleNamespace(__class__=type("PretrainHead", (), {}))
 
     def init(self):
@@ -281,6 +282,19 @@ def test_load_moment_from_weights_dir_never_calls_snapshot_download(monkeypatch,
     assert loaded.identity.revision == MODEL_REVISION
     assert loaded.snapshot.path == pinned_to_stand_in
     assert loaded.identity.task == "reconstruction"
+
+
+@pytest.mark.parametrize(("num_layers", "built_layers"), [(12, 12), (24, 12), (12, 24)])
+def test_load_moment_refuses_an_encoder_that_is_not_the_pinned_24_layers(monkeypatch, pinned_to_stand_in, num_layers, built_layers):
+    class FakeMomentPipeline:
+        @staticmethod
+        def from_pretrained(path, model_kwargs=None):
+            return _FakePipeline(num_layers, built_layers)
+
+    monkeypatch.setitem(sys.modules, "momentfm", types.SimpleNamespace(MOMENTPipeline=FakeMomentPipeline))
+    monkeypatch.setattr(model_mod, "prove_pinned_weights_are_live", lambda pipeline, weights_path, task: {"proof": "stand-in"})
+    with pytest.raises(model_mod.IntegrityError, match="ENCODER_DEPTH"):
+        model_mod.load_moment(task="reconstruction", device="cpu", weights_dir=pinned_to_stand_in)
 
 
 def test_load_moment_from_weights_dir_refuses_to_download_by_default(monkeypatch, pinned_to_stand_in):

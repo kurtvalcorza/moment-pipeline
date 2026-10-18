@@ -1,10 +1,10 @@
 """Model-backed checks of the classification adaptation contract against the real pinned
-MOMENT-1-base weights (CPU): frozen features and the k-NN baseline on synthetic frequency-coded
+MOMENT-1-large weights (CPU): frozen features and the k-NN baseline on synthetic frequency-coded
 windows, a linear probe plus a one-epoch unfreeze of the last block, and the artifact round trip
 with head and block tensors.
 
 Marked `integration` and excluded from the default CI job like `test_integration_model.py`; the
-fixture prefers the fleet snapshot under `weights/moment-1-base/` when it is staged and falls back
+fixture prefers the fleet snapshot under `weights/moment-1-large/` when it is staged and falls back
 to the verified Hub cache otherwise."""
 
 from __future__ import annotations
@@ -73,7 +73,7 @@ def model():
 
 def test_frozen_features_and_knn_separate_frequencies(model):
     vectors, ordered = features(RECORDS[:9], model)
-    assert vectors.shape == (9, 768) and np.allclose(
+    assert vectors.shape == (9, 1024) and np.allclose(
         np.linalg.norm(vectors, axis=1), 1.0, atol=1e-4
     )
     assert [r["id"] for r in ordered] == sorted(r["id"] for r in RECORDS[:9])
@@ -95,10 +95,10 @@ def test_probe_then_one_epoch_unfreeze_and_artifact_round_trip(model, tmp_path):
         "linear probe"
     )
     assert (
-        adapter.config["n_trainable_head"] == 768 * 3 + 3
-        and adapter.config["n_trainable_blocks"] == 7_079_424
+        adapter.config["n_trainable_head"] == 1024 * 3 + 3
+        and adapter.config["n_trainable_blocks"] == 12_847_104
     )
-    assert adapter.config["n_total"] == 109_635_456 and len(adapter.history) == 2
+    assert adapter.config["n_total"] == 341_240_320 and len(adapter.history) == 2
     assert adapter.config["best_epoch"] in (0, 1) and adapter.config["trainable_blocks"] == 1
     assert (adapter.policy == POLICY_FROZEN) == (adapter.config["best_epoch"] == 0)
     metrics = evaluate(model, adapter, RECORDS[12:])
