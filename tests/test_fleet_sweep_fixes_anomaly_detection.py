@@ -267,7 +267,7 @@ def test_swp_b_byod_path_reads_a_csv_without_colab(nb: dict, tmp_path: Path, mon
     csv.write_text("series_id,timestamp,channel,value\nS,2026-01-01T00:00:00,c,1.0\nS,2026-01-01T00:15:00,c,2.0\n", encoding="utf-8")
     ns = _run_section4(nb, True, str(csv))
     assert ns["sample_kind"] == "BYOD" and ns["sample_identity"]["name"] == "mine.csv"
-    with pytest.raises(Exception, match="BYOD input refused.*missing.csv") as excinfo:
+    with pytest.raises(Exception, match="^missing.csv: the path does not exist") as excinfo:
         _run_section4(nb, True, str(tmp_path / "missing.csv"))
     assert getattr(excinfo.value, "dimer_refusal", False)
 
@@ -280,7 +280,7 @@ def test_swp_b_empty_path_off_colab_and_cancelled_upload_are_named(
     monkeypatch.chdir(tmp_path)
     monkeypatch.delitem(sys.modules, "google.colab", raising=False)
     monkeypatch.setitem(sys.modules, "google", types.ModuleType("google"))
-    with pytest.raises(Exception, match="BYOD input refused.*only in Google Colab"):
+    with pytest.raises(Exception, match=r"^\(no file\): .*only in Google Colab"):
         _run_section4(nb, True, "")
     google = types.ModuleType("google")
     colab = types.ModuleType("google.colab")
@@ -290,7 +290,7 @@ def test_swp_b_empty_path_off_colab_and_cancelled_upload_are_named(
     google.colab = colab
     monkeypatch.setitem(sys.modules, "google", google)
     monkeypatch.setitem(sys.modules, "google.colab", colab)
-    with pytest.raises(Exception, match="BYOD input refused.*upload exactly one CSV"):
+    with pytest.raises(Exception, match=r"^\(no file\): upload exactly one CSV"):
         _run_section4(nb, True, "")
 
 
@@ -305,10 +305,10 @@ def test_dat20_refusal_keeps_outputs_marks_them_stale_and_clears_the_run(nb: dic
     assert ns["sample_kind"] == "synthetic"
     bad = tmp_path / "bad.csv"
     bad.write_text("series_id,when,channel,value\nS,2026-01-01T00:00:00,c,1.0\n", encoding="utf-8")
-    with pytest.raises(Exception, match="BYOD input refused - bad.csv") as excinfo:
+    with pytest.raises(Exception, match="^bad.csv: ") as excinfo:
         exec(compile(_section4(nb, True, str(bad)), "<section 4>", "exec"), ns)
     assert getattr(excinfo.value, "dimer_refusal", False)
-    assert excinfo.value._render_traceback_() == [str(excinfo.value)]
+    assert excinfo.value._render_traceback_() == ["Refused: " + str(excinfo.value)]
     assert "frame" not in ns and "sample_identity" not in ns
     assert (tmp_path / "outputs" / "earlier.json").is_file()
     marker = tmp_path / "outputs" / "RUN_INVALIDATED.txt"
