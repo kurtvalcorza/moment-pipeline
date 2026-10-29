@@ -240,3 +240,5 @@ embeddings `7bfc3151e54e`, imputation `50746e514d6b`. Those runs exercised the d
 all; the BYOD branches and the optional activities were not run. Promotion to `Release-grade` is a review decision
 against the procedure above for the exact release revision. Any later change to the carried modules or to a notebook
 yields a new blob that needs its own recorded run.
+
+The current blobs (code commit `25743c1`), `moment_anomaly_detection_colab.ipynb` `bb4bd0e5` (previously `576df8b9`), `moment_classification_colab.ipynb` `097e765a` (previously `c19de4e1`), `moment_embeddings_colab.ipynb` `9c541491` (previously `b643ae55`), `moment_imputation_colab.ipynb` `28f7ecef` (previously `d8c33d66`), show a refused BYOD input as exactly one `Refused: <file>: <reason>` line (previously a differently prefixed line), with no traceback, and stop Run all at that cell; genuine failures keep their traceback (NOTEBOOK_SPEC DAT19/DAT20). Their hosted Colab T4 runs (the default path and a scripted refusal, `USE_BYOD=True;BYOD_PATH='/etc/hostname'`) are pending, and the hosted runs of earlier blobs are history for them (REL14).
