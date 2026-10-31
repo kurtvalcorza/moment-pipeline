@@ -1,0 +1,80 @@
+{
+  "repo": "moment-pipeline",
+  "sha": "0dab8e31ae54d151e6e65ff2b806264aa1128836",
+  "notebook": "tutorials/moment_classification_colab.ipynb",
+  "blob": "097e765ab09e8f86bd6b91a8b98fc6c648cf8369",
+  "gpu": "T4",
+  "session": "suite-moment-0dab8e3-d81f",
+  "started_utc": "2026-10-29T17:52:50+00:00",
+  "runner": "Colab CLI `colab exec -f` on a fresh session (not a browser Run all)",
+  "overrides": [
+    {
+      "name": "USE_BYOD",
+      "from": "False",
+      "to": "True"
+    },
+    {
+      "name": "BYOD_PATH",
+      "from": "\\\"\\\"",
+      "to": "'/etc/hostname'"
+    }
+  ],
+  "run_copy_blob": "cfc844384e319b08b34b96bb8115e55966c62dc7",
+  "run_copy_sha256": "b0681db6ed75bca16a96ce45c03849e6e3b1e0ffed7df8ca711e7e1d31486e17",
+  "run_copy_note": "refusal run: the run copy is the committed notebook with the listed assignment overrides, cut immediately after the refusal cell and re-serialised (nbformat layout); input_unchanged compares against that copy",
+  "truncated_after_cell": "moment_classification-35",
+  "refusal_cell_ref": "moment_classification-35",
+  "refusal_cell_index": 16,
+  "cells_dropped": 15,
+  "code_cells_dropped": 5,
+  "original_sha256": "ee2f8aed2d6997aba49b1b2937885485bca7f9a4dbd7cc9ed18b04703e360a84",
+  "status": "[suite-moment-0dab8e3-d81f] gpu-t4-s-usw1b1-2xdkg8j9kvjk7 | Hardware: T4 | Shape: Standard | Variant: GPU | Status: IDLE",
+  "exec_exit_code": 0,
+  "stopped": true,
+  "stop_verified": true,
+  "wall_s": 141.5,
+  "input_unchanged": true,
+  "executed_file": "moment_classification_colab_0dab8e3_colab-cli-t4_output.ipynb",
+  "log_cells": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16
+  ],
+  "log_total": 16,
+  "code_cells": 16,
+  "executed_cells": 4,
+  "errors": [
+    {
+      "cell": "moment_classification-35",
+      "ename": "IsolatedCellRefusal",
+      "evalue": "hostname: BYOD datasets must be a directory or a .zip holding records.csv and the .npy windows. Earlier files in outputs/ were kept but marked stale (outputs/RUN_INVALIDATED.txt), and the previous results were cleared from memory. Fix the file or BYOD_PATH and run this cell again, or untick USE_BYOD"
+    }
+  ],
+  "execution_counts": [],
+  "sequential": null,
+  "executed_sha256": "e064188eb0e19c537df2bb50364ceb235f13b73fae0a00d4fa67868f1d046146",
+  "log_sequential_complete": true,
+  "mode": "expect_refusal",
+  "refusal_line": "Refused: hostname: BYOD datasets must be a directory or a .zip holding records.csv and the .npy windows. Earlier files in outputs/ were kept but marked stale (outputs/RUN_INVALIDATED.txt), and the previous results were cleared from memory. Fix the file or BYOD_PATH and run this cell again, or untick USE_BYOD to return to the HAPT sample.",
+  "halting_cell_index": 16,
+  "halting_cell_id": "moment_classification-35",
+  "error_cells": [
+    16
+  ],
+  "refusal_fail_reasons": [],
+  "refusal_ok": true,
+  "verdict": "PASS"
+}
