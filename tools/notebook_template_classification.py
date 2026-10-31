@@ -195,12 +195,12 @@ TEMPLATE = {
                 "os.makedirs('outputs', exist_ok=True)\n"
                 "t0 = time.perf_counter()\n"
                 'class BYODRefusal(Exception):\n'
-                '    """A refused BYOD input (NOTEBOOK_SPEC DAT20): shown as one message, with no traceback."""\n'
+                '    """A refused BYOD input (NOTEBOOK_SPEC DAT20), <file>: <reason>: shown as the one line Refused: <file>: <reason>, with no traceback."""\n'
                 '\n'
-                '    dimer_refusal = True  # the isolated-environment router prints the message alone\n'
+                '    dimer_refusal = True  # the isolated-environment router shows the same one line\n'
                 '\n'
                 '    def _render_traceback_(self):  # the same when the cell runs in the kernel itself\n'
-                '        return [str(self)]\n'
+                '        return [f"Refused: {{self}}"]\n'
                 '\n'
                 '\n'
                 'RUN_STALE_MARKER = Path("outputs") / "RUN_INVALIDATED.txt"\n'
@@ -217,7 +217,7 @@ TEMPLATE = {
                 '        globals().pop(stale, None)\n'
                 '    Path("outputs").mkdir(exist_ok=True)\n'
                 '    RUN_STALE_MARKER.write_text(f"Active run invalidated by a refused BYOD input ({{source}}): {{rule}}\\nFiles in outputs/ come from an earlier run; they are NOT results for this input.\\n", encoding="utf-8")\n'
-                '    return BYODRefusal(f"BYOD input refused - {{source}}: {{rule}} Earlier files in outputs/ were kept but marked stale (outputs/RUN_INVALIDATED.txt), and the previous results were cleared from memory. Fix the file or BYOD_PATH and run this cell again, or untick USE_BYOD to return to the HAPT sample.")\n'
+                '    return BYODRefusal(f"{{source}}: {{rule}} Earlier files in outputs/ were kept but marked stale (outputs/RUN_INVALIDATED.txt), and the previous results were cleared from memory. Fix the file or BYOD_PATH and run this cell again, or untick USE_BYOD to return to the HAPT sample.")\n'
                 '\n'
                 '\n'
                 'def byod_file(path, kind, suffixes=()):\n'
@@ -248,7 +248,7 @@ TEMPLATE = {
                 '    try:\n'
                 "        byod_path = byod_file(BYOD_PATH, 'labelled-window archive or file accepted by load_byod_dataset')\n"
                 '    except (FileNotFoundError, RuntimeError, ValueError) as exc:\n'
-                "        raise refuse_byod(repr(BYOD_PATH) if str(BYOD_PATH).strip() else 'upload dialog', f'{{exc}}') from None\n"
+                "        raise refuse_byod((Path(str(BYOD_PATH).strip()).name or str(BYOD_PATH).strip()) if str(BYOD_PATH).strip() else '(no file)', f'{{exc}}') from None\n"
                 '    try:\n'
                 '        records = load_byod_dataset(byod_path)\n'
                 '        splits = split_dataset(records, seed=SPLIT_SEED)\n'

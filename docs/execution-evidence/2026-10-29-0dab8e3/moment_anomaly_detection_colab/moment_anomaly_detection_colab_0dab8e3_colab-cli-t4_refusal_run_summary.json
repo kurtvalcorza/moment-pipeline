@@ -1,0 +1,78 @@
+{
+  "repo": "moment-pipeline",
+  "sha": "0dab8e31ae54d151e6e65ff2b806264aa1128836",
+  "notebook": "tutorials/moment_anomaly_detection_colab.ipynb",
+  "blob": "bb4bd0e5ef19772c9340866a5493a2686c57914e",
+  "gpu": "T4",
+  "session": "suite-moment-0dab8e3-bdc0",
+  "started_utc": "2026-10-29T17:44:32+00:00",
+  "runner": "Colab CLI `colab exec -f` on a fresh session (not a browser Run all)",
+  "overrides": [
+    {
+      "name": "USE_BYOD",
+      "from": "False",
+      "to": "True"
+    },
+    {
+      "name": "BYOD_PATH",
+      "from": "\\\"\\\"",
+      "to": "'/etc/hostname'"
+    }
+  ],
+  "run_copy_blob": "df76422de9caf150c412f1a4a0807d26fffb1707",
+  "run_copy_sha256": "90b2ff695cff1ecc1aacc77b5523df89cd08a80503f85ea23fcc3b338b6e1241",
+  "run_copy_note": "refusal run: the run copy is the committed notebook with the listed assignment overrides, cut immediately after the refusal cell and re-serialised (nbformat layout); input_unchanged compares against that copy",
+  "truncated_after_cell": "moment_anomaly_detection-31",
+  "refusal_cell_ref": "moment_anomaly_detection-31",
+  "refusal_cell_index": 14,
+  "cells_dropped": 13,
+  "code_cells_dropped": 5,
+  "original_sha256": "2412465947f313ab5f0af5a3089fea1a19dcc33c310330a2f205d983b0f768a7",
+  "status": "[suite-moment-0dab8e3-bdc0] gpu-t4-s-usw4b0-eqqmbgq107d8 | Hardware: T4 | Shape: Standard | Variant: GPU | Status: IDLE",
+  "exec_exit_code": 0,
+  "stopped": true,
+  "stop_verified": true,
+  "wall_s": 120.4,
+  "input_unchanged": true,
+  "executed_file": "moment_anomaly_detection_colab_0dab8e3_colab-cli-t4_output.ipynb",
+  "log_cells": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14
+  ],
+  "log_total": 14,
+  "code_cells": 14,
+  "executed_cells": 4,
+  "errors": [
+    {
+      "cell": "moment_anomaly_detection-31",
+      "ename": "IsolatedCellRefusal",
+      "evalue": "hostname: [MISSING_COLUMNS] long-format input requires columns ['series_id', 'timestamp', 'channel', 'value']; missing ['series_id', 'timestamp', 'channel', 'value']. Earlier files in outputs/ were kept but marked stale (outputs/RUN_INVALIDATED.txt), and the previous results were cleared from memory"
+    }
+  ],
+  "execution_counts": [],
+  "sequential": null,
+  "executed_sha256": "5d61ca8819019daa8fe9351e54ba9a2aea6c1b5320696d98f4c24f71e74e0e74",
+  "log_sequential_complete": true,
+  "mode": "expect_refusal",
+  "refusal_line": "Refused: hostname: [MISSING_COLUMNS] long-format input requires columns ['series_id', 'timestamp', 'channel', 'value']; missing ['series_id', 'timestamp', 'channel', 'value']. Earlier files in outputs/ were kept but marked stale (outputs/RUN_INVALIDATED.txt), and the previous results were cleared from memory. Fix the CSV or BYOD_PATH and run this cell again, or untick USE_BYOD to return to the sample.",
+  "halting_cell_index": 14,
+  "halting_cell_id": "moment_anomaly_detection-31",
+  "error_cells": [
+    14
+  ],
+  "refusal_fail_reasons": [],
+  "refusal_ok": true,
+  "verdict": "PASS"
+}
